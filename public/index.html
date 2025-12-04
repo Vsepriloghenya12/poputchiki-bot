@@ -230,10 +230,14 @@
       margin-top: 4px;
       cursor: pointer;
     }
+    textarea {
+      resize: vertical;
+    }
   </style>
 </head>
 <body>
   <div class="app">
+    <!-- Лого и информация о пользователе -->
     <div class="card">
       <div class="logo-row">
         <div class="logo-icon">
@@ -253,6 +257,7 @@
       </div>
     </div>
 
+    <!-- Выбор роли -->
     <div class="card">
       <div class="subtitle">Кто вы?</div>
       <div class="role-buttons">
@@ -264,7 +269,7 @@
       </div>
     </div>
 
-    <!-- Водитель: создание поездки + машина -->
+    <!-- Водитель: создание поездки + машина + оплата -->
     <div class="card hidden" id="driver-section">
       <div class="subtitle">Создать поездку</div>
 
@@ -317,6 +322,22 @@
       </div>
       <button class="secondary-btn" id="btn-save-car">Сохранить машину</button>
       <div class="info" id="driver-car-message"></div>
+
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
+
+      <!-- Блок оплаты для водителя (появляется в платном режиме) -->
+      <div id="driver-payment-block" class="hidden">
+        <div class="subtitle">Оплата комиссии за сегодня</div>
+        <div class="info" id="driver-payment-info">
+          Загрузка информации о сегодняшних поездках...
+        </div>
+        <div class="info" id="driver-payment-requisites"></div>
+        <div class="field">
+          <label for="driver-payment-file">Прикрепите чек об оплате</label>
+          <input id="driver-payment-file" type="file" />
+        </div>
+        <button class="secondary-btn" id="btn-upload-payment">Загрузить чек</button>
+      </div>
     </div>
 
     <!-- Водитель: активная поездка -->
@@ -349,10 +370,51 @@
         Выберите режим «Я пассажир», чтобы загрузить поездки.
       </div>
     </div>
+
+    <!-- Админ: статистика и управление оплатой (только для 504348666) -->
+    <div class="card hidden" id="admin-section">
+      <div class="subtitle">Админ-панель сервиса</div>
+
+      <div class="info" id="admin-settings-info">
+        Загрузка настроек...
+      </div>
+
+      <div class="field">
+        <label for="admin-payment-details">Реквизиты для оплаты</label>
+        <textarea
+          id="admin-payment-details"
+          rows="3"
+          style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid #d1d5db;font-size:13px;"
+        ></textarea>
+      </div>
+
+      <div class="role-buttons" style="margin-top:4px;">
+        <button class="secondary-btn" id="btn-disable-pay">Сделать сервис бесплатным</button>
+        <button class="primary-btn" id="btn-enable-pay">Включить оплату для водителей</button>
+      </div>
+
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
+
+      <div class="subtitle">Статистика сервиса</div>
+      <button class="secondary-btn" id="btn-load-stats">Обновить статистику</button>
+      <div class="info" id="admin-stats-info">
+        Доступно только владельцу сервиса.
+      </div>
+
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
+
+      <div class="subtitle">Водители за сегодня</div>
+      <button class="secondary-btn" id="btn-load-daily-drivers">Показать водителей</button>
+      <div class="info" id="admin-daily-drivers">
+        Здесь будет список водителей, которые сегодня возили пассажиров, и их чеки.
+      </div>
+    </div>
   </div>
 
   <script>
     const tg = window.Telegram ? window.Telegram.WebApp : null;
+    const ADMIN_ID = 504348666;
+
     let currentTelegramUser = null;
     let activeTripId = null;
 
@@ -380,6 +442,24 @@
 
     const driverCarMessage = document.getElementById('driver-car-message');
 
+    const driverPaymentBlock = document.getElementById('driver-payment-block');
+    const driverPaymentInfo = document.getElementById('driver-payment-info');
+    const driverPaymentRequisites = document.getElementById('driver-payment-requisites');
+    const driverPaymentFile = document.getElementById('driver-payment-file');
+    const btnUploadPayment = document.getElementById('btn-upload-payment');
+
+    const adminSection = document.getElementById('admin-section');
+    const adminSettingsInfo = document.getElementById('admin-settings-info');
+    const adminPaymentDetails = document.getElementById('admin-payment-details');
+    const btnEnablePay = document.getElementById('btn-enable-pay');
+    const btnDisablePay = document.getElementById('btn-disable-pay');
+
+    const btnLoadStats = document.getElementById('btn-load-stats');
+    const adminStatsInfo = document.getElementById('admin-stats-info');
+
+    const btnLoadDailyDrivers = document.getElementById('btn-load-daily-drivers');
+    const adminDailyDrivers = document.getElementById('admin-daily-drivers');
+
     // Инициализация из Telegram
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       tg.expand();
@@ -392,12 +472,28 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user: currentTelegramUser }),
-      }).catch((err) => console.error('Ошибка init-user:', err));
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            console.error('Ошибка init-user:', data.error);
+          }
+          if (currentTelegramUser && String(currentTelegramUser.id) === String(ADMIN_ID)) {
+            adminSection.classList.remove('hidden');
+            loadAdminSettings();
+          } else {
+            adminSection.classList.add('hidden');
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка init-user:', err);
+        });
     } else {
       userInfoDiv.textContent =
         'Это мини-приложение работает только внутри Telegram. Откройте его через бота.';
     }
 
+    // Переключение ролей
     btnDriver.addEventListener('click', () => {
       if (!currentTelegramUser) {
         roleInfo.textContent = 'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
@@ -411,6 +507,7 @@
 
       loadDriverProfile();
       loadDriverActiveTrip();
+      loadDriverPaymentInfo();
     });
 
     btnPassenger.addEventListener('click', () => {
@@ -460,13 +557,16 @@
           note,
         }),
       })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.error) {
-            driverMessage.textContent = 'Ошибка: ' + data.error;
+        .then((res) =>
+          res.json().then((data) => ({ ok: res.ok, data }))
+        )
+        .then(({ ok, data }) => {
+          if (!ok || data.error) {
+            driverMessage.textContent = 'Ошибка: ' + (data.error || 'не удалось создать поездку');
           } else {
             driverMessage.textContent = 'Поездка создана.';
             loadDriverActiveTrip();
+            loadDriverPaymentInfo();
           }
         })
         .catch((err) => {
@@ -584,7 +684,7 @@
       loadDriverTripBookings(activeTripId);
     });
 
-    // Загрузка поездок (пассажир)
+    // Список поездок (пассажир)
     function loadTrips() {
       tripsList.textContent = 'Загрузка поездок...';
 
@@ -897,6 +997,282 @@
           alert('Произошла ошибка при обновлении статуса.');
         });
     }
+
+    // Блок оплаты для водителя
+    function loadDriverPaymentInfo() {
+      if (!currentTelegramUser) {
+        driverPaymentBlock.classList.add('hidden');
+        return;
+      }
+
+      fetch(`/api/driver/daily-stats?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverPaymentBlock.classList.add('hidden');
+            return;
+          }
+
+          const settings = data.settings || {};
+          const stats = data.stats || {};
+          const hasProof = !!data.has_proof_today;
+
+          if (!settings.monetization_enabled) {
+            driverPaymentBlock.classList.add('hidden');
+            return;
+          }
+
+          driverPaymentBlock.classList.remove('hidden');
+
+          const trips = stats.trips_count || 0;
+          const bookings = stats.bookings_count || 0;
+          const seats = stats.seats_count || 0;
+          const fee = stats.app_fee_total || 0;
+
+          let infoText =
+            'Сервис стал немного платным для водителей. Комиссия помогает поддерживать и развивать "попутчики".\n\n' +
+            `За сегодня у вас:\n` +
+            `• Поездок с бронями: ${trips}\n` +
+            `• Бронирований: ${bookings}\n` +
+            `• Мест: ${seats}\n` +
+            `• Комиссия сервиса за сегодня: ${fee.toFixed(2)} ₽`;
+
+          if (fee > 0 && !hasProof) {
+            infoText +=
+              '\n\nПосле оплаты комиссии и прикрепления чека вы сможете создавать новые поездки.';
+          } else if (hasProof) {
+            infoText += '\n\nЧек за сегодня уже прикреплён. Спасибо, вы можете продолжать работать.';
+          } else if (fee === 0) {
+            infoText += '\n\nСегодня пока нет комиссий — чек можно не прикреплять.';
+          }
+
+          driverPaymentInfo.textContent = infoText;
+
+          const details = settings.payment_details || '';
+          if (details) {
+            driverPaymentRequisites.innerHTML =
+              'Реквизиты для оплаты:<br/>' +
+              details.replace(/\n/g, '<br/>');
+          } else {
+            driverPaymentRequisites.textContent =
+              'Реквизиты для оплаты ещё не настроены администратором.';
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки дневной статистики водителя:', err);
+          driverPaymentInfo.textContent = 'Не удалось загрузить данные по комиссии за сегодня.';
+        });
+    }
+
+    btnUploadPayment.addEventListener('click', () => {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+      if (!driverPaymentFile.files || !driverPaymentFile.files[0]) {
+        alert('Выберите файл чека для загрузки.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('telegram_id', String(currentTelegramUser.id));
+      formData.append('file', driverPaymentFile.files[0]);
+
+      fetch('/api/driver/payment-proof', {
+        method: 'POST',
+        body: formData,
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Чек загружен. Спасибо!');
+            driverPaymentFile.value = '';
+            loadDriverPaymentInfo();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки чека:', err);
+          alert('Произошла ошибка при загрузке файла.');
+        });
+    });
+
+    // Админ-панель: загрузка настроек
+    function loadAdminSettings() {
+      if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) {
+        return;
+      }
+
+      adminSettingsInfo.textContent = 'Загрузка настроек...';
+
+      fetch(`/api/admin/settings?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) =>
+          res.json().then((data) => ({ ok: res.ok, data }))
+        )
+        .then(({ ok, data }) => {
+          if (!ok || data.error) {
+            adminSettingsInfo.textContent = 'Ошибка: ' + (data.error || 'нет доступа');
+            return;
+          }
+
+          const s = data.settings || {};
+          const enabled = !!s.monetization_enabled;
+
+          adminSettingsInfo.textContent =
+            'Платный режим для водителей сейчас: ' +
+            (enabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН') +
+            '.';
+
+          adminPaymentDetails.value = s.payment_details || '';
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки admin settings:', err);
+          adminSettingsInfo.textContent = 'Произошла ошибка при загрузке настроек.';
+        });
+    }
+
+    function saveAdminSettings(monetizationEnabled) {
+      if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) {
+        return;
+      }
+
+      const details = adminPaymentDetails.value || '';
+
+      adminSettingsInfo.textContent = 'Сохранение настроек...';
+
+      fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          monetization_enabled: monetizationEnabled,
+          payment_details: details,
+        }),
+      })
+        .then((res) =>
+          res.json().then((data) => ({ ok: res.ok, data }))
+        )
+        .then(({ ok, data }) => {
+          if (!ok || data.error) {
+            adminSettingsInfo.textContent = 'Ошибка: ' + (data.error || 'не удалось сохранить');
+            return;
+          }
+          const s = data.settings || {};
+          const enabled = !!s.monetization_enabled;
+
+          adminSettingsInfo.textContent =
+            'Платный режим для водителей сейчас: ' +
+            (enabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН') +
+            '. Реквизиты обновлены.';
+        })
+        .catch((err) => {
+          console.error('Ошибка сохранения admin settings:', err);
+          adminSettingsInfo.textContent = 'Произошла ошибка при сохранении настроек.';
+        });
+    }
+
+    btnEnablePay.addEventListener('click', () => {
+      saveAdminSettings(true);
+    });
+
+    btnDisablePay.addEventListener('click', () => {
+      saveAdminSettings(false);
+    });
+
+    // Админ: статистика сервиса
+    btnLoadStats.addEventListener('click', () => {
+      if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) {
+        adminStatsInfo.textContent = 'Нет доступа.';
+        return;
+      }
+
+      adminStatsInfo.textContent = 'Загрузка статистики...';
+
+      fetch(`/api/admin/stats?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) =>
+          res.json().then((data) => ({ ok: res.ok, data }))
+        )
+        .then(({ ok, data }) => {
+          if (!ok || data.error) {
+            adminStatsInfo.textContent = 'Ошибка: ' + (data.error || 'нет доступа');
+            return;
+          }
+
+          const s = data.stats || {};
+          const trips = s.trips_count || 0;
+          const bookings = s.bookings_count || 0;
+          const seats = s.seats_booked_total || 0;
+          const turnover = s.total_turnover || 0;
+          const fee = s.total_app_fee || 0;
+          const driverAmount = s.total_driver_amount || 0;
+
+          adminStatsInfo.innerHTML =
+            `Поездок с бронями: ${trips}<br/>` +
+            `Всего броней: ${bookings}<br/>` +
+            `Забронировано мест: ${seats}<br/><br/>` +
+            `Оборот (все брони): ${turnover.toFixed(2)} ₽<br/>` +
+            `Комиссия сервиса: ${fee.toFixed(2)} ₽<br/>` +
+            `Сумма водителям: ${driverAmount.toFixed(2)} ₽`;
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки статистики:', err);
+          adminStatsInfo.textContent = 'Произошла ошибка при загрузке статистики.';
+        });
+    });
+
+    // Админ: водители за сегодня
+    btnLoadDailyDrivers.addEventListener('click', () => {
+      if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) {
+        adminDailyDrivers.textContent = 'Нет доступа.';
+        return;
+      }
+
+      adminDailyDrivers.textContent = 'Загрузка списка водителей...';
+
+      fetch(`/api/admin/daily-drivers?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) =>
+          res.json().then((data) => ({ ok: res.ok, data }))
+        )
+        .then(({ ok, data }) => {
+          if (!ok || data.error) {
+            adminDailyDrivers.textContent = 'Ошибка: ' + (data.error || 'нет доступа');
+            return;
+          }
+
+          const list = data.drivers || [];
+          if (!list.length) {
+            adminDailyDrivers.textContent = 'Сегодня пока нет поездок с бронями.';
+            return;
+          }
+
+          let html = '';
+          list.forEach((d) => {
+            const name = `${d.first_name || ''} ${d.last_name || ''}`.trim() || 'без имени';
+            const username = d.username ? `@${d.username}` : '';
+            const fee = d.app_fee_total || 0;
+            let proofText = 'чек не прикреплялся';
+            if (d.last_proof_file) {
+              const url = `/uploads/${encodeURIComponent(d.last_proof_file)}`;
+              proofText = `последний чек: <a href="${url}" target="_blank">${d.last_proof_original_name || 'файл'}</a>`;
+            }
+
+            html +=
+              `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #e5e7eb;">` +
+              `<strong>${name}</strong> ${username}<br/>` +
+              `Поездок: ${d.trips_count || 0}, броней: ${d.bookings_count || 0}, мест: ${d.seats_count || 0}<br/>` +
+              `Комиссия за сегодня: ${fee.toFixed(2)} ₽<br/>` +
+              `${proofText}` +
+              `</div>`;
+          });
+
+          adminDailyDrivers.innerHTML = html;
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки водителей за сегодня:', err);
+          adminDailyDrivers.textContent = 'Произошла ошибка при загрузке списка.';
+        });
+    });
   </script>
 </body>
 </html>

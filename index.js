@@ -1,9 +1,12 @@
 require('dotenv').config();
 
+const fs = require('fs');
+const path = require('path');
+
 const { Telegraf } = require('telegraf');
 const express = require('express');
-const path = require('path');
 const bodyParser = require('body-parser');
+const multer = require('multer');
 
 const {
   upsertUserFromTelegram,
@@ -17,13 +20,19 @@ const {
   getTripBookingsForDriver,
   createBooking,
   markBookingNoShow,
+  getAppSettings,
+  updateAppSettings,
+  getDriverDailyStats,
+  hasDriverPaymentProofToday,
+  saveDriverPaymentProof,
   getAdminStats,
+  getAdminDailyDrivers,
 } = require('./db');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:3000';
 const PORT = process.env.PORT || 3000;
-const ADMIN_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID || '';
+const ADMIN_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID || '504348666';
 
 if (!BOT_TOKEN) {
   console.error('Ошибка: не задан BOT_TOKEN в .env или переменных окружения');
@@ -33,8 +42,24 @@ if (!BOT_TOKEN) {
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
 
+// Хранилище файлов чеков
+const uploadDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadDir)) {
+  fs.mkdirSync(uploadDir, { recursive: true });
+}
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => cb(null, uploadDir),
+  filename: (req, file, cb) => {
+    const unique = Date.now() + '-' + Math.round(Math.random() * 1e9);
+    const ext = path.extname(file.originalname || '');
+    cb(null, unique + ext);
+  },
+});
+const upload = multer({ storage });
+
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(uploadDir));
 
 // ====== БОТ ======
 
@@ -90,14 +115,16 @@ app.post('/api/init-user', async (req, res) => {
     }
 
     const dbUser = await upsertUserFromTelegram(user);
-    return res.json({ user: dbUser });
+    const settings = await getAppSettings();
+
+    return res.json({ user: dbUser, settings });
   } catch (err) {
     console.error('Ошибка /api/init-user:', err);
     return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
-// Создание поездки
+// Создание поездки (с учётом платного режима)
 app.post('/api/trips', async (req, res) => {
   try {
     const {
@@ -126,6 +153,22 @@ app.post('/api/trips', async (req, res) => {
       return res.status(400).json({
         error: 'Пользователь не найден. Сначала откройте Mini App через /start.',
       });
+    }
+
+    const settings = await getAppSettings();
+
+    if (settings && settings.monetization_enabled) {
+      const stats = await getDriverDailyStats(user.id);
+      const hasProof = await hasDriverPaymentProofToday(user.id);
+      const appFeeToday = (stats && stats.app_fee_total) || 0;
+
+      if (appFeeToday > 0 && !hasProof) {
+        return res.status(403).json({
+          error:
+            'Сервис стал частично платным для водителей.\n' +
+            'У вас есть комиссия за сегодняшние поездки. Оплатите её, прикрепите чек и после этого сможете создавать новые поездки.',
+        });
+      }
     }
 
     const trip = await createTrip({
@@ -196,6 +239,73 @@ app.post('/api/driver/profile', async (req, res) => {
     return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
+
+// Дневная статистика водителя (оплата)
+app.get('/api/driver/daily-stats', async (req, res) => {
+  try {
+    const telegram_id = req.query.telegram_id;
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'Не указан telegram_id' });
+    }
+
+    const user = await getUserByTelegramId(telegram_id);
+    if (!user) {
+      return res.status(400).json({ error: 'Водитель не найден' });
+    }
+
+    const [settings, stats, hasProof] = await Promise.all([
+      getAppSettings(),
+      getDriverDailyStats(user.id),
+      hasDriverPaymentProofToday(user.id),
+    ]);
+
+    return res.json({
+      settings: {
+        monetization_enabled: settings.monetization_enabled || 0,
+        payment_details: settings.payment_details || '',
+      },
+      stats: stats,
+      has_proof_today: !!hasProof,
+    });
+  } catch (err) {
+    console.error('Ошибка /api/driver/daily-stats:', err);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Загрузка чека водителем
+app.post(
+  '/api/driver/payment-proof',
+  upload.single('file'),
+  async (req, res) => {
+    try {
+      const telegram_id = req.body.telegram_id;
+      if (!telegram_id) {
+        return res.status(400).json({ error: 'Не указан telegram_id' });
+      }
+
+      const user = await getUserByTelegramId(telegram_id);
+      if (!user) {
+        return res.status(400).json({ error: 'Водитель не найден' });
+      }
+
+      if (!req.file) {
+        return res.status(400).json({ error: 'Файл не получен' });
+      }
+
+      await saveDriverPaymentProof(
+        user.id,
+        req.file.originalname,
+        req.file.filename
+      );
+
+      return res.json({ success: true });
+    } catch (err) {
+      console.error('Ошибка /api/driver/payment-proof:', err);
+      return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    }
+  }
+);
 
 // Бронирование мест
 app.post('/api/bookings', async (req, res) => {
@@ -412,7 +522,51 @@ app.post('/api/bookings/no-show', async (req, res) => {
   }
 });
 
-// Статистика для владельца
+// Настройки для админа (платный режим, реквизиты)
+app.get('/api/admin/settings', async (req, res) => {
+  try {
+    const telegram_id = req.query.telegram_id;
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'Не указан telegram_id' });
+    }
+
+    if (String(telegram_id) !== String(ADMIN_TELEGRAM_ID)) {
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
+
+    const settings = await getAppSettings();
+    return res.json({ settings });
+  } catch (err) {
+    console.error('Ошибка /api/admin/settings (GET):', err);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+app.post('/api/admin/settings', async (req, res) => {
+  try {
+    const { telegram_id, monetization_enabled, payment_details } = req.body;
+
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'Не указан telegram_id' });
+    }
+
+    if (String(telegram_id) !== String(ADMIN_TELEGRAM_ID)) {
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
+
+    const updated = await updateAppSettings({
+      monetizationEnabled: !!monetization_enabled,
+      paymentDetails: payment_details || '',
+    });
+
+    return res.json({ settings: updated });
+  } catch (err) {
+    console.error('Ошибка /api/admin/settings (POST):', err);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Статистика сервиса
 app.get('/api/admin/stats', async (req, res) => {
   try {
     const telegram_id = req.query.telegram_id;
@@ -420,7 +574,7 @@ app.get('/api/admin/stats', async (req, res) => {
       return res.status(400).json({ error: 'Не указан telegram_id' });
     }
 
-    if (!ADMIN_TELEGRAM_ID || String(telegram_id) !== String(ADMIN_TELEGRAM_ID)) {
+    if (String(telegram_id) !== String(ADMIN_TELEGRAM_ID)) {
       return res.status(403).json({ error: 'Нет доступа' });
     }
 
@@ -428,6 +582,26 @@ app.get('/api/admin/stats', async (req, res) => {
     return res.json({ stats });
   } catch (err) {
     console.error('Ошибка /api/admin/stats:', err);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Водители за сегодня + чеки (для админа)
+app.get('/api/admin/daily-drivers', async (req, res) => {
+  try {
+    const telegram_id = req.query.telegram_id;
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'Не указан telegram_id' });
+    }
+
+    if (String(telegram_id) !== String(ADMIN_TELEGRAM_ID)) {
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
+
+    const drivers = await getAdminDailyDrivers();
+    return res.json({ drivers });
+  } catch (err) {
+    console.error('Ошибка /api/admin/daily-drivers:', err);
     return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
