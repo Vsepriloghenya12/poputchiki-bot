@@ -844,64 +844,65 @@
     });
 
     function renderDriverTrips(trips) {
-      if (!trips || trips.length === 0) {
-        driverTripsList.textContent = 'Пока нет поездок.';
-        driverBookingsTitle.classList.add('hidden');
-        driverBookingsList.innerHTML = '';
-        return;
-      }
+  if (!trips || trips.length === 0) {
+    driverTripsList.textContent = 'Пока нет поездок.';
+    driverBookingsTitle.classList.add('hidden');
+    driverBookingsList.innerHTML = '';
+    return;
+  }
 
-      driverTripsList.innerHTML = '';
-      driverBookingsTitle.classList.add('hidden');
-      driverBookingsList.innerHTML = '';
+  driverTripsList.innerHTML = '';
+  driverBookingsTitle.classList.add('hidden');
+  driverBookingsList.innerHTML = '';
 
-      trips.forEach((trip) => {
-        const div = document.createElement('div');
-        div.className = 'trip';
+  trips.forEach((trip) => {
+    const div = document.createElement('div');
+    div.className = 'trip';
 
-        const header = document.createElement('div');
-        header.className = 'trip-header';
-        header.innerHTML = `
-          <span>${trip.from_city} → ${trip.to_city}</span>
-          <span>${trip.price_per_seat} ₽/место</span>
-        `;
+    const header = document.createElement('div');
+    header.className = 'trip-header';
+    header.innerHTML = `
+      <span>${trip.from_city} → ${trip.to_city}</span>
+      <span>${trip.price_per_seat} ₽/место</span>
+    `;
 
-        const sub = document.createElement('div');
-        sub.className = 'trip-sub';
-        sub.innerHTML = `
-          Выезд: ${trip.departure_time}<br/>
-          Бронирований: ${trip.bookings_count || 0}
-        `;
+    const sub = document.createElement('div');
+    sub.className = 'trip-sub';
+    sub.innerHTML = `
+      Выезд: ${trip.departure_time}<br/>
+      Бронирований: ${trip.bookings_count || 0}
+    `;
 
-        const noteDiv = document.createElement('div');
-        noteDiv.className = 'trip-note';
-        if (trip.note) {
-          noteDiv.textContent = 'Примечание: ' + trip.note;
-        }
-
-        const btnPassengers = document.createElement('button');
-        btnPassengers.className = 'secondary-btn';
-        btnPassengers.textContent = 'Показать пассажиров';
-        btnPassengers.addEventListener('click', () => {
-          loadDriverTripBookings(trip.id);
-        });
-
-        const btnDelete = document.createElement('button');
-        btnDelete.className = 'danger-btn';
-        btnDelete.textContent = 'Удалить поездку';
-        btnDelete.addEventListener('click', () => {
-          deleteDriverTrip(trip.id);
-        });
-
-        div.appendChild(header);
-        div.appendChild(sub);
-        if (trip.note) div.appendChild(noteDiv);
-        div.appendChild(btnPassengers);
-        div.appendChild(btnDelete);
-
-        driverTripsList.appendChild(div);
-      });
+    const noteDiv = document.createElement('div');
+    noteDiv.className = 'trip-note';
+    if (trip.note) {
+      noteDiv.textContent = 'Примечание: ' + trip.note;
     }
+
+    const btnPassengers = document.createElement('button');
+    btnPassengers.className = 'secondary-btn';
+    btnPassengers.textContent = 'Показать пассажиров';
+    btnPassengers.addEventListener('click', () => {
+      loadDriverTripBookings(trip.id);
+    });
+
+    const btnDelete = document.createElement('button');
+    btnDelete.className = 'danger-btn';
+    btnDelete.textContent = 'Удалить поездку';
+    btnDelete.addEventListener('click', () => {
+      deleteDriverTrip(trip.id);
+    });
+
+    div.appendChild(header);
+    div.appendChild(sub);
+    if (trip.note) div.appendChild(noteDiv);
+    div.appendChild(btnPassengers);
+    div.appendChild(btnDelete);
+
+    driverTripsList.appendChild(div);
+  });
+}
+
 
     function loadDriverTripBookings(tripId) {
       driverBookingsTitle.classList.remove('hidden');
