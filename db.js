@@ -14,7 +14,7 @@ db.serialize(() => {
       first_name TEXT,
       last_name TEXT,
       username TEXT,
-      role TEXT,          -- 'driver' или 'passenger' (на будущее)
+      role TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP
     )
   `);
@@ -26,7 +26,7 @@ db.serialize(() => {
       driver_id INTEGER NOT NULL,
       from_city TEXT NOT NULL,
       to_city TEXT NOT NULL,
-      departure_time TEXT NOT NULL,      -- ISO-строка
+      departure_time TEXT NOT NULL,
       seats_total INTEGER NOT NULL,
       seats_available INTEGER NOT NULL,
       price_per_seat REAL NOT NULL,
@@ -35,14 +35,14 @@ db.serialize(() => {
     )
   `);
 
-  // Бронирования (на будущее)
+  // Бронирования
   db.run(`
     CREATE TABLE IF NOT EXISTS bookings (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       trip_id INTEGER NOT NULL,
       passenger_id INTEGER NOT NULL,
       seats_booked INTEGER NOT NULL,
-      status TEXT DEFAULT 'booked',      -- 'booked','cancelled','paid' и т.п.
+      status TEXT DEFAULT 'booked',
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (trip_id) REFERENCES trips(id),
       FOREIGN KEY (passenger_id) REFERENCES users(id)
@@ -50,7 +50,7 @@ db.serialize(() => {
   `);
 });
 
-// Утилита для получения/создания пользователя по telegram_id
+// Создание/обновление пользователя по данным Telegram
 function upsertUserFromTelegram(user) {
   return new Promise((resolve, reject) => {
     if (!user || !user.id) {
@@ -88,6 +88,19 @@ function upsertUserFromTelegram(user) {
   });
 }
 
+function getUserByTelegramId(telegramId) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `SELECT * FROM users WHERE telegram_id = ?`,
+      [String(telegramId)],
+      (err, row) => {
+        if (err) return reject(err);
+        resolve(row || null);
+      }
+    );
+  });
+}
+
 // Создание поездки
 function createTrip({ driverId, fromCity, toCity, departureTime, seatsTotal, pricePerSeat }) {
   return new Promise((resolve, reject) => {
@@ -116,7 +129,7 @@ function createTrip({ driverId, fromCity, toCity, departureTime, seatsTotal, pri
   });
 }
 
-// Получение последних поездок (для пассажира)
+// Последние поездки (для пассажира)
 function getLatestTrips(limit = 20) {
   return new Promise((resolve, reject) => {
     db.all(
@@ -136,17 +149,125 @@ function getLatestTrips(limit = 20) {
   });
 }
 
-// Поиск пользователя по telegram_id
-function getUserByTelegramId(telegramId) {
+// Поездка + данные водителя (включая telegram_id)
+function getTripWithDriver(tripId) {
   return new Promise((resolve, reject) => {
     db.get(
-      `SELECT * FROM users WHERE telegram_id = ?`,
-      [String(telegramId)],
+      `
+        SELECT
+          t.*,
+          u.telegram_id AS driver_telegram_id,
+          u.first_name AS driver_first_name,
+          u.last_name AS driver_last_name,
+          u.username AS driver_username
+        FROM trips t
+        JOIN users u ON u.id = t.driver_id
+        WHERE t.id = ?
+      `,
+      [tripId],
       (err, row) => {
         if (err) return reject(err);
         resolve(row || null);
       }
     );
+  });
+}
+
+// Создание бронирования (с уменьшением свободных мест)
+function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
+  return new Promise((resolve, reject) => {
+    const seatsNum = Number(seatsBooked);
+
+    if (!Number.isFinite(seatsNum) || seatsNum <= 0) {
+      const err = new Error('Некорректное количество мест');
+      err.code = 'BAD_SEATS';
+      return reject(err);
+    }
+
+    db.serialize(() => {
+      // Находим пассажира
+      db.get(
+        `SELECT * FROM users WHERE telegram_id = ?`,
+        [String(passengerTelegramId)],
+        (errUser, passenger) => {
+          if (errUser) return reject(errUser);
+          if (!passenger) {
+            const err = new Error('Пассажир не найден');
+            err.code = 'PASSENGER_NOT_FOUND';
+            return reject(err);
+          }
+
+          // Находим поездку
+          db.get(
+            `SELECT * FROM trips WHERE id = ?`,
+            [tripId],
+            (errTrip, trip) => {
+              if (errTrip) return reject(errTrip);
+              if (!trip) {
+                const err = new Error('Поездка не найдена');
+                err.code = 'TRIP_NOT_FOUND';
+                return reject(err);
+              }
+
+              if (trip.seats_available < seatsNum) {
+                const err = new Error('Недостаточно свободных мест');
+                err.code = 'NOT_ENOUGH_SEATS';
+                return reject(err);
+              }
+
+              // Транзакция
+              db.run('BEGIN TRANSACTION', (errBegin) => {
+                if (errBegin) return reject(errBegin);
+
+                db.run(
+                  `
+                    INSERT INTO bookings (trip_id, passenger_id, seats_booked, status)
+                    VALUES (?, ?, ?, 'booked')
+                  `,
+                  [tripId, passenger.id, seatsNum],
+                  function (errIns) {
+                    if (errIns) {
+                      db.run('ROLLBACK');
+                      return reject(errIns);
+                    }
+
+                    const bookingId = this.lastID;
+
+                    db.run(
+                      `
+                        UPDATE trips
+                        SET seats_available = seats_available - ?
+                        WHERE id = ?
+                      `,
+                      [seatsNum, tripId],
+                      (errUpd) => {
+                        if (errUpd) {
+                          db.run('ROLLBACK');
+                          return reject(errUpd);
+                        }
+
+                        db.run('COMMIT', (errCommit) => {
+                          if (errCommit) return reject(errCommit);
+
+                          db.get(
+                            `SELECT * FROM bookings WHERE id = ?`,
+                            [bookingId],
+                            (errBooking, bookingRow) => {
+                              if (errBooking) return reject(errBooking);
+                              resolve({ booking: bookingRow, trip });
+                            }
+                          );
+                        });
+                      }
+                    );
+                  }
+                );
+              });
+            }
+          );
+        }
+      );
+    });
   });
 }
 
@@ -156,4 +277,6 @@ module.exports = {
   createTrip,
   getLatestTrips,
   getUserByTelegramId,
+  getTripWithDriver,
+  createBooking,
 };

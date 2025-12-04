@@ -55,6 +55,12 @@
       color: white;
       flex: 1;
     }
+    .primary-btn {
+      width: 100%;
+      margin-top: 8px;
+      background: #2563eb;
+      color: white;
+    }
     .info {
       font-size: 13px;
       color: #4b5563;
@@ -79,12 +85,6 @@
       border: 1px solid #d1d5db;
       font-size: 14px;
     }
-    .primary-btn {
-      width: 100%;
-      margin-top: 8px;
-      background: #2563eb;
-      color: white;
-    }
     .trip {
       border-bottom: 1px solid #e5e7eb;
       padding: 8px 0;
@@ -102,6 +102,7 @@
     .trip-sub {
       font-size: 12px;
       color: #6b7280;
+      margin-bottom: 6px;
     }
     .badge {
       display: inline-block;
@@ -136,7 +137,7 @@
       </div>
     </div>
 
-    <!-- Блок для водителя: создание поездки -->
+    <!-- Водитель -->
     <div class="card hidden" id="driver-section">
       <div class="subtitle">Создать поездку</div>
 
@@ -165,167 +166,224 @@
       <div class="info" id="driver-message"></div>
     </div>
 
-    <!-- Блок для пассажира: список поездок -->
+    <!-- Пассажир -->
     <div class="card hidden" id="passenger-section">
       <div class="subtitle">Доступные поездки</div>
       <div id="trips-list" class="info">
-        Загрузка поездок...
+        Выберите режим «Я пассажир», чтобы загрузить поездки.
       </div>
     </div>
   </div>
 
-    <script>
-  const tg = window.Telegram ? window.Telegram.WebApp : null;
-  let currentTelegramUser = null;
+  <script>
+    const tg = window.Telegram ? window.Telegram.WebApp : null;
+    let currentTelegramUser = null;
 
-  const userInfoDiv = document.getElementById('user-info');
+    const userInfoDiv = document.getElementById('user-info');
+    const btnDriver = document.getElementById('btn-driver');
+    const btnPassenger = document.getElementById('btn-passenger');
+    const roleInfo = document.getElementById('role-info');
+    const driverSection = document.getElementById('driver-section');
+    const passengerSection = document.getElementById('passenger-section');
+    const driverMessage = document.getElementById('driver-message');
+    const tripsList = document.getElementById('trips-list');
 
-  // Если открыто как Telegram Mini App
-  if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-    tg.expand();
-    currentTelegramUser = tg.initDataUnsafe.user;
+    // Инициализация из Telegram
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      tg.expand();
+      currentTelegramUser = tg.initDataUnsafe.user;
 
-    userInfoDiv.textContent =
-      `Вы вошли как: ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''} (@${currentTelegramUser.username || 'без username'})`;
+      userInfoDiv.textContent =
+        `Вы вошли как: ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''} (@${currentTelegramUser.username || 'без username'})`;
 
-    // Регистрируем пользователя в backend
-    fetch('/api/init-user', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ user: currentTelegramUser }),
-    }).catch(err => console.error(err));
-
-  } else {
-    // Открыто в обычном браузере
-    userInfoDiv.textContent =
-      'Это мини-приложение работает только внутри Telegram. Откройте его через Telegram-бота.';
-
-    // Блокируем интерфейсы
-    document.getElementById('driver-section').classList.add('hidden');
-    document.getElementById('passenger-section').classList.add('hidden');
-  }
-
-  // Весь остальной код остаётся прежним
-  const btnDriver = document.getElementById('btn-driver');
-  const btnPassenger = document.getElementById('btn-passenger');
-  const roleInfo = document.getElementById('role-info');
-  const driverSection = document.getElementById('driver-section');
-  const passengerSection = document.getElementById('passenger-section');
-  const driverMessage = document.getElementById('driver-message');
-  const tripsList = document.getElementById('trips-list');
-
-  btnDriver.addEventListener('click', () => {
-    if (!currentTelegramUser) {
-      roleInfo.textContent = 'Эта функция доступна только внутри Telegram.';
-      return;
-    }
-    roleInfo.textContent = 'Создайте поездку.';
-    driverSection.classList.remove('hidden');
-    passengerSection.classList.add('hidden');
-  });
-
-  btnPassenger.addEventListener('click', () => {
-    if (!currentTelegramUser) {
-      roleInfo.textContent = 'Эта функция доступна только внутри Telegram.';
-      return;
-    }
-    roleInfo.textContent = 'Просмотрите доступные поездки.';
-    passengerSection.classList.remove('hidden');
-    driverSection.classList.add('hidden');
-    loadTrips();
-  });
-
-  // Создание поездки
-  document.getElementById('btn-create-trip').addEventListener('click', () => {
-    if (!currentTelegramUser) {
-      driverMessage.textContent =
-        'Эта функция работает только внутри Telegram.';
-      return;
+      fetch('/api/init-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: currentTelegramUser }),
+      }).catch((err) => console.error('Ошибка init-user:', err));
+    } else {
+      userInfoDiv.textContent =
+        'Это мини-приложение работает только внутри Telegram. Откройте его через бота.';
     }
 
-    const fromCity = document.getElementById('from-city').value.trim();
-    const toCity = document.getElementById('to-city').value.trim();
-    const departureTime = document.getElementById('departure-time').value;
-    const seatsTotal = document.getElementById('seats-total').value;
-    const pricePerSeat = document.getElementById('price-per-seat').value;
-
-    if (!fromCity || !toCity || !departureTime || !seatsTotal || !pricePerSeat) {
-      driverMessage.textContent = 'Заполните все поля.';
-      return;
-    }
-
-    driverMessage.textContent = 'Создание поездки...';
-
-    fetch('/api/trips', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        telegram_id: String(currentTelegramUser.id),
-        from_city: fromCity,
-        to_city: toCity,
-        departure_time: departureTime,
-        seats_total: seatsTotal,
-        price_per_seat: pricePerSeat,
-      }),
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data.error) {
-          driverMessage.textContent = 'Ошибка: ' + data.error;
-        } else {
-          driverMessage.textContent = 'Поездка создана!';
-        }
-      })
-      .catch(err => {
-        driverMessage.textContent = 'Ошибка запроса.';
-        console.error(err);
-      });
-  });
-
-  // Загрузка поездок
-  function loadTrips() {
-    tripsList.textContent = 'Загрузка...';
-
-    fetch('/api/trips')
-      .then(res => res.json())
-      .then(data => {
-        if (data.error) {
-          tripsList.textContent = 'Ошибка: ' + data.error;
-        } else {
-          renderTrips(data.trips);
-        }
-      })
-      .catch(err => {
-        tripsList.textContent = 'Ошибка загрузки.';
-        console.error(err);
-      });
-  }
-
-  function renderTrips(trips) {
-    if (!trips || trips.length === 0) {
-      tripsList.textContent = 'Пока нет поездок.';
-      return;
-    }
-
-    tripsList.innerHTML = '';
-
-    trips.forEach(trip => {
-      const div = document.createElement('div');
-      div.className = 'trip';
-      div.innerHTML = `
-        <div class="trip-header">
-          <span>${trip.from_city} → ${trip.to_city}</span>
-          <span>${trip.price_per_seat} ₽</span>
-        </div>
-        <div class="trip-sub">
-          Водитель: ${(trip.first_name || '') + ' ' + (trip.last_name || '')}
-          <span class="badge">${trip.seats_available}/${trip.seats_total}</span><br/>
-          Выезд: ${trip.departure_time}
-        </div>
-      `;
-      tripsList.appendChild(div);
+    btnDriver.addEventListener('click', () => {
+      if (!currentTelegramUser) {
+        roleInfo.textContent = 'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
+        return;
+      }
+      roleInfo.textContent = 'Режим водителя: заполните форму и создайте поездку.';
+      driverSection.classList.remove('hidden');
+      passengerSection.classList.add('hidden');
     });
-  }
-</script>
+
+    btnPassenger.addEventListener('click', () => {
+      if (!currentTelegramUser) {
+        roleInfo.textContent = 'Откройте мини-приложение через Telegram, чтобы просматривать поездки.';
+        return;
+      }
+      roleInfo.textContent = 'Режим пассажира: просматривайте и бронируйте поездки.';
+      passengerSection.classList.remove('hidden');
+      driverSection.classList.add('hidden');
+      loadTrips();
+    });
+
+    // Создание поездки
+    document.getElementById('btn-create-trip').addEventListener('click', () => {
+      if (!currentTelegramUser) {
+        driverMessage.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      const fromCity = document.getElementById('from-city').value.trim();
+      const toCity = document.getElementById('to-city').value.trim();
+      const departureTime = document.getElementById('departure-time').value;
+      const seatsTotal = document.getElementById('seats-total').value;
+      const pricePerSeat = document.getElementById('price-per-seat').value;
+
+      if (!fromCity || !toCity || !departureTime || !seatsTotal || !pricePerSeat) {
+        driverMessage.textContent = 'Заполните все поля.';
+        return;
+      }
+
+      driverMessage.textContent = 'Создание поездки...';
+
+      fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          from_city: fromCity,
+          to_city: toCity,
+          departure_time: departureTime,
+          seats_total: seatsTotal,
+          price_per_seat: pricePerSeat,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverMessage.textContent = 'Ошибка: ' + data.error;
+          } else {
+            driverMessage.textContent = 'Поездка создана.';
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка создания поездки:', err);
+          driverMessage.textContent = 'Произошла ошибка при создании поездки.';
+        });
+    });
+
+    // Загрузка поездок
+    function loadTrips() {
+      tripsList.textContent = 'Загрузка поездок...';
+
+      fetch('/api/trips')
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            tripsList.textContent = 'Ошибка загрузки поездок: ' + data.error;
+            return;
+          }
+          renderTrips(data.trips || []);
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки поездок:', err);
+          tripsList.textContent = 'Произошла ошибка при загрузке поездок.';
+        });
+    }
+
+    function renderTrips(trips) {
+      if (!trips || trips.length === 0) {
+        tripsList.textContent = 'Пока нет доступных поездок.';
+        return;
+      }
+
+      tripsList.innerHTML = '';
+
+      trips.forEach((trip) => {
+        const div = document.createElement('div');
+        div.className = 'trip';
+
+        const header = document.createElement('div');
+        header.className = 'trip-header';
+        header.innerHTML = `
+          <span>${trip.from_city} → ${trip.to_city}</span>
+          <span>${trip.price_per_seat} ₽/место</span>
+        `;
+
+        const sub = document.createElement('div');
+        sub.className = 'trip-sub';
+        const driverName = `${trip.first_name || ''} ${trip.last_name || ''}`.trim();
+        sub.innerHTML = `
+          Водитель: ${driverName || 'без имени'}
+          <span class="badge">${trip.seats_available}/${trip.seats_total} мест</span><br/>
+          Выезд: ${trip.departure_time}
+        `;
+
+        const btn = document.createElement('button');
+        btn.className = 'primary-btn';
+        btn.textContent = 'Забронировать';
+        btn.addEventListener('click', () => {
+          handleBooking(trip);
+        });
+
+        div.appendChild(header);
+        div.appendChild(sub);
+        div.appendChild(btn);
+
+        tripsList.appendChild(div);
+      });
+    }
+
+    function handleBooking(trip) {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram, чтобы бронировать поездки.');
+        return;
+      }
+
+      const maxSeats = trip.seats_available;
+      if (maxSeats <= 0) {
+        alert('Свободных мест не осталось.');
+        return;
+      }
+
+      const input = prompt(`Сколько мест забронировать? (доступно: ${maxSeats})`, '1');
+      if (!input) return;
+
+      const seats = Number(input);
+      if (!Number.isFinite(seats) || seats <= 0) {
+        alert('Некорректное количество мест.');
+        return;
+      }
+
+      if (seats > maxSeats) {
+        alert('Нельзя забронировать больше, чем свободных мест.');
+        return;
+      }
+
+      fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          trip_id: trip.id,
+          seats,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Бронь оформлена. Водителю отправлено уведомление.');
+            loadTrips();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка бронирования:', err);
+          alert('Произошла ошибка при бронировании.');
+        });
+    }
+  </script>
 </body>
 </html>

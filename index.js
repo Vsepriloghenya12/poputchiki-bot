@@ -10,10 +10,11 @@ const {
   createTrip,
   getLatestTrips,
   getUserByTelegramId,
+  getTripWithDriver,
+  createBooking,
 } = require('./db');
 
-// ====== ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ ======
-
+// Переменные окружения
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:3000';
 const PORT = process.env.PORT || 3000;
@@ -23,32 +24,26 @@ if (!BOT_TOKEN) {
   process.exit(1);
 }
 
-// ====== ИНИЦИАЛИЗАЦИЯ БОТА И СЕРВЕРА ======
-
 const bot = new Telegraf(BOT_TOKEN);
 const app = express();
 
-// Парсим JSON в запросах API
 app.use(bodyParser.json());
-
-// Раздача статики для Mini App (папка public)
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ====== ЛОГИКА БОТА ======
 
-// /start — приветствие + кнопка открытия Mini App
 bot.start((ctx) => {
-  // Если URL локальный (http://localhost) — НЕ отправляем web_app кнопку
+  // Локальный режим (HTTP) — без web_app-кнопки
   if (WEBAPP_URL.startsWith('http://localhost')) {
     return ctx.reply(
       'Привет! Это бот "попутчики".\n' +
-      'Сейчас вы запустили его локально.\n\n' +
+      'Сейчас бот запущен локально.\n\n' +
       'Мини-приложение можно открыть в браузере по адресу:\n' +
       WEBAPP_URL
     );
   }
 
-  // Боевой режим: HTTPS-URL, можно слать web_app кнопку
+  // Продакшн-режим (HTTPS) — кнопка Mini App
   return ctx.reply(
     'Привет! Это бот "попутчики". Нажмите кнопку ниже, чтобы открыть мини-приложение.',
     {
@@ -73,7 +68,6 @@ bot.help((ctx) => {
   );
 });
 
-// На любые текстовые сообщения — подсказка использовать Mini App
 bot.on('text', (ctx) => {
   return ctx.reply(
     'Основной функционал доступен в мини-приложении.\n' +
@@ -83,7 +77,7 @@ bot.on('text', (ctx) => {
 
 // ====== API ДЛЯ MINI APP ======
 
-// 1) Инициализация/регистрация пользователя из Telegram WebApp
+// Инициализация пользователя
 app.post('/api/init-user', async (req, res) => {
   try {
     const { user } = req.body;
@@ -100,7 +94,7 @@ app.post('/api/init-user', async (req, res) => {
   }
 });
 
-// 2) Создание поездки водителем
+// Создание поездки
 app.post('/api/trips', async (req, res) => {
   try {
     const {
@@ -146,7 +140,7 @@ app.post('/api/trips', async (req, res) => {
   }
 });
 
-// 3) Получение списка последних поездок (для пассажира)
+// Список поездок
 app.get('/api/trips', async (req, res) => {
   try {
     const trips = await getLatestTrips(20);
@@ -157,14 +151,76 @@ app.get('/api/trips', async (req, res) => {
   }
 });
 
-// ====== МАРШРУТ ПО УМОЛЧАНИЮ — MINI APP ======
+// Бронирование мест
+app.post('/api/bookings', async (req, res) => {
+  try {
+    const { telegram_id, trip_id, seats } = req.body;
 
+    if (!telegram_id || !trip_id || !seats) {
+      return res.status(400).json({ error: 'Не все данные для бронирования переданы' });
+    }
+
+    const passenger = await getUserByTelegramId(telegram_id);
+    if (!passenger) {
+      return res.status(400).json({ error: 'Пассажир не найден. Откройте Mini App через /start.' });
+    }
+
+    const tripIdNum = Number(trip_id);
+    const seatsNum = Number(seats);
+
+    const { booking } = await createBooking({
+      tripId: tripIdNum,
+      passengerTelegramId: telegram_id,
+      seatsBooked: seatsNum,
+    });
+
+    const tripFull = await getTripWithDriver(tripIdNum);
+
+    // Уведомление водителю
+    if (tripFull && tripFull.driver_telegram_id) {
+      const passengerName = `${passenger.first_name || ''} ${passenger.last_name || ''}`.trim();
+      const passengerUsername = passenger.username ? `@${passenger.username}` : '';
+
+      const text =
+        'Новая бронь в "попутчики":\n\n' +
+        `Маршрут: ${tripFull.from_city} → ${tripFull.to_city}\n` +
+        `Выезд: ${tripFull.departure_time}\n\n` +
+        `Пассажир: ${passengerName || 'без имени'} ${passengerUsername}\n` +
+        `Забронировано мест: ${seatsNum}\n\n` +
+        'Свяжитесь с пассажиром в Telegram для подтверждения деталей.';
+
+      bot.telegram.sendMessage(tripFull.driver_telegram_id, text).catch((err) => {
+        console.error('Ошибка отправки уведомления водителю:', err);
+      });
+    }
+
+    return res.json({ booking, trip: tripFull });
+  } catch (err) {
+    console.error('Ошибка /api/bookings (POST):', err);
+
+    if (err.code === 'NOT_ENOUGH_SEATS') {
+      return res.status(400).json({ error: 'Недостаточно свободных мест.' });
+    }
+    if (err.code === 'TRIP_NOT_FOUND') {
+      return res.status(400).json({ error: 'Поездка не найдена.' });
+    }
+    if (err.code === 'PASSENGER_NOT_FOUND') {
+      return res.status(400).json({ error: 'Пассажир не найден.' });
+    }
+    if (err.code === 'BAD_SEATS') {
+      return res.status(400).json({ error: 'Некорректное количество мест.' });
+    }
+
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Mini App по умолчанию
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// ====== ЗАПУСК HTTP-СЕРВЕРА И БОТА ======
-
+// Запуск HTTP-сервера и бота
 app.listen(PORT, () => {
   console.log(`Веб-сервер запущен на http://0.0.0.0:${PORT}`);
 });
@@ -177,6 +233,5 @@ bot.launch()
     console.error('Ошибка запуска бота:', err);
   });
 
-// Корректное завершение бота
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
