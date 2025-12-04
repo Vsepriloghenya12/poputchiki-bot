@@ -269,7 +269,7 @@
       </div>
     </div>
 
-    <!-- Водитель: создание поездки + машина + оплата -->
+    <!-- Водитель: создание поездки + машина -->
     <div class="card hidden" id="driver-section">
       <div class="subtitle">Создать поездку</div>
 
@@ -322,22 +322,6 @@
       </div>
       <button class="secondary-btn" id="btn-save-car">Сохранить машину</button>
       <div class="info" id="driver-car-message"></div>
-
-      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
-
-      <!-- Блок оплаты для водителя (появляется в платном режиме) -->
-      <div id="driver-payment-block" class="hidden">
-        <div class="subtitle">Оплата комиссии за сегодня</div>
-        <div class="info" id="driver-payment-info">
-          Загрузка информации о сегодняшних поездках...
-        </div>
-        <div class="info" id="driver-payment-requisites"></div>
-        <div class="field">
-          <label for="driver-payment-file">Прикрепите чек об оплате</label>
-          <input id="driver-payment-file" type="file" />
-        </div>
-        <button class="secondary-btn" id="btn-upload-payment">Загрузить чек</button>
-      </div>
     </div>
 
     <!-- Водитель: активная поездка -->
@@ -371,7 +355,21 @@
       </div>
     </div>
 
-    <!-- Админ: статистика и управление оплатой (только для 504348666) -->
+    <!-- Водитель: блок оплаты (внизу приложения) -->
+    <div class="card hidden" id="driver-payment-block">
+      <div class="subtitle">Оплата комиссии за сегодня</div>
+      <div class="info" id="driver-payment-info">
+        Загрузка информации о сегодняшних поездках...
+      </div>
+      <div class="info" id="driver-payment-requisites"></div>
+      <div class="field">
+        <label for="driver-payment-file">Прикрепите чек об оплате</label>
+        <input id="driver-payment-file" type="file" />
+      </div>
+      <button class="secondary-btn" id="btn-upload-payment">Загрузить чек</button>
+    </div>
+
+    <!-- Админ: статистика и управление оплатой (тоже внизу) -->
     <div class="card hidden" id="admin-section">
       <div class="subtitle">Админ-панель сервиса</div>
 
@@ -520,6 +518,7 @@
       driverSection.classList.add('hidden');
       driverHistory.classList.add('hidden');
       driverActive.classList.add('hidden');
+      driverPaymentBlock.classList.add('hidden');
       loadTrips();
     });
 
