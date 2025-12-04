@@ -163,7 +163,7 @@ app.post('/api/trips', async (req, res) => {
     if (settings && settings.monetization_enabled) {
       const stats = await getDriverDailyStats(user.id);
       const hasProof = await hasDriverPaymentProofToday(user.id);
-      const appFeeToday = (stats && stats.app_fee_total) || 0;
+      const appFeeToday = (stats && stats.app_fee_total) || 0.05;
 
       if (appFeeToday > 0 && !hasProof) {
         return res.status(403).json({
