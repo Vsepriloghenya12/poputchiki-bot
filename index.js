@@ -38,6 +38,17 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // /start — приветствие + кнопка открытия Mini App
 bot.start((ctx) => {
+  // Если URL локальный (http://localhost) — НЕ отправляем web_app кнопку
+  if (WEBAPP_URL.startsWith('http://localhost')) {
+    return ctx.reply(
+      'Привет! Это бот "попутчики".\n' +
+      'Сейчас вы запустили его локально.\n\n' +
+      'Мини-приложение можно открыть в браузере по адресу:\n' +
+      WEBAPP_URL
+    );
+  }
+
+  // Боевой режим: HTTPS-URL, можно слать web_app кнопку
   return ctx.reply(
     'Привет! Это бот "попутчики". Нажмите кнопку ниже, чтобы открыть мини-приложение.',
     {
