@@ -24,7 +24,7 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       margin-bottom: 12px;
     }
-        .logo-row {
+    .logo-row {
       display: flex;
       align-items: center;
       gap: 14px;
@@ -145,6 +145,10 @@
       margin-bottom: 8px;
       font-size: 14px;
     }
+    .field-inline {
+      display: flex;
+      gap: 8px;
+    }
     .field label {
       color: #4b5563;
     }
@@ -153,6 +157,8 @@
       border-radius: 10px;
       border: 1px solid #d1d5db;
       font-size: 14px;
+      width: 100%;
+      box-sizing: border-box;
     }
     .trip {
       border-bottom: 1px solid #e5e7eb;
@@ -227,7 +233,8 @@
   </style>
 </head>
 <body>
-      <div class="card">
+  <div class="app">
+    <div class="card">
       <div class="logo-row">
         <div class="logo-icon">
           <div class="logo-car">🚘</div>
@@ -257,7 +264,7 @@
       </div>
     </div>
 
-    <!-- Водитель: создание поездки -->
+    <!-- Водитель: создание поездки + машина -->
     <div class="card hidden" id="driver-section">
       <div class="subtitle">Создать поездку</div>
 
@@ -273,13 +280,15 @@
         <label for="departure-time">Дата и время выезда</label>
         <input id="departure-time" type="datetime-local" />
       </div>
-      <div class="field">
-        <label for="seats-total">Количество мест</label>
-        <input id="seats-total" type="number" min="1" max="8" value="3" />
-      </div>
-      <div class="field">
-        <label for="price-per-seat">Цена за место</label>
-        <input id="price-per-seat" type="number" min="0" step="10" placeholder="Например: 500" />
+      <div class="field field-inline">
+        <div class="field">
+          <label for="seats-total">Мест</label>
+          <input id="seats-total" type="number" min="1" max="8" value="3" />
+        </div>
+        <div class="field">
+          <label for="price-per-seat">Цена за место</label>
+          <input id="price-per-seat" type="number" min="0" step="10" placeholder="Например: 500" />
+        </div>
       </div>
       <div class="field">
         <label for="trip-note">Примечание (опционально)</label>
@@ -288,6 +297,36 @@
 
       <button class="primary-btn" id="btn-create-trip">Создать поездку</button>
       <div class="info" id="driver-message"></div>
+
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
+
+      <div class="subtitle">Моя машина</div>
+      <div class="field field-inline">
+        <div class="field">
+          <label for="car-make">Марка</label>
+          <input id="car-make" type="text" placeholder="Например: Kia Rio" />
+        </div>
+        <div class="field">
+          <label for="car-color">Цвет</label>
+          <input id="car-color" type="text" placeholder="Например: белый" />
+        </div>
+      </div>
+      <div class="field">
+        <label for="car-plate">Номер</label>
+        <input id="car-plate" type="text" placeholder="Например: A123BC 123" />
+      </div>
+      <button class="secondary-btn" id="btn-save-car">Сохранить машину</button>
+      <div class="info" id="driver-car-message"></div>
+    </div>
+
+    <!-- Водитель: активная поездка -->
+    <div class="card hidden" id="driver-active">
+      <div class="subtitle">Активная поездка</div>
+      <div class="info" id="driver-active-info">
+        Активная поездка ещё не загружена.
+      </div>
+      <button class="secondary-btn" id="btn-load-active-trip">Обновить активную поездку</button>
+      <button class="secondary-btn hidden" id="btn-active-passengers">Показать пассажиров активной поездки</button>
     </div>
 
     <!-- Водитель: история поездок -->
@@ -315,20 +354,31 @@
   <script>
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     let currentTelegramUser = null;
+    let activeTripId = null;
 
     const userInfoDiv = document.getElementById('user-info');
     const btnDriver = document.getElementById('btn-driver');
     const btnPassenger = document.getElementById('btn-passenger');
     const roleInfo = document.getElementById('role-info');
+
     const driverSection = document.getElementById('driver-section');
     const driverHistory = document.getElementById('driver-history');
+    const driverActive = document.getElementById('driver-active');
+
     const passengerSection = document.getElementById('passenger-section');
     const driverMessage = document.getElementById('driver-message');
     const tripsList = document.getElementById('trips-list');
+
     const btnLoadDriverTrips = document.getElementById('btn-load-driver-trips');
     const driverTripsList = document.getElementById('driver-trips-list');
     const driverBookingsTitle = document.getElementById('driver-bookings-title');
     const driverBookingsList = document.getElementById('driver-bookings-list');
+
+    const btnLoadActiveTrip = document.getElementById('btn-load-active-trip');
+    const btnActivePassengers = document.getElementById('btn-active-passengers');
+    const driverActiveInfo = document.getElementById('driver-active-info');
+
+    const driverCarMessage = document.getElementById('driver-car-message');
 
     // Инициализация из Telegram
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
@@ -353,10 +403,14 @@
         roleInfo.textContent = 'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
         return;
       }
-      roleInfo.textContent = 'Режим водителя: создавайте поездки и смотрите историю.';
+      roleInfo.textContent = 'Режим водителя: создавайте поездки, сохраняйте машину и смотрите активную поездку.';
       driverSection.classList.remove('hidden');
       driverHistory.classList.remove('hidden');
+      driverActive.classList.remove('hidden');
       passengerSection.classList.add('hidden');
+
+      loadDriverProfile();
+      loadDriverActiveTrip();
     });
 
     btnPassenger.addEventListener('click', () => {
@@ -368,6 +422,7 @@
       passengerSection.classList.remove('hidden');
       driverSection.classList.add('hidden');
       driverHistory.classList.add('hidden');
+      driverActive.classList.add('hidden');
       loadTrips();
     });
 
@@ -411,12 +466,122 @@
             driverMessage.textContent = 'Ошибка: ' + data.error;
           } else {
             driverMessage.textContent = 'Поездка создана.';
+            loadDriverActiveTrip();
           }
         })
         .catch((err) => {
           console.error('Ошибка создания поездки:', err);
           driverMessage.textContent = 'Произошла ошибка при создании поездки.';
         });
+    });
+
+    // Машина водителя
+    function loadDriverProfile() {
+      driverCarMessage.textContent = 'Загрузка данных машины...';
+
+      fetch(`/api/driver/profile?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverCarMessage.textContent = 'Ошибка: ' + data.error;
+            return;
+          }
+          const p = data.profile;
+          document.getElementById('car-make').value = p.car_make || '';
+          document.getElementById('car-color').value = p.car_color || '';
+          document.getElementById('car-plate').value = p.car_plate || '';
+          driverCarMessage.textContent = 'Данные машины загружены. Они будут использоваться в уведомлениях.';
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки профиля:', err);
+          driverCarMessage.textContent = 'Произошла ошибка при загрузке данных машины.';
+        });
+    }
+
+    document.getElementById('btn-save-car').addEventListener('click', () => {
+      if (!currentTelegramUser) {
+        driverCarMessage.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      const carMake = document.getElementById('car-make').value.trim();
+      const carColor = document.getElementById('car-color').value.trim();
+      const carPlate = document.getElementById('car-plate').value.trim();
+
+      driverCarMessage.textContent = 'Сохранение...';
+
+      fetch('/api/driver/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          car_make: carMake,
+          car_color: carColor,
+          car_plate: carPlate,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverCarMessage.textContent = 'Ошибка: ' + data.error;
+          } else {
+            driverCarMessage.textContent = 'Машина сохранена. Эти данные будут видны пассажиру в уведомлении.';
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка сохранения машины:', err);
+          driverCarMessage.textContent = 'Произошла ошибка при сохранении машины.';
+        });
+    });
+
+    // Активная поездка
+    btnLoadActiveTrip.addEventListener('click', loadDriverActiveTrip);
+
+    function loadDriverActiveTrip() {
+      if (!currentTelegramUser) {
+        driverActiveInfo.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      driverActiveInfo.textContent = 'Поиск активной поездки...';
+      btnActivePassengers.classList.add('hidden');
+      activeTripId = null;
+
+      fetch(`/api/driver/active-trip?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverActiveInfo.textContent = 'Ошибка: ' + data.error;
+            return;
+          }
+
+          const trip = data.trip;
+          if (!trip) {
+            driverActiveInfo.textContent = 'Активных (будущих) поездок пока нет.';
+            return;
+          }
+
+          activeTripId = trip.id;
+          btnActivePassengers.classList.remove('hidden');
+
+          driverActiveInfo.innerHTML =
+            `<strong>${trip.from_city} → ${trip.to_city}</strong><br/>` +
+            `Выезд: ${trip.departure_time}<br/>` +
+            `Бронирований: ${trip.bookings_count || 0}, свободно: ${trip.seats_available}/${trip.seats_total}` +
+            (trip.note ? `<br/>Примечание: ${trip.note}` : '');
+        })
+        .catch((err) => {
+          console.error('Ошибка активной поездки:', err);
+          driverActiveInfo.textContent = 'Произошла ошибка при загрузке активной поездки.';
+        });
+    }
+
+    btnActivePassengers.addEventListener('click', () => {
+      if (!activeTripId) {
+        alert('Сначала обновите активную поездку.');
+        return;
+      }
+      loadDriverTripBookings(activeTripId);
     });
 
     // Загрузка поездок (пассажир)
@@ -528,7 +693,7 @@
           if (data.error) {
             alert('Ошибка: ' + data.error);
           } else {
-            alert('Бронь оформлена. Водителю отправлено уведомление.');
+            alert('Бронь оформлена. Водителю и вам отправлены уведомления в Telegram.');
             loadTrips();
           }
         })

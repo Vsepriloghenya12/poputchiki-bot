@@ -10,6 +10,8 @@ const {
   createTrip,
   getLatestTrips,
   getUserByTelegramId,
+  getDriverProfileByTelegramId,
+  updateDriverCarProfile,
   getTripWithDriver,
   getDriverTripsByTelegramId,
   getTripBookingsForDriver,
@@ -17,7 +19,6 @@ const {
   markBookingNoShow,
 } = require('./db');
 
-// Переменные окружения
 const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:3000';
 const PORT = process.env.PORT || 3000;
@@ -33,7 +34,7 @@ const app = express();
 app.use(bodyParser.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ====== ЛОГИКА БОТА ======
+// ========== БОТ ==========
 
 bot.start((ctx) => {
   if (WEBAPP_URL.startsWith('http://localhost')) {
@@ -76,7 +77,7 @@ bot.on('text', (ctx) => {
   );
 });
 
-// ====== API ДЛЯ MINI APP ======
+// ========== API ==========
 
 // Инициализация пользователя
 app.post('/api/init-user', async (req, res) => {
@@ -153,6 +154,47 @@ app.get('/api/trips', async (req, res) => {
   }
 });
 
+// Профиль водителя (машина)
+app.get('/api/driver/profile', async (req, res) => {
+  try {
+    const telegram_id = req.query.telegram_id;
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'Не указан telegram_id' });
+    }
+
+    const profile = await getDriverProfileByTelegramId(telegram_id);
+    if (!profile) {
+      return res.status(400).json({ error: 'Водитель не найден' });
+    }
+
+    return res.json({ profile });
+  } catch (err) {
+    console.error('Ошибка /api/driver/profile (GET):', err);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+app.post('/api/driver/profile', async (req, res) => {
+  try {
+    const { telegram_id, car_make, car_color, car_plate } = req.body;
+
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'Не указан telegram_id' });
+    }
+
+    const updated = await updateDriverCarProfile(telegram_id, {
+      carMake: car_make,
+      carColor: car_color,
+      carPlate: car_plate,
+    });
+
+    return res.json({ profile: updated });
+  } catch (err) {
+    console.error('Ошибка /api/driver/profile (POST):', err);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 // Бронирование мест
 app.post('/api/bookings', async (req, res) => {
   try {
@@ -170,7 +212,7 @@ app.post('/api/bookings', async (req, res) => {
     const tripIdNum = Number(trip_id);
     const seatsNum = Number(seats);
 
-    const { booking, trip } = await createBooking({
+    const { booking, trip, passenger: bookingPassenger } = await createBooking({
       tripId: tripIdNum,
       passengerTelegramId: telegram_id,
       seatsBooked: seatsNum,
@@ -184,7 +226,7 @@ app.post('/api/bookings', async (req, res) => {
       const passengerUsername = passenger.username ? `@${passenger.username}` : '';
       const noShowCount = passenger.no_show_count || 0;
 
-      const text =
+      const textForDriver =
         'Новая бронь в "попутчики":\n\n' +
         `Маршрут: ${tripFull.from_city} → ${tripFull.to_city}\n` +
         `Выезд: ${tripFull.departure_time}\n\n` +
@@ -193,9 +235,40 @@ app.post('/api/bookings', async (req, res) => {
         `Надёжность пассажира: ${noShowCount} неявок.\n\n` +
         'Свяжитесь с пассажиром в Telegram для подтверждения деталей.';
 
-      bot.telegram.sendMessage(tripFull.driver_telegram_id, text).catch((err) => {
-        console.error('Ошибка отправки уведомления водителю:', err);
-      });
+      bot.telegram
+        .sendMessage(tripFull.driver_telegram_id, textForDriver)
+        .catch((err) => console.error('Ошибка отправки уведомления водителю:', err));
+    }
+
+    // Уведомление пассажиру
+    if (bookingPassenger && bookingPassenger.telegram_id && tripFull) {
+      const driverName = `${tripFull.driver_first_name || ''} ${tripFull.driver_last_name || ''}`.trim();
+      const driverUsername = tripFull.driver_username ? `@${tripFull.driver_username}` : '';
+
+      let carText = '';
+      if (tripFull.car_make || tripFull.car_color || tripFull.car_plate) {
+        const parts = [];
+        if (tripFull.car_color) parts.push(tripFull.car_color);
+        if (tripFull.car_make) parts.push(tripFull.car_make);
+        const main = parts.join(' ');
+        if (tripFull.car_plate) {
+          carText = `Авто: ${main} (${tripFull.car_plate})`;
+        } else if (main) {
+          carText = `Авто: ${main}`;
+        }
+      }
+
+      const textForPassenger =
+        'Ваша бронь в "попутчики":\n\n' +
+        `Маршрут: ${tripFull.from_city} → ${tripFull.to_city}\n` +
+        `Выезд: ${tripFull.departure_time}\n\n` +
+        `Водитель: ${driverName || 'без имени'} ${driverUsername}\n` +
+        (carText ? carText + '\n\n' : '\n') +
+        'Свяжитесь с водителем в Telegram для уточнения деталей.';
+
+      bot.telegram
+        .sendMessage(bookingPassenger.telegram_id, textForPassenger)
+        .catch((err) => console.error('Ошибка отправки уведомления пассажиру:', err));
     }
 
     return res.json({ booking, trip: tripFull });
@@ -240,7 +313,42 @@ app.get('/api/driver/trips', async (req, res) => {
   }
 });
 
-// Список бронирований по поездке (для водителя)
+// Активная поездка водителя (ближайшая будущая)
+app.get('/api/driver/active-trip', async (req, res) => {
+  try {
+    const telegram_id = req.query.telegram_id;
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'Не указан telegram_id' });
+    }
+
+    const driver = await getUserByTelegramId(telegram_id);
+    if (!driver) {
+      return res.status(400).json({ error: 'Водитель не найден' });
+    }
+
+    const trips = await getDriverTripsByTelegramId(telegram_id);
+    const now = Date.now();
+
+    const futureTrips = trips.filter((t) => {
+      const ts = Date.parse(t.departure_time);
+      return Number.isFinite(ts) && ts >= now;
+    });
+
+    if (futureTrips.length === 0) {
+      return res.json({ trip: null });
+    }
+
+    futureTrips.sort((a, b) => Date.parse(a.departure_time) - Date.parse(b.departure_time));
+    const activeTrip = futureTrips[0];
+
+    return res.json({ trip: activeTrip });
+  } catch (err) {
+    console.error('Ошибка /api/driver/active-trip:', err);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Бронирования по поездке (для водителя)
 app.get('/api/driver/trip-bookings', async (req, res) => {
   try {
     const telegram_id = req.query.telegram_id;
@@ -265,7 +373,7 @@ app.get('/api/driver/trip-bookings', async (req, res) => {
   }
 });
 
-// Отметка "пассажир не приехал"
+// Отметка "не приехал"
 app.post('/api/bookings/no-show', async (req, res) => {
   try {
     const { telegram_id, booking_id } = req.body;
@@ -302,7 +410,7 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Запуск HTTP-сервера и бота
+// Запуск
 app.listen(PORT, () => {
   console.log(`Веб-сервер запущен на http://0.0.0.0:${PORT}`);
 });

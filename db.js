@@ -49,17 +49,34 @@ db.serialize(() => {
     )
   `);
 
-  // Миграция: добавляем поле примечания к поездке
+  // Миграция: примечание к поездке
   db.run(`ALTER TABLE trips ADD COLUMN note TEXT`, (err) => {
     if (err && !String(err.message).includes('duplicate column name')) {
       console.error('Ошибка ALTER TABLE trips (note):', err.message);
     }
   });
 
-  // Миграция: счётчик неявок пассажира
+  // Миграция: счётчик неявок
   db.run(`ALTER TABLE users ADD COLUMN no_show_count INTEGER DEFAULT 0`, (err) => {
     if (err && !String(err.message).includes('duplicate column name')) {
       console.error('Ошибка ALTER TABLE users (no_show_count):', err.message);
+    }
+  });
+
+  // Миграция: машина водителя
+  db.run(`ALTER TABLE users ADD COLUMN car_make TEXT`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('Ошибка ALTER TABLE users (car_make):', err.message);
+    }
+  });
+  db.run(`ALTER TABLE users ADD COLUMN car_color TEXT`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('Ошибка ALTER TABLE users (car_color):', err.message);
+    }
+  });
+  db.run(`ALTER TABLE users ADD COLUMN car_plate TEXT`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('Ошибка ALTER TABLE users (car_plate):', err.message);
     }
   });
 });
@@ -115,7 +132,53 @@ function getUserByTelegramId(telegramId) {
   });
 }
 
-// Создание поездки (с примечанием note)
+function getDriverProfileByTelegramId(telegramId) {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `
+        SELECT
+          id,
+          telegram_id,
+          first_name,
+          last_name,
+          username,
+          no_show_count,
+          car_make,
+          car_color,
+          car_plate
+        FROM users
+        WHERE telegram_id = ?
+      `,
+      [String(telegramId)],
+      (err, row) => {
+        if (err) return reject(err);
+        resolve(row || null);
+      }
+    );
+  });
+}
+
+function updateDriverCarProfile(telegramId, { carMake, carColor, carPlate }) {
+  return new Promise((resolve, reject) => {
+    db.run(
+      `
+        UPDATE users
+        SET car_make = ?, car_color = ?, car_plate = ?
+        WHERE telegram_id = ?
+      `,
+      [carMake || null, carColor || null, carPlate || null, String(telegramId)],
+      (err) => {
+        if (err) return reject(err);
+
+        getDriverProfileByTelegramId(telegramId)
+          .then((row) => resolve(row))
+          .catch(reject);
+      }
+    );
+  });
+}
+
+// Создание поездки
 function createTrip({ driverId, fromCity, toCity, departureTime, seatsTotal, pricePerSeat, note }) {
   return new Promise((resolve, reject) => {
     const seatsTotalNum = Number(seatsTotal);
@@ -164,7 +227,7 @@ function getLatestTrips(limit = 20) {
   });
 }
 
-// Поездка + данные водителя (для уведомления)
+// Инфо о поездке + данные водителя (включая машину)
 function getTripWithDriver(tripId) {
   return new Promise((resolve, reject) => {
     db.get(
@@ -174,7 +237,10 @@ function getTripWithDriver(tripId) {
           u.telegram_id AS driver_telegram_id,
           u.first_name AS driver_first_name,
           u.last_name AS driver_last_name,
-          u.username AS driver_username
+          u.username AS driver_username,
+          u.car_make,
+          u.car_color,
+          u.car_plate
         FROM trips t
         JOIN users u ON u.id = t.driver_id
         WHERE t.id = ?
@@ -188,7 +254,7 @@ function getTripWithDriver(tripId) {
   });
 }
 
-// Список поездок конкретного водителя (для истории)
+// Поездки конкретного водителя (для истории)
 function getDriverTripsByTelegramId(telegramId) {
   return new Promise((resolve, reject) => {
     db.all(
@@ -210,7 +276,7 @@ function getDriverTripsByTelegramId(telegramId) {
   });
 }
 
-// Бронирования по конкретной поездке (для истории/оценки пассажиров)
+// Бронирования по поездке для водителя
 function getTripBookingsForDriver(tripId, driverId) {
   return new Promise((resolve, reject) => {
     db.all(
@@ -236,7 +302,7 @@ function getTripBookingsForDriver(tripId, driverId) {
   });
 }
 
-// Создание бронирования + уменьшение свободных мест
+// Бронирование + уменьшение мест
 function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
   return new Promise((resolve, reject) => {
     const seatsNum = Number(seatsBooked);
@@ -331,7 +397,7 @@ function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
   });
 }
 
-// Отметить бронирование как "не приехал"
+// Отметить "не приехал"
 function markBookingNoShow({ bookingId, driverId }) {
   return new Promise((resolve, reject) => {
     db.serialize(() => {
@@ -411,6 +477,8 @@ module.exports = {
   createTrip,
   getLatestTrips,
   getUserByTelegramId,
+  getDriverProfileByTelegramId,
+  updateDriverCarProfile,
   getTripWithDriver,
   getDriverTripsByTelegramId,
   getTripBookingsForDriver,
