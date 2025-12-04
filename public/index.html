@@ -24,27 +24,71 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       margin-bottom: 12px;
     }
-    .logo-row {
+        .logo-row {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 14px;
       margin-bottom: 8px;
     }
-    .logo {
-      width: 40px;
-      height: 40px;
-      border-radius: 999px;
+    .logo-icon {
+      position: relative;
+      width: 48px;
+      height: 48px;
+      border-radius: 18px;
+      background: radial-gradient(circle at 0% 0%, #e0f2fe, #eff6ff 30%, #1d4ed8 95%);
+      box-shadow: 0 8px 14px rgba(15, 23, 42, 0.22);
+      overflow: hidden;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 22px;
-      background: linear-gradient(135deg, #2563eb, #10b981);
-      color: #f9fafb;
-      font-weight: 700;
     }
-    h1 {
+    .logo-icon::before {
+      content: "";
+      position: absolute;
+      inset: 12px 2px 6px 18px;
+      border-radius: 999px;
+      background: linear-gradient(135deg, #22c55e, #a5b4fc);
+      opacity: 0.9;
+      transform: skewX(-18deg);
+    }
+    .logo-icon::after {
+      content: "";
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 999px;
+      background: #fbbf24;
+      box-shadow:
+        -10px -8px 0 rgba(15,23,42,0.12),
+        0 0 0 3px rgba(248, 250, 252, 0.9);
+      bottom: 6px;
+      right: 6px;
+    }
+    .logo-car {
+      position: relative;
+      font-size: 22px;
+      transform: translateX(-4px) translateY(-2px) rotate(-6deg);
+      text-shadow:
+        0 1px 0 rgba(15, 23, 42, 0.3),
+        0 3px 6px rgba(15, 23, 42, 0.45);
+    }
+    .logo-text-primary {
       font-size: 20px;
-      margin: 0;
+      font-weight: 700;
+      letter-spacing: 0.03em;
+      text-transform: lowercase;
+      color: #0f172a;
+    }
+    .logo-text-primary span {
+      background: linear-gradient(135deg, #2563eb, #22c55e);
+      -webkit-background-clip: text;
+      background-clip: text;
+      color: transparent;
+    }
+    .logo-text-secondary {
+      font-size: 12px;
+      color: #6b7280;
+      margin-top: 2px;
     }
     .subtitle {
       font-size: 14px;
@@ -183,14 +227,17 @@
   </style>
 </head>
 <body>
-  <div class="app">
-    <div class="card">
+      <div class="card">
       <div class="logo-row">
-        <div class="logo">🚗</div>
+        <div class="logo-icon">
+          <div class="logo-car">🚘</div>
+        </div>
         <div>
-          <h1>попутчики</h1>
-          <div class="subtitle">
-            Водители создают поездки, пассажиры бронируют места.
+          <div class="logo-text-primary">
+            <span>попутчики</span>
+          </div>
+          <div class="logo-text-secondary">
+            найди тех, кто с тобой по пути
           </div>
         </div>
       </div>
