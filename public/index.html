@@ -326,13 +326,14 @@
 
     <!-- Водитель: активная поездка -->
     <div class="card hidden" id="driver-active">
-      <div class="subtitle">Активная поездка</div>
-      <div class="info" id="driver-active-info">
-        Активная поездка ещё не загружена.
-      </div>
-      <button class="secondary-btn" id="btn-load-active-trip">Обновить активную поездку</button>
-      <button class="secondary-btn hidden" id="btn-active-passengers">Показать пассажиров активной поездки</button>
-    </div>
+  <div class="subtitle">Активная поездка</div>
+  <div class="info" id="driver-active-info">
+    Активная поездка ещё не загружена.
+  </div>
+  <button class="secondary-btn" id="btn-load-active-trip">Обновить активную поездку</button>
+  <button class="secondary-btn hidden" id="btn-active-passengers">Показать пассажиров активной поездки</button>
+  <button class="danger-btn hidden" id="btn-cancel-active-trip">Отменить эту поездку</button>
+</div>
 
     <!-- Водитель: история поездок -->
     <div class="card hidden" id="driver-history">
@@ -447,6 +448,7 @@
     const btnLoadActiveTrip = document.getElementById('btn-load-active-trip');
     const btnActivePassengers = document.getElementById('btn-active-passengers');
     const driverActiveInfo = document.getElementById('driver-active-info');
+    const btnCancelActiveTrip = document.getElementById('btn-cancel-active-trip');
 
     const driverCarMessage = document.getElementById('driver-car-message');
 
@@ -653,43 +655,45 @@
     btnLoadActiveTrip.addEventListener('click', loadDriverActiveTrip);
 
     function loadDriverActiveTrip() {
-      if (!currentTelegramUser) {
-        driverActiveInfo.textContent = 'Откройте мини-приложение через Telegram.';
+  if (!currentTelegramUser) {
+    driverActiveInfo.textContent = 'Откройте мини-приложение через Telegram.';
+    return;
+  }
+
+  driverActiveInfo.textContent = 'Поиск активной поездки...';
+  btnActivePassengers.classList.add('hidden');
+  btnCancelActiveTrip.classList.add('hidden');
+  activeTripId = null;
+
+  fetch(`/api/driver/active-trip?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.error) {
+        driverActiveInfo.textContent = 'Ошибка: ' + data.error;
         return;
       }
 
-      driverActiveInfo.textContent = 'Поиск активной поездки...';
-      btnActivePassengers.classList.add('hidden');
-      activeTripId = null;
+      const trip = data.trip;
+      if (!trip) {
+        driverActiveInfo.textContent = 'Активных (будущих) поездок пока нет.';
+        return;
+      }
 
-      fetch(`/api/driver/active-trip?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.error) {
-            driverActiveInfo.textContent = 'Ошибка: ' + data.error;
-            return;
-          }
+      activeTripId = trip.id;
+      btnActivePassengers.classList.remove('hidden');
+      btnCancelActiveTrip.classList.remove('hidden');
 
-          const trip = data.trip;
-          if (!trip) {
-            driverActiveInfo.textContent = 'Активных (будущих) поездок пока нет.';
-            return;
-          }
-
-          activeTripId = trip.id;
-          btnActivePassengers.classList.remove('hidden');
-
-          driverActiveInfo.innerHTML =
-            `<strong>${trip.from_city} → ${trip.to_city}</strong><br/>` +
-            `Выезд: ${trip.departure_time}<br/>` +
-            `Бронирований: ${trip.bookings_count || 0}, свободно: ${trip.seats_available}/${trip.seats_total}` +
-            (trip.note ? `<br/>Примечание: ${trip.note}` : '');
-        })
-        .catch((err) => {
-          console.error('Ошибка активной поездки:', err);
-          driverActiveInfo.textContent = 'Произошла ошибка при загрузке активной поездки.';
-        });
-    }
+      driverActiveInfo.innerHTML =
+        `<strong>${trip.from_city} → ${trip.to_city}</strong><br/>` +
+        `Выезд: ${trip.departure_time}<br/>` +
+        `Бронирований: ${trip.bookings_count || 0}, свободно: ${trip.seats_available}/${trip.seats_total}` +
+        (trip.note ? `<br/>Примечание: ${trip.note}` : '');
+    })
+    .catch((err) => {
+      console.error('Ошибка активной поездки:', err);
+      driverActiveInfo.textContent = 'Произошла ошибка при загрузке активной поездки.';
+    });
+}
 
     btnActivePassengers.addEventListener('click', () => {
       if (!activeTripId) {
@@ -698,6 +702,13 @@
       }
       loadDriverTripBookings(activeTripId);
     });
+btnCancelActiveTrip.addEventListener('click', () => {
+  if (!activeTripId) {
+    alert('Сначала обновите активную поездку.');
+    return;
+  }
+  deleteDriverTrip(activeTripId);
+});
 
     // Список поездок (пассажир)
     function loadTrips() {
@@ -843,7 +854,7 @@
         });
     });
 
-    function renderDriverTrips(trips) {
+   function renderDriverTrips(trips) {
   if (!trips || trips.length === 0) {
     driverTripsList.textContent = 'Пока нет поездок.';
     driverBookingsTitle.classList.add('hidden');
@@ -879,27 +890,7 @@
       noteDiv.textContent = 'Примечание: ' + trip.note;
     }
 
-    const btnPassengers = document.createElement('button');
-    btnPassengers.className = 'secondary-btn';
-    btnPassengers.textContent = 'Показать пассажиров';
-    btnPassengers.addEventListener('click', () => {
-      loadDriverTripBookings(trip.id);
-    });
-
-    const btnDelete = document.createElement('button');
-    btnDelete.className = 'danger-btn';
-    btnDelete.textContent = 'Удалить поездку';
-    btnDelete.addEventListener('click', () => {
-      deleteDriverTrip(trip.id);
-    });
-
-    div.appendChild(header);
-    div.appendChild(sub);
-    if (trip.note) div.appendChild(noteDiv);
-    div.appendChild(btnPassengers);
-    div.appendChild(btnDelete);
-
-    driverTripsList.appendChild(div);
+    // вот эту часть НУЖНО заменить целиком
   });
 }
 
