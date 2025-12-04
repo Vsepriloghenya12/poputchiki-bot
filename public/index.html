@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <title>попутчики — мини-приложение</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+    }
+    .app {
+      max-width: 480px;
+      margin: 0 auto;
+      padding: 16px;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      padding: 16px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 20px;
+      margin: 0 0 8px;
+    }
+    .subtitle {
+      font-size: 14px;
+      color: #6b7280;
+      margin-bottom: 12px;
+    }
+    .role-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    button {
+      padding: 10px 12px;
+      border-radius: 999px;
+      border: none;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .driver {
+      background: #2563eb;
+      color: white;
+      flex: 1;
+    }
+    .passenger {
+      background: #10b981;
+      color: white;
+      flex: 1;
+    }
+    .info {
+      font-size: 13px;
+      color: #4b5563;
+      margin-top: 8px;
+    }
+    .hidden {
+      display: none;
+    }
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .field label {
+      color: #4b5563;
+    }
+    .field input {
+      padding: 8px 10px;
+      border-radius: 8px;
+      border: 1px solid #d1d5db;
+      font-size: 14px;
+    }
+    .primary-btn {
+      width: 100%;
+      margin-top: 8px;
+      background: #2563eb;
+      color: white;
+    }
+    .trip {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 8px 0;
+      font-size: 14px;
+    }
+    .trip:last-child {
+      border-bottom: none;
+    }
+    .trip-header {
+      display: flex;
+      justify-content: space-between;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    .trip-sub {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .badge {
+      display: inline-block;
+      padding: 2px 6px;
+      border-radius: 999px;
+      font-size: 11px;
+      background: #e5e7eb;
+      margin-left: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="card">
+      <h1>попутчики</h1>
+      <div class="subtitle">
+        Водители создают поездки, пассажиры бронируют места.
+      </div>
+      <div id="user-info" class="info">
+        Загрузка данных Telegram...
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="subtitle">Кто вы?</div>
+      <div class="role-buttons">
+        <button class="driver" id="btn-driver">Я водитель</button>
+        <button class="passenger" id="btn-passenger">Я пассажир</button>
+      </div>
+      <div class="info" id="role-info">
+        Выберите режим, чтобы продолжить.
+      </div>
+    </div>
+
+    <!-- Блок для водителя: создание поездки -->
+    <div class="card hidden" id="driver-section">
+      <div class="subtitle">Создать поездку</div>
+
+      <div class="field">
+        <label for="from-city">Откуда</label>
+        <input id="from-city" type="text" placeholder="Например: Москва" />
+      </div>
+      <div class="field">
+        <label for="to-city">Куда</label>
+        <input id="to-city" type="text" placeholder="Например: Санкт-Петербург" />
+      </div>
+      <div class="field">
+        <label for="departure-time">Дата и время выезда</label>
+        <input id="departure-time" type="datetime-local" />
+      </div>
+      <div class="field">
+        <label for="seats-total">Количество мест</label>
+        <input id="seats-total" type="number" min="1" max="8" value="3" />
+      </div>
+      <div class="field">
+        <label for="price-per-seat">Цена за место</label>
+        <input id="price-per-seat" type="number" min="0" step="10" placeholder="Например: 500" />
+      </div>
+
+      <button class="primary-btn" id="btn-create-trip">Создать поездку</button>
+      <div class="info" id="driver-message"></div>
+    </div>
+
+    <!-- Блок для пассажира: список поездок -->
+    <div class="card hidden" id="passenger-section">
+      <div class="subtitle">Доступные поездки</div>
+      <div id="trips-list" class="info">
+        Загрузка поездок...
+      </div>
+    </div>
+  </div>
+
+    <script>
+  const tg = window.Telegram ? window.Telegram.WebApp : null;
+  let currentTelegramUser = null;
+
+  const userInfoDiv = document.getElementById('user-info');
+
+  // Если открыто как Telegram Mini App
+  if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+    tg.expand();
+    currentTelegramUser = tg.initDataUnsafe.user;
+
+    userInfoDiv.textContent =
+      `Вы вошли как: ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''} (@${currentTelegramUser.username || 'без username'})`;
+
+    // Регистрируем пользователя в backend
+    fetch('/api/init-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user: currentTelegramUser }),
+    }).catch(err => console.error(err));
+
+  } else {
+    // Открыто в обычном браузере
+    userInfoDiv.textContent =
+      'Это мини-приложение работает только внутри Telegram. Откройте его через Telegram-бота.';
+
+    // Блокируем интерфейсы
+    document.getElementById('driver-section').classList.add('hidden');
+    document.getElementById('passenger-section').classList.add('hidden');
+  }
+
+  // Весь остальной код остаётся прежним
+  const btnDriver = document.getElementById('btn-driver');
+  const btnPassenger = document.getElementById('btn-passenger');
+  const roleInfo = document.getElementById('role-info');
+  const driverSection = document.getElementById('driver-section');
+  const passengerSection = document.getElementById('passenger-section');
+  const driverMessage = document.getElementById('driver-message');
+  const tripsList = document.getElementById('trips-list');
+
+  btnDriver.addEventListener('click', () => {
+    if (!currentTelegramUser) {
+      roleInfo.textContent = 'Эта функция доступна только внутри Telegram.';
+      return;
+    }
+    roleInfo.textContent = 'Создайте поездку.';
+    driverSection.classList.remove('hidden');
+    passengerSection.classList.add('hidden');
+  });
+
+  btnPassenger.addEventListener('click', () => {
+    if (!currentTelegramUser) {
+      roleInfo.textContent = 'Эта функция доступна только внутри Telegram.';
+      return;
+    }
+    roleInfo.textContent = 'Просмотрите доступные поездки.';
+    passengerSection.classList.remove('hidden');
+    driverSection.classList.add('hidden');
+    loadTrips();
+  });
+
+  // Создание поездки
+  document.getElementById('btn-create-trip').addEventListener('click', () => {
+    if (!currentTelegramUser) {
+      driverMessage.textContent =
+        'Эта функция работает только внутри Telegram.';
+      return;
+    }
+
+    const fromCity = document.getElementById('from-city').value.trim();
+    const toCity = document.getElementById('to-city').value.trim();
+    const departureTime = document.getElementById('departure-time').value;
+    const seatsTotal = document.getElementById('seats-total').value;
+    const pricePerSeat = document.getElementById('price-per-seat').value;
+
+    if (!fromCity || !toCity || !departureTime || !seatsTotal || !pricePerSeat) {
+      driverMessage.textContent = 'Заполните все поля.';
+      return;
+    }
+
+    driverMessage.textContent = 'Создание поездки...';
+
+    fetch('/api/trips', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        telegram_id: String(currentTelegramUser.id),
+        from_city: fromCity,
+        to_city: toCity,
+        departure_time: departureTime,
+        seats_total: seatsTotal,
+        price_per_seat: pricePerSeat,
+      }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          driverMessage.textContent = 'Ошибка: ' + data.error;
+        } else {
+          driverMessage.textContent = 'Поездка создана!';
+        }
+      })
+      .catch(err => {
+        driverMessage.textContent = 'Ошибка запроса.';
+        console.error(err);
+      });
+  });
+
+  // Загрузка поездок
+  function loadTrips() {
+    tripsList.textContent = 'Загрузка...';
+
+    fetch('/api/trips')
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          tripsList.textContent = 'Ошибка: ' + data.error;
+        } else {
+          renderTrips(data.trips);
+        }
+      })
+      .catch(err => {
+        tripsList.textContent = 'Ошибка загрузки.';
+        console.error(err);
+      });
+  }
+
+  function renderTrips(trips) {
+    if (!trips || trips.length === 0) {
+      tripsList.textContent = 'Пока нет поездок.';
+      return;
+    }
+
+    tripsList.innerHTML = '';
+
+    trips.forEach(trip => {
+      const div = document.createElement('div');
+      div.className = 'trip';
+      div.innerHTML = `
+        <div class="trip-header">
+          <span>${trip.from_city} → ${trip.to_city}</span>
+          <span>${trip.price_per_seat} ₽</span>
+        </div>
+        <div class="trip-sub">
+          Водитель: ${(trip.first_name || '') + ' ' + (trip.last_name || '')}
+          <span class="badge">${trip.seats_available}/${trip.seats_total}</span><br/>
+          Выезд: ${trip.departure_time}
+        </div>
+      `;
+      tripsList.appendChild(div);
+    });
+  }
+</script>
+</body>
+</html>
