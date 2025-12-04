@@ -747,6 +747,184 @@ function getAdminDailyDrivers() {
   });
 }
 
+function deleteTripByDriver(tripId, driverId) {
+  return new Promise((resolve, reject) => {
+    const tripIdNum = Number(tripId);
+    const driverIdNum = Number(driverId);
+
+    db.get(
+      `SELECT * FROM trips WHERE id = ?`,
+      [tripIdNum],
+      (err, trip) => {
+        if (err) return reject(err);
+        if (!trip) {
+          const e = new Error('Поездка не найдена');
+          e.code = 'TRIP_NOT_FOUND';
+          return reject(e);
+        }
+        if (trip.driver_id !== driverIdNum) {
+          const e = new Error('Нет прав на удаление этой поездки');
+          e.code = 'FORBIDDEN';
+          return reject(e);
+        }
+
+        db.serialize(() => {
+          db.run('BEGIN TRANSACTION', (errBegin) => {
+            if (errBegin) return reject(errBegin);
+
+            db.run(
+              `DELETE FROM bookings WHERE trip_id = ?`,
+              [tripIdNum],
+              (errDelBookings) => {
+                if (errDelBookings) {
+                  db.run('ROLLBACK');
+                  return reject(errDelBookings);
+                }
+
+                db.run(
+                  `DELETE FROM trips WHERE id = ?`,
+                  [tripIdNum],
+                  (errDelTrip) => {
+                    if (errDelTrip) {
+                      db.run('ROLLBACK');
+                      return reject(errDelTrip);
+                    }
+
+                    db.run('COMMIT', (errCommit) => {
+                      if (errCommit) return reject(errCommit);
+                      resolve(trip);
+                    });
+                  }
+                );
+              }
+            );
+          });
+        });
+      }
+    );
+  });
+}
+
+function getPassengerBookingsByTelegramId(telegramId) {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `
+        SELECT
+          b.*,
+          t.from_city,
+          t.to_city,
+          t.departure_time,
+          t.price_per_seat,
+          t.seats_total,
+          t.seats_available,
+          d.telegram_id AS driver_telegram_id,
+          d.first_name AS driver_first_name,
+          d.last_name AS driver_last_name,
+          d.username AS driver_username
+        FROM bookings b
+        JOIN users p ON p.id = b.passenger_id
+        JOIN trips t ON t.id = b.trip_id
+        JOIN users d ON d.id = t.driver_id
+        WHERE p.telegram_id = ?
+        ORDER BY t.departure_time ASC
+      `,
+      [String(telegramId)],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows || []);
+      }
+    );
+  });
+}
+
+function cancelBookingByPassenger({ bookingId, passengerId }) {
+  return new Promise((resolve, reject) => {
+    const bookingIdNum = Number(bookingId);
+    const passengerIdNum = Number(passengerId);
+
+    db.serialize(() => {
+      db.get(
+        `
+          SELECT
+            b.*,
+            t.from_city,
+            t.to_city,
+            t.departure_time,
+            t.price_per_seat,
+            t.seats_total,
+            t.seats_available,
+            t.driver_id
+          FROM bookings b
+          JOIN trips t ON t.id = b.trip_id
+          WHERE b.id = ?
+        `,
+        [bookingIdNum],
+        (err, row) => {
+          if (err) return reject(err);
+          if (!row) {
+            const e = new Error('Бронирование не найдено');
+            e.code = 'BOOKING_NOT_FOUND';
+            return reject(e);
+          }
+          if (row.passenger_id !== passengerIdNum) {
+            const e = new Error('Нет прав на отмену этого бронирования');
+            e.code = 'FORBIDDEN';
+            return reject(e);
+          }
+          if (row.status !== 'booked') {
+            const e = new Error('Это бронирование нельзя отменить');
+            e.code = 'BAD_STATUS';
+            return reject(e);
+          }
+
+          const departTs = Date.parse(row.departure_time);
+          const now = Date.now();
+          if (Number.isFinite(departTs) && now > departTs) {
+            const e = new Error('Нельзя отменить бронь после начала поездки');
+            e.code = 'TOO_LATE';
+            return reject(e);
+          }
+
+          db.run('BEGIN TRANSACTION', (errBegin) => {
+            if (errBegin) return reject(errBegin);
+
+            db.run(
+              `UPDATE bookings SET status = 'cancelled' WHERE id = ?`,
+              [bookingIdNum],
+              (errUpd) => {
+                if (errUpd) {
+                  db.run('ROLLBACK');
+                  return reject(errUpd);
+                }
+
+                db.run(
+                  `
+                    UPDATE trips
+                    SET seats_available = seats_available + ?
+                    WHERE id = ?
+                  `,
+                  [row.seats_booked, row.trip_id],
+                  (errTrip) => {
+                    if (errTrip) {
+                      db.run('ROLLBACK');
+                      return reject(errTrip);
+                    }
+
+                    db.run('COMMIT', (errCommit) => {
+                      if (errCommit) return reject(errCommit);
+                      resolve(row);
+                    });
+                  }
+                );
+              }
+            );
+          });
+        }
+      );
+    });
+  });
+}
+
 module.exports = {
   db,
   upsertUserFromTelegram,
@@ -767,4 +945,10 @@ module.exports = {
   saveDriverPaymentProof,
   getAdminStats,
   getAdminDailyDrivers,
+
+  // новое
+  deleteTripByDriver,
+  getPassengerBookingsByTelegramId,
+  cancelBookingByPassenger,
 };
+

@@ -355,6 +355,15 @@
       </div>
     </div>
 
+    <!-- Пассажир: мои активные поездки -->
+    <div class="card hidden" id="passenger-active">
+      <div class="subtitle">Мои активные поездки</div>
+      <button class="secondary-btn" id="btn-load-passenger-active">Показать активные поездки</button>
+      <div class="info" id="passenger-active-list">
+        Активные брони ещё не загружены.
+      </div>
+    </div>
+
     <!-- Водитель: блок оплаты (внизу приложения) -->
     <div class="card hidden" id="driver-payment-block">
       <div class="subtitle">Оплата комиссии за сегодня</div>
@@ -426,6 +435,7 @@
     const driverActive = document.getElementById('driver-active');
 
     const passengerSection = document.getElementById('passenger-section');
+    const passengerActiveSection = document.getElementById('passenger-active');
     const driverMessage = document.getElementById('driver-message');
     const tripsList = document.getElementById('trips-list');
 
@@ -457,6 +467,9 @@
 
     const btnLoadDailyDrivers = document.getElementById('btn-load-daily-drivers');
     const adminDailyDrivers = document.getElementById('admin-daily-drivers');
+
+    const btnLoadPassengerActive = document.getElementById('btn-load-passenger-active');
+    const passengerActiveList = document.getElementById('passenger-active-list');
 
     // Инициализация из Telegram
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
@@ -502,6 +515,7 @@
       driverHistory.classList.remove('hidden');
       driverActive.classList.remove('hidden');
       passengerSection.classList.add('hidden');
+      passengerActiveSection.classList.add('hidden');
 
       loadDriverProfile();
       loadDriverActiveTrip();
@@ -515,11 +529,13 @@
       }
       roleInfo.textContent = 'Режим пассажира: просматривайте и бронируйте поездки.';
       passengerSection.classList.remove('hidden');
+      passengerActiveSection.classList.remove('hidden');
       driverSection.classList.add('hidden');
       driverHistory.classList.add('hidden');
       driverActive.classList.add('hidden');
       driverPaymentBlock.classList.add('hidden');
       loadTrips();
+      loadPassengerActiveBookings();
     });
 
     // Создание поездки
@@ -794,6 +810,7 @@
           } else {
             alert('Бронь оформлена. Водителю и вам отправлены уведомления в Telegram.');
             loadTrips();
+            loadPassengerActiveBookings();
           }
         })
         .catch((err) => {
@@ -862,17 +879,25 @@
           noteDiv.textContent = 'Примечание: ' + trip.note;
         }
 
-        const btn = document.createElement('button');
-        btn.className = 'secondary-btn';
-        btn.textContent = 'Показать пассажиров';
-        btn.addEventListener('click', () => {
+        const btnPassengers = document.createElement('button');
+        btnPassengers.className = 'secondary-btn';
+        btnPassengers.textContent = 'Показать пассажиров';
+        btnPassengers.addEventListener('click', () => {
           loadDriverTripBookings(trip.id);
+        });
+
+        const btnDelete = document.createElement('button');
+        btnDelete.className = 'danger-btn';
+        btnDelete.textContent = 'Удалить поездку';
+        btnDelete.addEventListener('click', () => {
+          deleteDriverTrip(trip.id);
         });
 
         div.appendChild(header);
         div.appendChild(sub);
         if (trip.note) div.appendChild(noteDiv);
-        div.appendChild(btn);
+        div.appendChild(btnPassengers);
+        div.appendChild(btnDelete);
 
         driverTripsList.appendChild(div);
       });
@@ -929,6 +954,8 @@
           statusSpan.textContent = 'не приехал';
         } else if (b.status === 'booked') {
           statusSpan.textContent = 'забронировано';
+        } else if (b.status === 'cancelled') {
+          statusSpan.textContent = 'отменено пассажиром';
         } else {
           statusSpan.textContent = b.status;
         }
@@ -952,7 +979,7 @@
         div.appendChild(header);
         div.appendChild(meta);
 
-        if (b.status !== 'no_show') {
+        if (b.status !== 'no_show' && b.status !== 'cancelled') {
           const btn = document.createElement('button');
           btn.className = 'danger-btn';
           btn.textContent = 'Отметить как не приехал';
@@ -994,6 +1021,37 @@
         .catch((err) => {
           console.error('Ошибка no-show:', err);
           alert('Произошла ошибка при обновлении статуса.');
+        });
+    }
+
+    function deleteDriverTrip(tripId) {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+      if (!confirm('Удалить эту поездку? Все брони по ней тоже будут удалены.')) return;
+
+      fetch('/api/driver/delete-trip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          trip_id: tripId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Поездка удалена.');
+            btnLoadDriverTrips.click();
+            loadDriverActiveTrip();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка удаления поездки:', err);
+          alert('Произошла ошибка при удалении поездки.');
         });
     }
 
@@ -1096,6 +1154,117 @@
           alert('Произошла ошибка при загрузке файла.');
         });
     });
+
+    // Пассажир: активные брони
+    btnLoadPassengerActive.addEventListener('click', () => {
+      loadPassengerActiveBookings();
+    });
+
+    function loadPassengerActiveBookings() {
+      if (!currentTelegramUser) {
+        passengerActiveList.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      passengerActiveList.textContent = 'Загрузка активных бронирований...';
+
+      fetch(`/api/passenger/active-bookings?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            passengerActiveList.textContent = 'Ошибка: ' + data.error;
+          } else {
+            renderPassengerActiveBookings(data.bookings || []);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки активных бронирований:', err);
+          passengerActiveList.textContent = 'Произошла ошибка при загрузке списка.';
+        });
+    }
+
+    function renderPassengerActiveBookings(bookings) {
+      if (!bookings || bookings.length === 0) {
+        passengerActiveList.textContent = 'Активных бронирований сейчас нет.';
+        return;
+      }
+
+      passengerActiveList.innerHTML = '';
+
+      bookings.forEach((b) => {
+        const div = document.createElement('div');
+        div.className = 'booking';
+
+        const header = document.createElement('div');
+        header.className = 'booking-header';
+
+        const routeSpan = document.createElement('div');
+        routeSpan.textContent = `${b.from_city} → ${b.to_city}`;
+
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'booking-status';
+        statusSpan.textContent = 'забронировано';
+
+        header.appendChild(routeSpan);
+        header.appendChild(statusSpan);
+
+        const meta = document.createElement('div');
+        meta.className = 'booking-meta';
+
+        const driverName = `${b.driver_first_name || ''} ${b.driver_last_name || ''}`.trim();
+        const driverUsername = b.driver_username ? `@${b.driver_username}` : '';
+
+        meta.innerHTML =
+          `Водитель: ${driverName || 'без имени'} ${driverUsername}<br/>` +
+          `Выезд: ${b.departure_time}<br/>` +
+          `Мест забронировано: ${b.seats_booked}`;
+
+        const btnCancel = document.createElement('button');
+        btnCancel.className = 'danger-btn';
+        btnCancel.textContent = 'Отменить бронь';
+        btnCancel.addEventListener('click', () => {
+          cancelPassengerBooking(b.id);
+        });
+
+        div.appendChild(header);
+        div.appendChild(meta);
+        div.appendChild(btnCancel);
+
+        passengerActiveList.appendChild(div);
+      });
+    }
+
+    function cancelPassengerBooking(bookingId) {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+
+      if (!confirm('Отменить эту бронь?')) return;
+
+      fetch('/api/bookings/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          booking_id: bookingId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Бронь отменена.');
+            loadPassengerActiveBookings();
+            loadTrips();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка отмены брони:', err);
+          alert('Произошла ошибка при отмене брони.');
+        });
+    }
 
     // Админ-панель: загрузка настроек
     function loadAdminSettings() {

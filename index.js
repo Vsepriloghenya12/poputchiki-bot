@@ -27,6 +27,9 @@ const {
   saveDriverPaymentProof,
   getAdminStats,
   getAdminDailyDrivers,
+  deleteTripByDriver,
+  getPassengerBookingsByTelegramId,
+  cancelBookingByPassenger,
 } = require('./db');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -188,13 +191,52 @@ app.post('/api/trips', async (req, res) => {
   }
 });
 
-// Список поездок (пассажир)
+// Список поездок (пассажир) — только не полные и не устаревшие
 app.get('/api/trips', async (req, res) => {
   try {
-    const trips = await getLatestTrips(20);
+    const rawTrips = await getLatestTrips(50);
+    const now = Date.now();
+    const cutoff = now - 10 * 60 * 1000; // показываем до 10 минут после старта
+
+    const trips = (rawTrips || []).filter((t) => {
+      if (t.seats_available <= 0) return false;
+      const ts = Date.parse(t.departure_time);
+      if (!Number.isFinite(ts)) return true;
+      return ts >= cutoff;
+    });
+
     return res.json({ trips });
   } catch (err) {
     console.error('Ошибка /api/trips (GET):', err);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Удаление поездки водителем
+app.post('/api/driver/delete-trip', async (req, res) => {
+  try {
+    const { telegram_id, trip_id } = req.body;
+    if (!telegram_id || !trip_id) {
+      return res.status(400).json({ error: 'Не указаны telegram_id или trip_id' });
+    }
+
+    const driver = await getUserByTelegramId(telegram_id);
+    if (!driver) {
+      return res.status(400).json({ error: 'Водитель не найден' });
+    }
+
+    const trip = await deleteTripByDriver(trip_id, driver.id);
+    return res.json({ success: true, trip });
+  } catch (err) {
+    console.error('Ошибка /api/driver/delete-trip:', err);
+
+    if (err.code === 'TRIP_NOT_FOUND') {
+      return res.status(400).json({ error: 'Поездка не найдена' });
+    }
+    if (err.code === 'FORBIDDEN') {
+      return res.status(403).json({ error: 'Нет прав на удаление этой поездки' });
+    }
+
     return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
@@ -409,6 +451,76 @@ app.post('/api/bookings', async (req, res) => {
   }
 });
 
+// Отмена брони пассажиром
+app.post('/api/bookings/cancel', async (req, res) => {
+  try {
+    const { telegram_id, booking_id } = req.body;
+    if (!telegram_id || !booking_id) {
+      return res.status(400).json({ error: 'Не указаны telegram_id или booking_id' });
+    }
+
+    const passenger = await getUserByTelegramId(telegram_id);
+    if (!passenger) {
+      return res.status(400).json({ error: 'Пассажир не найден' });
+    }
+
+    const row = await cancelBookingByPassenger({
+      bookingId: booking_id,
+      passengerId: passenger.id,
+    });
+
+    return res.json({ success: true, booking: row });
+  } catch (err) {
+    console.error('Ошибка /api/bookings/cancel:', err);
+
+    if (err.code === 'BOOKING_NOT_FOUND') {
+      return res.status(400).json({ error: 'Бронирование не найдено' });
+    }
+    if (err.code === 'FORBIDDEN') {
+      return res.status(403).json({ error: 'Нет прав на отмену этого бронирования' });
+    }
+    if (err.code === 'BAD_STATUS') {
+      return res.status(400).json({ error: 'Эту бронь уже нельзя отменить' });
+    }
+    if (err.code === 'TOO_LATE') {
+      return res.status(400).json({ error: 'Нельзя отменить бронь после начала поездки.' });
+    }
+
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Активные брони пассажира
+app.get('/api/passenger/active-bookings', async (req, res) => {
+  try {
+    const telegram_id = req.query.telegram_id;
+    if (!telegram_id) {
+      return res.status(400).json({ error: 'Не указан telegram_id' });
+    }
+
+    const passenger = await getUserByTelegramId(telegram_id);
+    if (!passenger) {
+      return res.status(400).json({ error: 'Пассажир не найден' });
+    }
+
+    const all = await getPassengerBookingsByTelegramId(telegram_id);
+    const now = Date.now();
+    const cutoff = now - 10 * 60 * 1000;
+
+    const active = (all || []).filter((b) => {
+      if (b.status !== 'booked') return false;
+      const ts = Date.parse(b.departure_time);
+      if (!Number.isFinite(ts)) return true;
+      return ts >= cutoff;
+    });
+
+    return res.json({ bookings: active });
+  } catch (err) {
+    console.error('Ошибка /api/passenger/active-bookings:', err);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
 // История поездок водителя
 app.get('/api/driver/trips', async (req, res) => {
   try {
@@ -555,7 +667,7 @@ app.post('/api/admin/settings', async (req, res) => {
     }
 
     const updated = await updateAppSettings({
-      monetizationEnabled: !!monetization_enabled,
+      monetizationEnabled: monetization_enabled === null ? undefined : !!monetization_enabled,
       paymentDetails: payment_details || '',
     });
 
