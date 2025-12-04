@@ -158,14 +158,17 @@ app.post('/api/trips', async (req, res) => {
       });
     }
 
-    const settings = await getAppSettings();
+       const settings = await getAppSettings();
 
     if (settings && settings.monetization_enabled) {
       const stats = await getDriverDailyStats(user.id);
       const hasProof = await hasDriverPaymentProofToday(user.id);
-      const appFeeToday = (stats && stats.app_fee_total) || 0.05;
 
-      if (appFeeToday > 0 && !hasProof) {
+      const tripsToday = (stats && stats.trips_count) || 0;
+      const appFeeToday = (stats && stats.app_fee_total) || 0;
+
+      // Блокируем только если СЕГОДНЯ были поездки с комиссией и нет чека
+      if (tripsToday > 0 && appFeeToday > 0 && !hasProof) {
         return res.status(403).json({
           error:
             'Сервис стал частично платным для водителей.\n' +

@@ -1,10 +1,18 @@
+// db.js
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
-const dbPath = path.join(__dirname, 'poputchiki.db');
-const db = new sqlite3.Database(dbPath);
+// Путь к БД: можно переопределить через переменную окружения SQLITE_PATH
+const DB_PATH = process.env.SQLITE_PATH || path.join(__dirname, 'app.sqlite');
 
-// Инициализация таблиц и миграции
+// Процент комиссии сервиса (по умолчанию 10%)
+// Можно задать через APP_FEE_PERCENT в окружении, например 0.05 = 5%
+const APP_FEE_PERCENT = Number(process.env.APP_FEE_PERCENT || '0.10');
+
+const db = new sqlite3.Database(DB_PATH);
+
+// ---------------- ИНИЦИАЛИЗАЦИЯ СХЕМЫ ----------------
+
 db.serialize(() => {
   // Пользователи Telegram
   db.run(`
@@ -14,8 +22,12 @@ db.serialize(() => {
       first_name TEXT,
       last_name TEXT,
       username TEXT,
-      role TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP
+      language_code TEXT,
+      is_premium INTEGER DEFAULT 0,
+      no_show_count INTEGER DEFAULT 0,
+      car_make TEXT,
+      car_color TEXT,
+      car_plate TEXT
     )
   `);
 
@@ -30,7 +42,8 @@ db.serialize(() => {
       seats_total INTEGER NOT NULL,
       seats_available INTEGER NOT NULL,
       price_per_seat REAL NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      note TEXT,
+      created_at TEXT DEFAULT (datetime('now','localtime')),
       FOREIGN KEY (driver_id) REFERENCES users(id)
     )
   `);
@@ -42,254 +55,174 @@ db.serialize(() => {
       trip_id INTEGER NOT NULL,
       passenger_id INTEGER NOT NULL,
       seats_booked INTEGER NOT NULL,
-      status TEXT DEFAULT 'booked',
-      amount_total REAL,
-      app_fee REAL,
-      driver_amount REAL,
-      is_paid INTEGER DEFAULT 0,
-      paid_at TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      amount_total REAL NOT NULL,
+      driver_amount REAL NOT NULL,
+      app_fee REAL NOT NULL,
+      status TEXT NOT NULL DEFAULT 'booked', -- booked / cancelled / no_show
+      created_at TEXT DEFAULT (datetime('now','localtime')),
       FOREIGN KEY (trip_id) REFERENCES trips(id),
       FOREIGN KEY (passenger_id) REFERENCES users(id)
     )
   `);
 
-  // Примечание к поездке
-  db.run(`ALTER TABLE trips ADD COLUMN note TEXT`, (err) => {
-    if (err && !String(err.message).includes('duplicate column name')) {
-      console.error('Ошибка ALTER TABLE trips (note):', err.message);
-    }
-  });
-
-  // Счётчик неявок
-  db.run(`ALTER TABLE users ADD COLUMN no_show_count INTEGER DEFAULT 0`, (err) => {
-    if (err && !String(err.message).includes('duplicate column name')) {
-      console.error('Ошибка ALTER TABLE users (no_show_count):', err.message);
-    }
-  });
-
-  // Данные машины
-  db.run(`ALTER TABLE users ADD COLUMN car_make TEXT`, (err) => {
-    if (err && !String(err.message).includes('duplicate column name')) {
-      console.error('Ошибка ALTER TABLE users (car_make):', err.message);
-    }
-  });
-  db.run(`ALTER TABLE users ADD COLUMN car_color TEXT`, (err) => {
-    if (err && !String(err.message).includes('duplicate column name')) {
-      console.error('Ошибка ALTER TABLE users (car_color):', err.message);
-    }
-  });
-  db.run(`ALTER TABLE users ADD COLUMN car_plate TEXT`, (err) => {
-    if (err && !String(err.message).includes('duplicate column name')) {
-      console.error('Ошибка ALTER TABLE users (car_plate):', err.message);
-    }
-  });
-
-  // Платёжные поля
-  db.run(`ALTER TABLE bookings ADD COLUMN amount_total REAL`, (err) => {
-    if (err && !String(err.message).includes('duplicate column name')) {
-      console.error('Ошибка ALTER TABLE bookings (amount_total):', err.message);
-    }
-  });
-  db.run(`ALTER TABLE bookings ADD COLUMN app_fee REAL`, (err) => {
-    if (err && !String(err.message).includes('duplicate column name')) {
-      console.error('Ошибка ALTER TABLE bookings (app_fee):', err.message);
-    }
-  });
-  db.run(`ALTER TABLE bookings ADD COLUMN driver_amount REAL`, (err) => {
-    if (err && !String(err.message).includes('duplicate column name')) {
-      console.error('Ошибка ALTER TABLE bookings (driver_amount):', err.message);
-    }
-  });
-  db.run(`ALTER TABLE bookings ADD COLUMN is_paid INTEGER DEFAULT 0`, (err) => {
-    if (err && !String(err.message).includes('duplicate column name')) {
-      console.error('Ошибка ALTER TABLE bookings (is_paid):', err.message);
-    }
-  });
-  db.run(`ALTER TABLE bookings ADD COLUMN paid_at TEXT`, (err) => {
-    if (err && !String(err.message).includes('duplicate column name')) {
-      console.error('Ошибка ALTER TABLE bookings (paid_at):', err.message);
-    }
-  });
-
-  // Глобальные настройки приложения (платный режим, реквизиты)
+  // Настройки приложения (одна строка, id = 1)
   db.run(`
     CREATE TABLE IF NOT EXISTS app_settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
-      monetization_enabled INTEGER DEFAULT 0,
-      payment_details TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+      monetization_enabled INTEGER NOT NULL DEFAULT 0,
+      payment_details TEXT
     )
   `);
 
-  db.get(`SELECT COUNT(*) AS cnt FROM app_settings`, [], (err, row) => {
-    if (err) {
-      console.error('Ошибка SELECT app_settings:', err.message);
-      return;
-    }
-    if (!row || row.cnt === 0) {
-      db.run(
-        `INSERT INTO app_settings (id, monetization_enabled, payment_details)
-         VALUES (1, 0, '')`,
-        (err2) => {
-          if (err2) {
-            console.error('Ошибка INSERT app_settings:', err2.message);
-          }
-        }
-      );
-    }
-  });
-
-  // Файлы чеков водителей
+  // Чеки оплаты от водителей
   db.run(`
-    CREATE TABLE IF NOT EXISTS driver_payment_files (
+    CREATE TABLE IF NOT EXISTS driver_payment_proofs (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       driver_id INTEGER NOT NULL,
-      original_name TEXT,
-      stored_name TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      file_original_name TEXT,
+      file_stored_name TEXT,
+      created_at TEXT DEFAULT (datetime('now','localtime')),
       FOREIGN KEY (driver_id) REFERENCES users(id)
     )
   `);
+
+  // Гарантируем, что есть строка настроек с id=1
+  db.run(`
+    INSERT OR IGNORE INTO app_settings (id, monetization_enabled, payment_details)
+    VALUES (1, 0, '')
+  `);
 });
 
-// -------- Пользователи --------
+// ---------------- ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ----------------
 
-function upsertUserFromTelegram(user) {
+function runAsync(sql, params = []) {
   return new Promise((resolve, reject) => {
-    if (!user || !user.id) {
-      return reject(new Error('Некорректный объект user'));
-    }
-
-    const telegramId = String(user.id);
-    const firstName = user.first_name || null;
-    const lastName = user.last_name || null;
-    const username = user.username || null;
-
-    db.run(
-      `
-        INSERT INTO users (telegram_id, first_name, last_name, username)
-        VALUES (?, ?, ?, ?)
-        ON CONFLICT(telegram_id) DO UPDATE SET
-          first_name = excluded.first_name,
-          last_name = excluded.last_name,
-          username = excluded.username
-      `,
-      [telegramId, firstName, lastName, username],
-      function (err) {
-        if (err) return reject(err);
-
-        db.get(
-          `SELECT * FROM users WHERE telegram_id = ?`,
-          [telegramId],
-          (err2, row) => {
-            if (err2) return reject(err2);
-            resolve(row);
-          }
-        );
-      }
-    );
+    db.run(sql, params, function (err) {
+      if (err) return reject(err);
+      resolve(this);
+    });
   });
+}
+
+function getAsync(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row || null);
+    });
+  });
+}
+
+function allAsync(sql, params = []) {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows || []);
+    });
+  });
+}
+
+// ---------------- РАБОТА С ПОЛЬЗОВАТЕЛЯМИ ----------------
+
+async function upsertUserFromTelegram(tgUser) {
+  const {
+    id,
+    first_name,
+    last_name,
+    username,
+    language_code,
+    is_premium,
+  } = tgUser;
+
+  const telegramId = String(id);
+
+  const existing = await getAsync(
+    `SELECT * FROM users WHERE telegram_id = ?`,
+    [telegramId]
+  );
+
+  if (existing) {
+    await runAsync(
+      `
+      UPDATE users
+      SET first_name = ?, last_name = ?, username = ?, language_code = ?, is_premium = ?
+      WHERE telegram_id = ?
+    `,
+      [
+        first_name || null,
+        last_name || null,
+        username || null,
+        language_code || null,
+        is_premium ? 1 : 0,
+        telegramId,
+      ]
+    );
+
+    return getAsync(`SELECT * FROM users WHERE telegram_id = ?`, [telegramId]);
+  }
+
+  await runAsync(
+    `
+      INSERT INTO users (
+        telegram_id, first_name, last_name, username, language_code, is_premium
+      ) VALUES (?, ?, ?, ?, ?, ?)
+    `,
+    [
+      telegramId,
+      first_name || null,
+      last_name || null,
+      username || null,
+      language_code || null,
+      is_premium ? 1 : 0,
+    ]
+  );
+
+  return getAsync(`SELECT * FROM users WHERE telegram_id = ?`, [telegramId]);
 }
 
 function getUserByTelegramId(telegramId) {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT * FROM users WHERE telegram_id = ?`,
-      [String(telegramId)],
-      (err, row) => {
-        if (err) return reject(err);
-        resolve(row || null);
-      }
-    );
-  });
+  return getAsync(
+    `SELECT * FROM users WHERE telegram_id = ?`,
+    [String(telegramId)]
+  );
 }
 
-function getDriverProfileByTelegramId(telegramId) {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `
-        SELECT
-          id,
-          telegram_id,
-          first_name,
-          last_name,
-          username,
-          no_show_count,
-          car_make,
-          car_color,
-          car_plate
-        FROM users
-        WHERE telegram_id = ?
-      `,
-      [String(telegramId)],
-      (err, row) => {
-        if (err) return reject(err);
-        resolve(row || null);
-      }
-    );
-  });
+async function getDriverProfileByTelegramId(telegramId) {
+  const user = await getUserByTelegramId(telegramId);
+  if (!user) return null;
+  return {
+    id: user.id,
+    telegram_id: user.telegram_id,
+    first_name: user.first_name,
+    last_name: user.last_name,
+    username: user.username,
+    car_make: user.car_make,
+    car_color: user.car_color,
+    car_plate: user.car_plate,
+  };
 }
 
-function updateDriverCarProfile(telegramId, { carMake, carColor, carPlate }) {
-  return new Promise((resolve, reject) => {
-    db.run(
-      `
-        UPDATE users
-        SET car_make = ?, car_color = ?, car_plate = ?
-        WHERE telegram_id = ?
-      `,
-      [carMake || null, carColor || null, carPlate || null, String(telegramId)],
-      (err) => {
-        if (err) return reject(err);
+async function updateDriverCarProfile(telegramId, { carMake, carColor, carPlate }) {
+  const user = await getUserByTelegramId(telegramId);
+  if (!user) {
+    throw new Error('Водитель не найден');
+  }
 
-        getDriverProfileByTelegramId(telegramId)
-          .then((row) => resolve(row))
-          .catch(reject);
-      }
-    );
-  });
+  await runAsync(
+    `
+      UPDATE users
+      SET car_make = ?, car_color = ?, car_plate = ?
+      WHERE id = ?
+    `,
+    [carMake || null, carColor || null, carPlate || null, user.id]
+  );
+
+  return getDriverProfileByTelegramId(telegramId);
 }
 
-// -------- Настройки приложения --------
+// ---------------- ПОЕЗДКИ ----------------
 
-function getAppSettings() {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `SELECT * FROM app_settings WHERE id = 1`,
-      [],
-      (err, row) => {
-        if (err) return reject(err);
-        resolve(row || { monetization_enabled: 0, payment_details: '' });
-      }
-    );
-  });
-}
-
-function updateAppSettings({ monetizationEnabled, paymentDetails }) {
-  return new Promise((resolve, reject) => {
-    const enabledInt = monetizationEnabled ? 1 : 0;
-    db.run(
-      `
-        UPDATE app_settings
-        SET monetization_enabled = ?,
-            payment_details = ?,
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = 1
-      `,
-      [enabledInt, paymentDetails || ''],
-      (err) => {
-        if (err) return reject(err);
-        getAppSettings().then(resolve).catch(reject);
-      }
-    );
-  });
-}
-
-// -------- Поездки --------
-
-function createTrip({
+async function createTrip({
   driverId,
   fromCity,
   toCity,
@@ -298,455 +231,122 @@ function createTrip({
   pricePerSeat,
   note,
 }) {
-  return new Promise((resolve, reject) => {
-    const seatsTotalNum = Number(seatsTotal);
-    const priceNum = Number(pricePerSeat);
-    const noteText = note || null;
+  const seatsTotalNum = Number(seatsTotal);
+  const pricePerSeatNum = Number(pricePerSeat);
 
-    db.run(
-      `
-        INSERT INTO trips (
-          driver_id, from_city, to_city,
-          departure_time, seats_total, seats_available, price_per_seat, note
-        )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-      `,
-      [driverId, fromCity, toCity, departureTime, seatsTotalNum, seatsTotalNum, priceNum, noteText],
-      function (err) {
-        if (err) return reject(err);
+  if (!Number.isFinite(seatsTotalNum) || seatsTotalNum <= 0) {
+    throw new Error('Некорректное число мест');
+  }
+  if (!Number.isFinite(pricePerSeatNum) || pricePerSeatNum < 0) {
+    throw new Error('Некорректная цена за место');
+  }
 
-        const id = this.lastID;
-        db.get(`SELECT * FROM trips WHERE id = ?`, [id], (err2, row) => {
-          if (err2) return reject(err2);
-          resolve(row);
-        });
-      }
-    );
-  });
+  await runAsync(
+    `
+      INSERT INTO trips (
+        driver_id,
+        from_city,
+        to_city,
+        departure_time,
+        seats_total,
+        seats_available,
+        price_per_seat,
+        note
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      driverId,
+      fromCity,
+      toCity,
+      departureTime,
+      seatsTotalNum,
+      seatsTotalNum,
+      pricePerSeatNum,
+      note || null,
+    ]
+  );
+
+  const trip = await getAsync(
+    `
+      SELECT *
+      FROM trips
+      WHERE rowid = last_insert_rowid()
+    `
+  );
+
+  return trip;
 }
 
-// Список для пассажира
-function getLatestTrips(limit = 20) {
-  return new Promise((resolve, reject) => {
-    db.all(
-      `
-        SELECT t.*, u.first_name, u.last_name, u.username
-        FROM trips t
-        JOIN users u ON u.id = t.driver_id
-        ORDER BY t.created_at DESC
-        LIMIT ?
-      `,
-      [limit],
-      (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows);
-      }
-    );
-  });
-}
-
-// Поездка + водитель
-function getTripWithDriver(tripId) {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `
-        SELECT
-          t.*,
-          u.telegram_id AS driver_telegram_id,
-          u.first_name AS driver_first_name,
-          u.last_name AS driver_last_name,
-          u.username AS driver_username,
-          u.car_make,
-          u.car_color,
-          u.car_plate
-        FROM trips t
-        JOIN users u ON u.id = t.driver_id
-        WHERE t.id = ?
-      `,
-      [tripId],
-      (err, row) => {
-        if (err) return reject(err);
-        resolve(row || null);
-      }
-    );
-  });
-}
-
-// Поездки водителя
-function getDriverTripsByTelegramId(telegramId) {
-  return new Promise((resolve, reject) => {
-    db.all(
-      `
-        SELECT
-          t.*,
-          (SELECT COUNT(*) FROM bookings b WHERE b.trip_id = t.id) AS bookings_count
-        FROM trips t
-        JOIN users u ON u.id = t.driver_id
-        WHERE u.telegram_id = ?
-        ORDER BY t.departure_time DESC
-      `,
-      [String(telegramId)],
-      (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows);
-      }
-    );
-  });
-}
-
-// -------- Бронирования --------
-
-function getTripBookingsForDriver(tripId, driverId) {
-  return new Promise((resolve, reject) => {
-    db.all(
-      `
-        SELECT
-          b.*,
-          p.first_name AS passenger_first_name,
-          p.last_name AS passenger_last_name,
-          p.username AS passenger_username,
-          COALESCE(p.no_show_count, 0) AS passenger_no_show_count
-        FROM bookings b
-        JOIN trips t ON t.id = b.trip_id
-        JOIN users p ON p.id = b.passenger_id
-        WHERE b.trip_id = ? AND t.driver_id = ?
-        ORDER BY b.created_at DESC
-      `,
-      [tripId, driverId],
-      (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows);
-      }
-    );
-  });
-}
-
-// Создание бронирования + расчёт денег
-function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
-  return new Promise((resolve, reject) => {
-    const seatsNum = Number(seatsBooked);
-
-    if (!Number.isFinite(seatsNum) || seatsNum <= 0) {
-      const err = new Error('Некорректное количество мест');
-      err.code = 'BAD_SEATS';
-      return reject(err);
-    }
-
-    db.serialize(() => {
-      db.get(
-        `SELECT * FROM users WHERE telegram_id = ?`,
-        [String(passengerTelegramId)],
-        (errUser, passenger) => {
-          if (errUser) return reject(errUser);
-          if (!passenger) {
-            const err = new Error('Пассажир не найден');
-            err.code = 'PASSENGER_NOT_FOUND';
-            return reject(err);
-          }
-
-          db.get(
-            `SELECT * FROM trips WHERE id = ?`,
-            [tripId],
-            (errTrip, trip) => {
-              if (errTrip) return reject(errTrip);
-              if (!trip) {
-                const err = new Error('Поездка не найдена');
-                err.code = 'TRIP_NOT_FOUND';
-                return reject(err);
-              }
-
-              if (trip.seats_available < seatsNum) {
-                const err = new Error('Недостаточно свободных мест');
-                err.code = 'NOT_ENOUGH_SEATS';
-                return reject(err);
-              }
-
-              const price = Number(trip.price_per_seat) || 0;
-              const amountTotal = price * seatsNum;
-              const feePct = Number(process.env.SERVICE_FEE_PCT || 0);
-              let appFee = amountTotal * feePct / 100;
-              appFee = Math.round(appFee * 100) / 100;
-              let driverAmount = amountTotal - appFee;
-              driverAmount = Math.round(driverAmount * 100) / 100;
-
-              db.run('BEGIN TRANSACTION', (errBegin) => {
-                if (errBegin) return reject(errBegin);
-
-                db.run(
-                  `
-                    INSERT INTO bookings (
-                      trip_id,
-                      passenger_id,
-                      seats_booked,
-                      status,
-                      amount_total,
-                      app_fee,
-                      driver_amount,
-                      is_paid
-                    )
-                    VALUES (?, ?, ?, 'booked', ?, ?, ?, 0)
-                  `,
-                  [tripId, passenger.id, seatsNum, amountTotal, appFee, driverAmount],
-                  function (errIns) {
-                    if (errIns) {
-                      db.run('ROLLBACK');
-                      return reject(errIns);
-                    }
-
-                    const bookingId = this.lastID;
-
-                    db.run(
-                      `
-                        UPDATE trips
-                        SET seats_available = seats_available - ?
-                        WHERE id = ?
-                      `,
-                      [seatsNum, tripId],
-                      (errUpd) => {
-                        if (errUpd) {
-                          db.run('ROLLBACK');
-                          return reject(errUpd);
-                        }
-
-                        db.run('COMMIT', (errCommit) => {
-                          if (errCommit) return reject(errCommit);
-
-                          db.get(
-                            `SELECT * FROM bookings WHERE id = ?`,
-                            [bookingId],
-                            (errBooking, bookingRow) => {
-                              if (errBooking) return reject(errBooking);
-                              resolve({ booking: bookingRow, trip, passenger });
-                            }
-                          );
-                        });
-                      }
-                    );
-                  }
-                );
-              });
-            }
-          );
-        }
-      );
-    });
-  });
-}
-
-// Отметить "не приехал"
-function markBookingNoShow({ bookingId, driverId }) {
-  return new Promise((resolve, reject) => {
-    db.serialize(() => {
-      db.get(
-        `
-          SELECT
-            b.*,
-            t.driver_id,
-            p.id AS passenger_id
+// Список последних поездок (для пассажиров)
+async function getLatestTrips(limit = 50) {
+  const rows = await allAsync(
+    `
+      SELECT
+        t.*,
+        u.first_name,
+        u.last_name,
+        u.username,
+        (
+          SELECT COUNT(*)
           FROM bookings b
-          JOIN trips t ON t.id = b.trip_id
-          JOIN users p ON p.id = b.passenger_id
-          WHERE b.id = ?
-        `,
-        [bookingId],
-        (err, row) => {
-          if (err) return reject(err);
-          if (!row) {
-            const e = new Error('Бронирование не найдено');
-            e.code = 'BOOKING_NOT_FOUND';
-            return reject(e);
-          }
+          WHERE b.trip_id = t.id AND b.status = 'booked'
+        ) AS bookings_count
+      FROM trips t
+      JOIN users u ON u.id = t.driver_id
+      ORDER BY datetime(t.departure_time) ASC
+      LIMIT ?
+    `,
+    [limit]
+  );
 
-          if (row.driver_id !== driverId) {
-            const e = new Error('Нет прав на изменение этого бронирования');
-            e.code = 'FORBIDDEN';
-            return reject(e);
-          }
-
-          if (row.status === 'no_show') {
-            return resolve(row);
-          }
-
-          db.run('BEGIN TRANSACTION', (errBegin) => {
-            if (errBegin) return reject(errBegin);
-
-            db.run(
-              `UPDATE bookings SET status = 'no_show' WHERE id = ?`,
-              [bookingId],
-              (errUpd) => {
-                if (errUpd) {
-                  db.run('ROLLBACK');
-                  return reject(errUpd);
-                }
-
-                db.run(
-                  `
-                    UPDATE users
-                    SET no_show_count = COALESCE(no_show_count, 0) + 1
-                    WHERE id = ?
-                  `,
-                  [row.passenger_id],
-                  (errUser) => {
-                    if (errUser) {
-                      db.run('ROLLBACK');
-                      return reject(errUser);
-                    }
-
-                    db.run('COMMIT', (errCommit) => {
-                      if (errCommit) return reject(errCommit);
-                      resolve(row);
-                    });
-                  }
-                );
-              }
-            );
-          });
-        }
-      );
-    });
-  });
+  return rows;
 }
 
-// -------- Дневная статистика водителя + чеки --------
+async function getTripWithDriver(tripId) {
+  const row = await getAsync(
+    `
+      SELECT
+        t.*,
+        u.telegram_id AS driver_telegram_id,
+        u.first_name AS driver_first_name,
+        u.last_name AS driver_last_name,
+        u.username AS driver_username,
+        u.car_make,
+        u.car_color,
+        u.car_plate
+      FROM trips t
+      JOIN users u ON u.id = t.driver_id
+      WHERE t.id = ?
+    `,
+    [Number(tripId)]
+  );
 
-function getDriverDailyStats(driverId) {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `
-        SELECT
-          COUNT(DISTINCT t.id) AS trips_count,
-          COUNT(b.id) AS bookings_count,
-          COALESCE(SUM(b.seats_booked), 0) AS seats_count,
-          COALESCE(SUM(b.app_fee), 0) AS app_fee_total
-        FROM bookings b
-        JOIN trips t ON t.id = b.trip_id
-        WHERE t.driver_id = ?
-          AND b.status = 'booked'
-          AND DATE(b.created_at, 'localtime') = DATE('now', 'localtime')
-      `,
-      [driverId],
-      (err, row) => {
-        if (err) return reject(err);
-        resolve(row || {
-          trips_count: 0,
-          bookings_count: 0,
-          seats_count: 0,
-          app_fee_total: 0,
-        });
-      }
-    );
-  });
+  return row;
 }
 
-function hasDriverPaymentProofToday(driverId) {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `
-        SELECT 1
-        FROM driver_payment_files
-        WHERE driver_id = ?
-          AND DATE(created_at, 'localtime') = DATE('now', 'localtime')
-        LIMIT 1
-      `,
-      [driverId],
-      (err, row) => {
-        if (err) return reject(err);
-        resolve(!!row);
-      }
-    );
-  });
+// Все поездки водителя (для истории и активной)
+async function getDriverTripsByTelegramId(telegramId) {
+  const rows = await allAsync(
+    `
+      SELECT
+        t.*,
+        (
+          SELECT COUNT(*)
+          FROM bookings b
+          WHERE b.trip_id = t.id AND b.status = 'booked'
+        ) AS bookings_count
+      FROM trips t
+      JOIN users u ON u.id = t.driver_id
+      WHERE u.telegram_id = ?
+      ORDER BY datetime(t.departure_time) DESC
+    `,
+    [String(telegramId)]
+  );
+
+  return rows;
 }
 
-function saveDriverPaymentProof(driverId, originalName, storedName) {
-  return new Promise((resolve, reject) => {
-    db.run(
-      `
-        INSERT INTO driver_payment_files (driver_id, original_name, stored_name)
-        VALUES (?, ?, ?)
-      `,
-      [driverId, originalName, storedName],
-      function (err) {
-        if (err) return reject(err);
-        resolve({ id: this.lastID });
-      }
-    );
-  });
-}
-
-// -------- Статистика для владельца --------
-
-function getAdminStats() {
-  return new Promise((resolve, reject) => {
-    db.get(
-      `
-        SELECT
-          COUNT(DISTINCT trip_id) AS trips_count,
-          COUNT(*) AS bookings_count,
-          COALESCE(SUM(seats_booked), 0) AS seats_booked_total,
-          COALESCE(SUM(amount_total), 0) AS total_turnover,
-          COALESCE(SUM(app_fee), 0) AS total_app_fee,
-          COALESCE(SUM(driver_amount), 0) AS total_driver_amount
-        FROM bookings
-        WHERE status = 'booked'
-      `,
-      [],
-      (err, row) => {
-        if (err) return reject(err);
-        resolve(row || null);
-      }
-    );
-  });
-}
-
-// Водители за сегодня + их чеки
-function getAdminDailyDrivers() {
-  return new Promise((resolve, reject) => {
-    db.all(
-      `
-        SELECT
-          u.id AS driver_id,
-          u.telegram_id,
-          u.first_name,
-          u.last_name,
-          u.username,
-          COUNT(DISTINCT t.id) AS trips_count,
-          COUNT(b.id) AS bookings_count,
-          COALESCE(SUM(b.seats_booked), 0) AS seats_count,
-          COALESCE(SUM(b.app_fee), 0) AS app_fee_total,
-          (
-            SELECT stored_name
-            FROM driver_payment_files f
-            WHERE f.driver_id = u.id
-              AND DATE(f.created_at, 'localtime') = DATE('now', 'localtime')
-            ORDER BY f.created_at DESC
-            LIMIT 1
-          ) AS last_proof_file,
-          (
-            SELECT original_name
-            FROM driver_payment_files f
-            WHERE f.driver_id = u.id
-              AND DATE(f.created_at, 'localtime') = DATE('now', 'localtime')
-            ORDER BY f.created_at DESC
-            LIMIT 1
-          ) AS last_proof_original_name
-        FROM bookings b
-        JOIN trips t ON t.id = b.trip_id
-        JOIN users u ON u.id = t.driver_id
-        WHERE b.status = 'booked'
-          AND DATE(b.created_at, 'localtime') = DATE('now', 'localtime')
-        GROUP BY
-          u.id, u.telegram_id, u.first_name, u.last_name, u.username
-        ORDER BY app_fee_total DESC
-      `,
-      [],
-      (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows || []);
-      }
-    );
-  });
-}
-
+// Удаление поездки водителем
 function deleteTripByDriver(tripId, driverId) {
   return new Promise((resolve, reject) => {
     const tripIdNum = Number(tripId);
@@ -805,38 +405,237 @@ function deleteTripByDriver(tripId, driverId) {
   });
 }
 
-function getPassengerBookingsByTelegramId(telegramId) {
+// ---------------- БРОНИРОВАНИЯ ----------------
+
+async function createBooking({
+  tripId,
+  passengerTelegramId,
+  seatsBooked,
+}) {
+  const trip = await getAsync(`SELECT * FROM trips WHERE id = ?`, [Number(tripId)]);
+  if (!trip) {
+    const e = new Error('Поездка не найдена');
+    e.code = 'TRIP_NOT_FOUND';
+    throw e;
+  }
+
+  const seatsNum = Number(seatsBooked);
+  if (!Number.isFinite(seatsNum) || seatsNum <= 0) {
+    const e = new Error('Некорректное количество мест');
+    e.code = 'BAD_SEATS';
+    throw e;
+  }
+
+  if (trip.seats_available < seatsNum) {
+    const e = new Error('Недостаточно свободных мест');
+    e.code = 'NOT_ENOUGH_SEATS';
+    throw e;
+  }
+
+  const passenger = await getUserByTelegramId(passengerTelegramId);
+  if (!passenger) {
+    const e = new Error('Пассажир не найден');
+    e.code = 'PASSENGER_NOT_FOUND';
+    throw e;
+  }
+
+  const pricePerSeat = Number(trip.price_per_seat);
+  const amountTotal = pricePerSeat * seatsNum;
+  const appFee = Math.round(amountTotal * APP_FEE_PERCENT);
+  const driverAmount = amountTotal - appFee;
+
+  // Транзакция: создаём бронь, уменьшаем seats_available
   return new Promise((resolve, reject) => {
-    db.all(
-      `
-        SELECT
-          b.*,
-          t.from_city,
-          t.to_city,
-          t.departure_time,
-          t.price_per_seat,
-          t.seats_total,
-          t.seats_available,
-          d.telegram_id AS driver_telegram_id,
-          d.first_name AS driver_first_name,
-          d.last_name AS driver_last_name,
-          d.username AS driver_username
-        FROM bookings b
-        JOIN users p ON p.id = b.passenger_id
-        JOIN trips t ON t.id = b.trip_id
-        JOIN users d ON d.id = t.driver_id
-        WHERE p.telegram_id = ?
-        ORDER BY t.departure_time ASC
-      `,
-      [String(telegramId)],
-      (err, rows) => {
-        if (err) return reject(err);
-        resolve(rows || []);
-      }
-    );
+    db.serialize(() => {
+      db.run('BEGIN TRANSACTION', (errBegin) => {
+        if (errBegin) return reject(errBegin);
+
+        db.run(
+          `
+            INSERT INTO bookings (
+              trip_id,
+              passenger_id,
+              seats_booked,
+              amount_total,
+              driver_amount,
+              app_fee,
+              status,
+              created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, 'booked', datetime('now','localtime'))
+          `,
+          [
+            trip.id,
+            passenger.id,
+            seatsNum,
+            amountTotal,
+            driverAmount,
+            appFee,
+          ],
+          function (errInsert) {
+            if (errInsert) {
+              db.run('ROLLBACK');
+              return reject(errInsert);
+            }
+
+            const bookingId = this.lastID;
+
+            db.run(
+              `
+                UPDATE trips
+                SET seats_available = seats_available - ?
+                WHERE id = ?
+              `,
+              [seatsNum, trip.id],
+              (errUpdate) => {
+                if (errUpdate) {
+                  db.run('ROLLBACK');
+                  return reject(errUpdate);
+                }
+
+                db.run('COMMIT', async (errCommit) => {
+                  if (errCommit) return reject(errCommit);
+
+                  try {
+                    const booking = await getAsync(
+                      `SELECT * FROM bookings WHERE id = ?`,
+                      [bookingId]
+                    );
+                    resolve({ booking, trip, passenger });
+                  } catch (e) {
+                    reject(e);
+                  }
+                });
+              }
+            );
+          }
+        );
+      });
+    });
   });
 }
 
+// Бронирования по поездке для водителя
+async function getTripBookingsForDriver(tripId, driverId) {
+  const rows = await allAsync(
+    `
+      SELECT
+        b.*,
+        p.first_name AS passenger_first_name,
+        p.last_name AS passenger_last_name,
+        p.username AS passenger_username,
+        p.no_show_count AS passenger_no_show_count
+      FROM bookings b
+      JOIN trips t ON t.id = b.trip_id
+      JOIN users p ON p.id = b.passenger_id
+      WHERE b.trip_id = ?
+        AND t.driver_id = ?
+      ORDER BY b.created_at ASC
+    `,
+    [Number(tripId), Number(driverId)]
+  );
+
+  return rows;
+}
+
+// Отметка "не приехал"
+function markBookingNoShow({ bookingId, driverId }) {
+  return new Promise((resolve, reject) => {
+    const bookingIdNum = Number(bookingId);
+    const driverIdNum = Number(driverId);
+
+    db.serialize(() => {
+      db.get(
+        `
+          SELECT
+            b.*,
+            t.driver_id,
+            b.passenger_id
+          FROM bookings b
+          JOIN trips t ON t.id = b.trip_id
+          WHERE b.id = ?
+        `,
+        [bookingIdNum],
+        (err, row) => {
+          if (err) return reject(err);
+          if (!row) {
+            const e = new Error('Бронирование не найдено');
+            e.code = 'BOOKING_NOT_FOUND';
+            return reject(e);
+          }
+          if (row.driver_id !== driverIdNum) {
+            const e = new Error('Нет прав на изменение этого бронирования');
+            e.code = 'FORBIDDEN';
+            return reject(e);
+          }
+
+          db.run('BEGIN TRANSACTION', (errBegin) => {
+            if (errBegin) return reject(errBegin);
+
+            db.run(
+              `UPDATE bookings SET status = 'no_show' WHERE id = ?`,
+              [bookingIdNum],
+              (errUpd) => {
+                if (errUpd) {
+                  db.run('ROLLBACK');
+                  return reject(errUpd);
+                }
+
+                db.run(
+                  `
+                    UPDATE users
+                    SET no_show_count = no_show_count + 1
+                    WHERE id = ?
+                  `,
+                  [row.passenger_id],
+                  (errUser) => {
+                    if (errUser) {
+                      db.run('ROLLBACK');
+                      return reject(errUser);
+                    }
+
+                    db.run('COMMIT', (errCommit) => {
+                      if (errCommit) return reject(errCommit);
+                      resolve();
+                    });
+                  }
+                );
+              }
+            );
+          });
+        }
+      );
+    });
+  });
+}
+
+// Активные/все бронирования пассажира
+function getPassengerBookingsByTelegramId(telegramId) {
+  return allAsync(
+    `
+      SELECT
+        b.*,
+        t.from_city,
+        t.to_city,
+        t.departure_time,
+        t.price_per_seat,
+        t.seats_total,
+        t.seats_available,
+        d.telegram_id AS driver_telegram_id,
+        d.first_name AS driver_first_name,
+        d.last_name AS driver_last_name,
+        d.username AS driver_username
+      FROM bookings b
+      JOIN users p ON p.id = b.passenger_id
+      JOIN trips t ON t.id = b.trip_id
+      JOIN users d ON d.id = t.driver_id
+      WHERE p.telegram_id = ?
+      ORDER BY datetime(t.departure_time) ASC
+    `,
+    [String(telegramId)]
+  );
+}
+
+// Отмена бронирования самим пассажиром
 function cancelBookingByPassenger({ bookingId, passengerId }) {
   return new Promise((resolve, reject) => {
     const bookingIdNum = Number(bookingId);
@@ -925,30 +724,216 @@ function cancelBookingByPassenger({ bookingId, passengerId }) {
   });
 }
 
+// ---------------- НАСТРОЙКИ ПРИЛОЖЕНИЯ ----------------
+
+async function getAppSettings() {
+  let row = await getAsync(`SELECT * FROM app_settings WHERE id = 1`);
+  if (!row) {
+    await runAsync(
+      `
+        INSERT OR IGNORE INTO app_settings (id, monetization_enabled, payment_details)
+        VALUES (1, 0, '')
+      `
+    );
+    row = await getAsync(`SELECT * FROM app_settings WHERE id = 1`);
+  }
+  return row;
+}
+
+async function updateAppSettings({ monetizationEnabled, paymentDetails }) {
+  const current = await getAppSettings();
+  const newMonetization =
+    typeof monetizationEnabled === 'boolean'
+      ? (monetizationEnabled ? 1 : 0)
+      : current.monetization_enabled;
+  const newDetails =
+    typeof paymentDetails === 'string'
+      ? paymentDetails
+      : current.payment_details;
+
+  await runAsync(
+    `
+      UPDATE app_settings
+      SET monetization_enabled = ?, payment_details = ?
+      WHERE id = 1
+    `,
+    [newMonetization, newDetails]
+  );
+
+  return getAppSettings();
+}
+
+// ---------------- СТАТИСТИКА ДЛЯ ВОДИТЕЛЯ (ПО ДНЮ) ----------------
+
+async function getDriverDailyStats(driverId) {
+  // Статистика по бронированиям за сегодняшний день (локальное время)
+  const stats = await getAsync(
+    `
+      SELECT
+        COUNT(DISTINCT b.trip_id) AS trips_count,
+        COUNT(b.id) AS bookings_count,
+        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.seats_booked ELSE 0 END), 0) AS seats_count,
+        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.app_fee ELSE 0 END), 0) AS app_fee_total,
+        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.driver_amount ELSE 0 END), 0) AS driver_amount_total
+      FROM bookings b
+      JOIN trips t ON t.id = b.trip_id
+      WHERE t.driver_id = ?
+        AND date(b.created_at, 'localtime') = date('now','localtime')
+    `,
+    [Number(driverId)]
+  );
+
+  return {
+    trips_count: stats.trips_count || 0,
+    bookings_count: stats.bookings_count || 0,
+    seats_count: stats.seats_count || 0,
+    app_fee_total: stats.app_fee_total || 0,
+    driver_amount_total: stats.driver_amount_total || 0,
+  };
+}
+
+async function hasDriverPaymentProofToday(driverId) {
+  const row = await getAsync(
+    `
+      SELECT id
+      FROM driver_payment_proofs
+      WHERE driver_id = ?
+        AND date(created_at, 'localtime') = date('now','localtime')
+      ORDER BY created_at DESC
+      LIMIT 1
+    `,
+    [Number(driverId)]
+  );
+
+  return !!row;
+}
+
+async function saveDriverPaymentProof(driverId, originalName, storedName) {
+  await runAsync(
+    `
+      INSERT INTO driver_payment_proofs (
+        driver_id,
+        file_original_name,
+        file_stored_name,
+        created_at
+      ) VALUES (?, ?, ?, datetime('now','localtime'))
+    `,
+    [Number(driverId), originalName || '', storedName || '']
+  );
+}
+
+// ---------------- АДМИН-СТАТИСТИКА ----------------
+
+async function getAdminStats() {
+  const stats = await getAsync(
+    `
+      SELECT
+        COUNT(DISTINCT b.trip_id) AS trips_count,
+        COUNT(b.id) AS bookings_count,
+        COALESCE(SUM(b.seats_booked), 0) AS seats_booked_total,
+        COALESCE(SUM(b.amount_total), 0) AS total_turnover,
+        COALESCE(SUM(b.app_fee), 0) AS total_app_fee,
+        COALESCE(SUM(b.driver_amount), 0) AS total_driver_amount
+      FROM bookings b
+      WHERE 1 = 1
+    `
+  );
+
+  return {
+    trips_count: stats.trips_count || 0,
+    bookings_count: stats.bookings_count || 0,
+    seats_booked_total: stats.seats_booked_total || 0,
+    total_turnover: stats.total_turnover || 0,
+    total_app_fee: stats.total_app_fee || 0,
+    total_driver_amount: stats.total_driver_amount || 0,
+  };
+}
+
+// Водители за сегодня + их чеки
+async function getAdminDailyDrivers() {
+  const rows = await allAsync(
+    `
+      SELECT
+        d.id AS driver_id,
+        d.telegram_id,
+        d.first_name,
+        d.last_name,
+        d.username,
+        COUNT(DISTINCT t.id) AS trips_count,
+        COUNT(b.id) AS bookings_count,
+        COALESCE(SUM(b.seats_booked), 0) AS seats_count,
+        COALESCE(SUM(b.app_fee), 0) AS app_fee_total
+      FROM bookings b
+      JOIN trips t ON t.id = b.trip_id
+      JOIN users d ON d.id = t.driver_id
+      WHERE date(b.created_at, 'localtime') = date('now','localtime')
+      GROUP BY d.id, d.telegram_id, d.first_name, d.last_name, d.username
+      ORDER BY app_fee_total DESC, bookings_count DESC
+    `
+  );
+
+  // для каждого водителя подтянем последний чек
+  const result = [];
+  for (const row of rows) {
+    const proof = await getAsync(
+      `
+        SELECT file_original_name, file_stored_name
+        FROM driver_payment_proofs
+        WHERE driver_id = ?
+        ORDER BY created_at DESC
+        LIMIT 1
+      `,
+      [row.driver_id]
+    );
+
+    result.push({
+      driver_id: row.driver_id,
+      telegram_id: row.telegram_id,
+      first_name: row.first_name,
+      last_name: row.last_name,
+      username: row.username,
+      trips_count: row.trips_count || 0,
+      bookings_count: row.bookings_count || 0,
+      seats_count: row.seats_count || 0,
+      app_fee_total: row.app_fee_total || 0,
+      last_proof_original_name: proof ? proof.file_original_name : null,
+      last_proof_file: proof ? proof.file_stored_name : null,
+    });
+  }
+
+  return result;
+}
+
+// ---------------- ЭКСПОРТ ----------------
+
 module.exports = {
   db,
+
   upsertUserFromTelegram,
+  getUserByTelegramId,
+
   createTrip,
   getLatestTrips,
-  getUserByTelegramId,
-  getDriverProfileByTelegramId,
-  updateDriverCarProfile,
   getTripWithDriver,
   getDriverTripsByTelegramId,
-  getTripBookingsForDriver,
+  deleteTripByDriver,
+
+  getDriverProfileByTelegramId,
+  updateDriverCarProfile,
+
   createBooking,
+  getTripBookingsForDriver,
   markBookingNoShow,
+  getPassengerBookingsByTelegramId,
+  cancelBookingByPassenger,
+
   getAppSettings,
   updateAppSettings,
+
   getDriverDailyStats,
   hasDriverPaymentProofToday,
   saveDriverPaymentProof,
+
   getAdminStats,
   getAdminDailyDrivers,
-
-  // новое
-  deleteTripByDriver,
-  getPassengerBookingsByTelegramId,
-  cancelBookingByPassenger,
 };
-
