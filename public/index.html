@@ -13,24 +13,43 @@
       color: #111827;
     }
     .app {
-      max-width: 480px;
+      max-width: 520px;
       margin: 0 auto;
       padding: 16px;
     }
     .card {
       background: white;
-      border-radius: 12px;
+      border-radius: 16px;
       padding: 16px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       margin-bottom: 12px;
+    }
+    .logo-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+    .logo {
+      width: 40px;
+      height: 40px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      background: linear-gradient(135deg, #2563eb, #10b981);
+      color: #f9fafb;
+      font-weight: 700;
     }
     h1 {
       font-size: 20px;
-      margin: 0 0 8px;
+      margin: 0;
     }
     .subtitle {
       font-size: 14px;
       color: #6b7280;
+      margin-top: 4px;
       margin-bottom: 12px;
     }
     .role-buttons {
@@ -61,6 +80,12 @@
       background: #2563eb;
       color: white;
     }
+    .secondary-btn {
+      width: 100%;
+      margin-top: 6px;
+      background: #e5e7eb;
+      color: #111827;
+    }
     .info {
       font-size: 13px;
       color: #4b5563;
@@ -81,7 +106,7 @@
     }
     .field input {
       padding: 8px 10px;
-      border-radius: 8px;
+      border-radius: 10px;
       border: 1px solid #d1d5db;
       font-size: 14px;
     }
@@ -102,6 +127,11 @@
     .trip-sub {
       font-size: 12px;
       color: #6b7280;
+      margin-bottom: 4px;
+    }
+    .trip-note {
+      font-size: 12px;
+      color: #374151;
       margin-bottom: 6px;
     }
     .badge {
@@ -112,14 +142,57 @@
       background: #e5e7eb;
       margin-left: 4px;
     }
+    .booking {
+      border-bottom: 1px solid #e5e7eb;
+      padding: 6px 0;
+      font-size: 13px;
+    }
+    .booking:last-child {
+      border-bottom: none;
+    }
+    .booking-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 2px;
+    }
+    .booking-status {
+      font-size: 11px;
+      padding: 2px 6px;
+      border-radius: 999px;
+      background: #e5e7eb;
+    }
+    .booking-status.no-show {
+      background: #fee2e2;
+      color: #b91c1c;
+    }
+    .booking-meta {
+      font-size: 12px;
+      color: #6b7280;
+    }
+    .danger-btn {
+      padding: 6px 10px;
+      border-radius: 999px;
+      border: none;
+      font-size: 12px;
+      background: #fee2e2;
+      color: #b91c1c;
+      margin-top: 4px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <div class="app">
     <div class="card">
-      <h1>попутчики</h1>
-      <div class="subtitle">
-        Водители создают поездки, пассажиры бронируют места.
+      <div class="logo-row">
+        <div class="logo">🚗</div>
+        <div>
+          <h1>попутчики</h1>
+          <div class="subtitle">
+            Водители создают поездки, пассажиры бронируют места.
+          </div>
+        </div>
       </div>
       <div id="user-info" class="info">
         Загрузка данных Telegram...
@@ -137,17 +210,17 @@
       </div>
     </div>
 
-    <!-- Водитель -->
+    <!-- Водитель: создание поездки -->
     <div class="card hidden" id="driver-section">
       <div class="subtitle">Создать поездку</div>
 
       <div class="field">
         <label for="from-city">Откуда</label>
-        <input id="from-city" type="text" placeholder="Например: Москва" />
+        <input id="from-city" type="text" placeholder="Например: Сочи" />
       </div>
       <div class="field">
         <label for="to-city">Куда</label>
-        <input id="to-city" type="text" placeholder="Например: Санкт-Петербург" />
+        <input id="to-city" type="text" placeholder="Например: Роза Плато" />
       </div>
       <div class="field">
         <label for="departure-time">Дата и время выезда</label>
@@ -161,12 +234,29 @@
         <label for="price-per-seat">Цена за место</label>
         <input id="price-per-seat" type="number" min="0" step="10" placeholder="Например: 500" />
       </div>
+      <div class="field">
+        <label for="trip-note">Примечание (опционально)</label>
+        <input id="trip-note" type="text" placeholder="Например: еду через Розу Холл" />
+      </div>
 
       <button class="primary-btn" id="btn-create-trip">Создать поездку</button>
       <div class="info" id="driver-message"></div>
     </div>
 
-    <!-- Пассажир -->
+    <!-- Водитель: история поездок -->
+    <div class="card hidden" id="driver-history">
+      <div class="subtitle">Мои поездки</div>
+      <button class="secondary-btn" id="btn-load-driver-trips">Показать историю</button>
+      <div class="info" id="driver-trips-list">
+        История ещё не загружена.
+      </div>
+      <div class="info hidden" id="driver-bookings-title">
+        Пассажиры выбранной поездки:
+      </div>
+      <div class="info" id="driver-bookings-list"></div>
+    </div>
+
+    <!-- Пассажир: список поездок -->
     <div class="card hidden" id="passenger-section">
       <div class="subtitle">Доступные поездки</div>
       <div id="trips-list" class="info">
@@ -184,9 +274,14 @@
     const btnPassenger = document.getElementById('btn-passenger');
     const roleInfo = document.getElementById('role-info');
     const driverSection = document.getElementById('driver-section');
+    const driverHistory = document.getElementById('driver-history');
     const passengerSection = document.getElementById('passenger-section');
     const driverMessage = document.getElementById('driver-message');
     const tripsList = document.getElementById('trips-list');
+    const btnLoadDriverTrips = document.getElementById('btn-load-driver-trips');
+    const driverTripsList = document.getElementById('driver-trips-list');
+    const driverBookingsTitle = document.getElementById('driver-bookings-title');
+    const driverBookingsList = document.getElementById('driver-bookings-list');
 
     // Инициализация из Telegram
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
@@ -211,8 +306,9 @@
         roleInfo.textContent = 'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
         return;
       }
-      roleInfo.textContent = 'Режим водителя: заполните форму и создайте поездку.';
+      roleInfo.textContent = 'Режим водителя: создавайте поездки и смотрите историю.';
       driverSection.classList.remove('hidden');
+      driverHistory.classList.remove('hidden');
       passengerSection.classList.add('hidden');
     });
 
@@ -224,6 +320,7 @@
       roleInfo.textContent = 'Режим пассажира: просматривайте и бронируйте поездки.';
       passengerSection.classList.remove('hidden');
       driverSection.classList.add('hidden');
+      driverHistory.classList.add('hidden');
       loadTrips();
     });
 
@@ -239,9 +336,10 @@
       const departureTime = document.getElementById('departure-time').value;
       const seatsTotal = document.getElementById('seats-total').value;
       const pricePerSeat = document.getElementById('price-per-seat').value;
+      const note = document.getElementById('trip-note').value.trim();
 
       if (!fromCity || !toCity || !departureTime || !seatsTotal || !pricePerSeat) {
-        driverMessage.textContent = 'Заполните все поля.';
+        driverMessage.textContent = 'Заполните обязательные поля.';
         return;
       }
 
@@ -257,6 +355,7 @@
           departure_time: departureTime,
           seats_total: seatsTotal,
           price_per_seat: pricePerSeat,
+          note,
         }),
       })
         .then((res) => res.json())
@@ -273,7 +372,7 @@
         });
     });
 
-    // Загрузка поездок
+    // Загрузка поездок (пассажир)
     function loadTrips() {
       tripsList.textContent = 'Загрузка поездок...';
 
@@ -320,6 +419,12 @@
           Выезд: ${trip.departure_time}
         `;
 
+        const noteDiv = document.createElement('div');
+        noteDiv.className = 'trip-note';
+        if (trip.note) {
+          noteDiv.textContent = 'Примечание: ' + trip.note;
+        }
+
         const btn = document.createElement('button');
         btn.className = 'primary-btn';
         btn.textContent = 'Забронировать';
@@ -329,6 +434,7 @@
 
         div.appendChild(header);
         div.appendChild(sub);
+        if (trip.note) div.appendChild(noteDiv);
         div.appendChild(btn);
 
         tripsList.appendChild(div);
@@ -382,6 +488,201 @@
         .catch((err) => {
           console.error('Ошибка бронирования:', err);
           alert('Произошла ошибка при бронировании.');
+        });
+    }
+
+    // История поездок водителя
+    btnLoadDriverTrips.addEventListener('click', () => {
+      if (!currentTelegramUser) {
+        driverTripsList.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      driverTripsList.textContent = 'Загрузка истории...';
+
+      fetch(`/api/driver/trips?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverTripsList.textContent = 'Ошибка: ' + data.error;
+          } else {
+            renderDriverTrips(data.trips || []);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки истории:', err);
+          driverTripsList.textContent = 'Произошла ошибка при загрузке истории.';
+        });
+    });
+
+    function renderDriverTrips(trips) {
+      if (!trips || trips.length === 0) {
+        driverTripsList.textContent = 'Пока нет поездок.';
+        driverBookingsTitle.classList.add('hidden');
+        driverBookingsList.innerHTML = '';
+        return;
+      }
+
+      driverTripsList.innerHTML = '';
+      driverBookingsTitle.classList.add('hidden');
+      driverBookingsList.innerHTML = '';
+
+      trips.forEach((trip) => {
+        const div = document.createElement('div');
+        div.className = 'trip';
+
+        const header = document.createElement('div');
+        header.className = 'trip-header';
+        header.innerHTML = `
+          <span>${trip.from_city} → ${trip.to_city}</span>
+          <span>${trip.price_per_seat} ₽/место</span>
+        `;
+
+        const sub = document.createElement('div');
+        sub.className = 'trip-sub';
+        sub.innerHTML = `
+          Выезд: ${trip.departure_time}<br/>
+          Бронирований: ${trip.bookings_count || 0}
+        `;
+
+        const noteDiv = document.createElement('div');
+        noteDiv.className = 'trip-note';
+        if (trip.note) {
+          noteDiv.textContent = 'Примечание: ' + trip.note;
+        }
+
+        const btn = document.createElement('button');
+        btn.className = 'secondary-btn';
+        btn.textContent = 'Показать пассажиров';
+        btn.addEventListener('click', () => {
+          loadDriverTripBookings(trip.id);
+        });
+
+        div.appendChild(header);
+        div.appendChild(sub);
+        if (trip.note) div.appendChild(noteDiv);
+        div.appendChild(btn);
+
+        driverTripsList.appendChild(div);
+      });
+    }
+
+    function loadDriverTripBookings(tripId) {
+      driverBookingsTitle.classList.remove('hidden');
+      driverBookingsList.textContent = 'Загрузка пассажиров...';
+
+      fetch(
+        `/api/driver/trip-bookings?telegram_id=${encodeURIComponent(
+          String(currentTelegramUser.id)
+        )}&trip_id=${encodeURIComponent(String(tripId))}`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverBookingsList.textContent = 'Ошибка: ' + data.error;
+          } else {
+            renderDriverBookings(data.bookings || []);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки пассажиров:', err);
+          driverBookingsList.textContent = 'Произошла ошибка при загрузке пассажиров.';
+        });
+    }
+
+    function renderDriverBookings(bookings) {
+      if (!bookings || bookings.length === 0) {
+        driverBookingsList.textContent = 'Бронирований по этой поездке пока нет.';
+        return;
+      }
+
+      driverBookingsList.innerHTML = '';
+
+      bookings.forEach((b) => {
+        const div = document.createElement('div');
+        div.className = 'booking';
+
+        const header = document.createElement('div');
+        header.className = 'booking-header';
+
+        const name = `${b.passenger_first_name || ''} ${b.passenger_last_name || ''}`.trim();
+        const username = b.passenger_username ? `@${b.passenger_username}` : '';
+
+        const left = document.createElement('div');
+        left.textContent = name || 'Пассажир без имени';
+
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'booking-status';
+        if (b.status === 'no_show') {
+          statusSpan.classList.add('no-show');
+          statusSpan.textContent = 'не приехал';
+        } else if (b.status === 'booked') {
+          statusSpan.textContent = 'забронировано';
+        } else {
+          statusSpan.textContent = b.status;
+        }
+
+        header.appendChild(left);
+        header.appendChild(statusSpan);
+
+        const meta = document.createElement('div');
+        meta.className = 'booking-meta';
+
+        const noShowText =
+          b.passenger_no_show_count > 0
+            ? `Неявок: ${b.passenger_no_show_count}`
+            : 'Неявок пока нет';
+
+        meta.innerHTML = `
+          ${username}<br/>
+          Мест: ${b.seats_booked}. ${noShowText}.
+        `;
+
+        div.appendChild(header);
+        div.appendChild(meta);
+
+        if (b.status !== 'no_show') {
+          const btn = document.createElement('button');
+          btn.className = 'danger-btn';
+          btn.textContent = 'Отметить как не приехал';
+          btn.addEventListener('click', () => {
+            markNoShow(b.id);
+          });
+          div.appendChild(btn);
+        }
+
+        driverBookingsList.appendChild(div);
+      });
+    }
+
+    function markNoShow(bookingId) {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+
+      if (!confirm('Отметить пассажира как не приехавшего?')) return;
+
+      fetch('/api/bookings/no-show', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          booking_id: bookingId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Пассажир отмечен как не приехавший.');
+            btnLoadDriverTrips.click();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка no-show:', err);
+          alert('Произошла ошибка при обновлении статуса.');
         });
     }
   </script>

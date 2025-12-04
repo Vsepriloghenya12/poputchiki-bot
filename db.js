@@ -4,7 +4,7 @@ const sqlite3 = require('sqlite3').verbose();
 const dbPath = path.join(__dirname, 'poputchiki.db');
 const db = new sqlite3.Database(dbPath);
 
-// Инициализация таблиц
+// Инициализация таблиц и миграции
 db.serialize(() => {
   // Пользователи Telegram
   db.run(`
@@ -48,6 +48,20 @@ db.serialize(() => {
       FOREIGN KEY (passenger_id) REFERENCES users(id)
     )
   `);
+
+  // Миграция: добавляем поле примечания к поездке
+  db.run(`ALTER TABLE trips ADD COLUMN note TEXT`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('Ошибка ALTER TABLE trips (note):', err.message);
+    }
+  });
+
+  // Миграция: счётчик неявок пассажира
+  db.run(`ALTER TABLE users ADD COLUMN no_show_count INTEGER DEFAULT 0`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('Ошибка ALTER TABLE users (no_show_count):', err.message);
+    }
+  });
 });
 
 // Создание/обновление пользователя по данным Telegram
@@ -101,21 +115,22 @@ function getUserByTelegramId(telegramId) {
   });
 }
 
-// Создание поездки
-function createTrip({ driverId, fromCity, toCity, departureTime, seatsTotal, pricePerSeat }) {
+// Создание поездки (с примечанием note)
+function createTrip({ driverId, fromCity, toCity, departureTime, seatsTotal, pricePerSeat, note }) {
   return new Promise((resolve, reject) => {
     const seatsTotalNum = Number(seatsTotal);
     const priceNum = Number(pricePerSeat);
+    const noteText = note || null;
 
     db.run(
       `
         INSERT INTO trips (
           driver_id, from_city, to_city,
-          departure_time, seats_total, seats_available, price_per_seat
+          departure_time, seats_total, seats_available, price_per_seat, note
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
       `,
-      [driverId, fromCity, toCity, departureTime, seatsTotalNum, seatsTotalNum, priceNum],
+      [driverId, fromCity, toCity, departureTime, seatsTotalNum, seatsTotalNum, priceNum, noteText],
       function (err) {
         if (err) return reject(err);
 
@@ -149,7 +164,7 @@ function getLatestTrips(limit = 20) {
   });
 }
 
-// Поездка + данные водителя (включая telegram_id)
+// Поездка + данные водителя (для уведомления)
 function getTripWithDriver(tripId) {
   return new Promise((resolve, reject) => {
     db.get(
@@ -173,7 +188,55 @@ function getTripWithDriver(tripId) {
   });
 }
 
-// Создание бронирования (с уменьшением свободных мест)
+// Список поездок конкретного водителя (для истории)
+function getDriverTripsByTelegramId(telegramId) {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `
+        SELECT
+          t.*,
+          (SELECT COUNT(*) FROM bookings b WHERE b.trip_id = t.id) AS bookings_count
+        FROM trips t
+        JOIN users u ON u.id = t.driver_id
+        WHERE u.telegram_id = ?
+        ORDER BY t.departure_time DESC
+      `,
+      [String(telegramId)],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
+// Бронирования по конкретной поездке (для истории/оценки пассажиров)
+function getTripBookingsForDriver(tripId, driverId) {
+  return new Promise((resolve, reject) => {
+    db.all(
+      `
+        SELECT
+          b.*,
+          p.first_name AS passenger_first_name,
+          p.last_name AS passenger_last_name,
+          p.username AS passenger_username,
+          COALESCE(p.no_show_count, 0) AS passenger_no_show_count
+        FROM bookings b
+        JOIN trips t ON t.id = b.trip_id
+        JOIN users p ON p.id = b.passenger_id
+        WHERE b.trip_id = ? AND t.driver_id = ?
+        ORDER BY b.created_at DESC
+      `,
+      [tripId, driverId],
+      (err, rows) => {
+        if (err) return reject(err);
+        resolve(rows);
+      }
+    );
+  });
+}
+
+// Создание бронирования + уменьшение свободных мест
 function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
   return new Promise((resolve, reject) => {
     const seatsNum = Number(seatsBooked);
@@ -185,7 +248,6 @@ function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
     }
 
     db.serialize(() => {
-      // Находим пассажира
       db.get(
         `SELECT * FROM users WHERE telegram_id = ?`,
         [String(passengerTelegramId)],
@@ -197,7 +259,6 @@ function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
             return reject(err);
           }
 
-          // Находим поездку
           db.get(
             `SELECT * FROM trips WHERE id = ?`,
             [tripId],
@@ -215,7 +276,6 @@ function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
                 return reject(err);
               }
 
-              // Транзакция
               db.run('BEGIN TRANSACTION', (errBegin) => {
                 if (errBegin) return reject(errBegin);
 
@@ -254,7 +314,7 @@ function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
                             [bookingId],
                             (errBooking, bookingRow) => {
                               if (errBooking) return reject(errBooking);
-                              resolve({ booking: bookingRow, trip });
+                              resolve({ booking: bookingRow, trip, passenger });
                             }
                           );
                         });
@@ -271,6 +331,80 @@ function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
   });
 }
 
+// Отметить бронирование как "не приехал"
+function markBookingNoShow({ bookingId, driverId }) {
+  return new Promise((resolve, reject) => {
+    db.serialize(() => {
+      db.get(
+        `
+          SELECT
+            b.*,
+            t.driver_id,
+            p.id AS passenger_id
+          FROM bookings b
+          JOIN trips t ON t.id = b.trip_id
+          JOIN users p ON p.id = b.passenger_id
+          WHERE b.id = ?
+        `,
+        [bookingId],
+        (err, row) => {
+          if (err) return reject(err);
+          if (!row) {
+            const e = new Error('Бронирование не найдено');
+            e.code = 'BOOKING_NOT_FOUND';
+            return reject(e);
+          }
+
+          if (row.driver_id !== driverId) {
+            const e = new Error('Нет прав на изменение этого бронирования');
+            e.code = 'FORBIDDEN';
+            return reject(e);
+          }
+
+          if (row.status === 'no_show') {
+            return resolve(row);
+          }
+
+          db.run('BEGIN TRANSACTION', (errBegin) => {
+            if (errBegin) return reject(errBegin);
+
+            db.run(
+              `UPDATE bookings SET status = 'no_show' WHERE id = ?`,
+              [bookingId],
+              (errUpd) => {
+                if (errUpd) {
+                  db.run('ROLLBACK');
+                  return reject(errUpd);
+                }
+
+                db.run(
+                  `
+                    UPDATE users
+                    SET no_show_count = COALESCE(no_show_count, 0) + 1
+                    WHERE id = ?
+                  `,
+                  [row.passenger_id],
+                  (errUser) => {
+                    if (errUser) {
+                      db.run('ROLLBACK');
+                      return reject(errUser);
+                    }
+
+                    db.run('COMMIT', (errCommit) => {
+                      if (errCommit) return reject(errCommit);
+                      resolve(row);
+                    });
+                  }
+                );
+              }
+            );
+          });
+        }
+      );
+    });
+  });
+}
+
 module.exports = {
   db,
   upsertUserFromTelegram,
@@ -278,5 +412,8 @@ module.exports = {
   getLatestTrips,
   getUserByTelegramId,
   getTripWithDriver,
+  getDriverTripsByTelegramId,
+  getTripBookingsForDriver,
   createBooking,
+  markBookingNoShow,
 };
