@@ -1,18 +1,21 @@
 {
   "name": "poputchiki-bot",
   "version": "1.0.0",
+  "description": "Telegram Mini App + Bot for ride sharing (poputchiki)",
   "main": "index.js",
+  "type": "commonjs",
   "scripts": {
     "start": "node index.js",
     "dev": "nodemon index.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "description": "",
+  "engines": {
+    "node": ">=18 <21"
+  },
   "dependencies": {
+    "body-parser": "^1.20.2",
     "dotenv": "^17.2.3",
-    "express": "^5.2.1",
+    "express": "^4.21.1",
+    "path": "^0.12.7",
     "sqlite3": "^5.1.7",
     "telegraf": "^4.16.3"
   },
