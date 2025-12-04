@@ -43,6 +43,11 @@ db.serialize(() => {
       passenger_id INTEGER NOT NULL,
       seats_booked INTEGER NOT NULL,
       status TEXT DEFAULT 'booked',
+      amount_total REAL,
+      app_fee REAL,
+      driver_amount REAL,
+      is_paid INTEGER DEFAULT 0,
+      paid_at TEXT,
       created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (trip_id) REFERENCES trips(id),
       FOREIGN KEY (passenger_id) REFERENCES users(id)
@@ -79,9 +84,37 @@ db.serialize(() => {
       console.error('Ошибка ALTER TABLE users (car_plate):', err.message);
     }
   });
+
+  // Миграции: платёжные поля для бронирований
+  db.run(`ALTER TABLE bookings ADD COLUMN amount_total REAL`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('Ошибка ALTER TABLE bookings (amount_total):', err.message);
+    }
+  });
+  db.run(`ALTER TABLE bookings ADD COLUMN app_fee REAL`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('Ошибка ALTER TABLE bookings (app_fee):', err.message);
+    }
+  });
+  db.run(`ALTER TABLE bookings ADD COLUMN driver_amount REAL`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('Ошибка ALTER TABLE bookings (driver_amount):', err.message);
+    }
+  });
+  db.run(`ALTER TABLE bookings ADD COLUMN is_paid INTEGER DEFAULT 0`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('Ошибка ALTER TABLE bookings (is_paid):', err.message);
+    }
+  });
+  db.run(`ALTER TABLE bookings ADD COLUMN paid_at TEXT`, (err) => {
+    if (err && !String(err.message).includes('duplicate column name')) {
+      console.error('Ошибка ALTER TABLE bookings (paid_at):', err.message);
+    }
+  });
 });
 
-// Создание/обновление пользователя по данным Telegram
+// -------- Пользователи --------
+
 function upsertUserFromTelegram(user) {
   return new Promise((resolve, reject) => {
     if (!user || !user.id) {
@@ -178,8 +211,17 @@ function updateDriverCarProfile(telegramId, { carMake, carColor, carPlate }) {
   });
 }
 
-// Создание поездки
-function createTrip({ driverId, fromCity, toCity, departureTime, seatsTotal, pricePerSeat, note }) {
+// -------- Поездки --------
+
+function createTrip({
+  driverId,
+  fromCity,
+  toCity,
+  departureTime,
+  seatsTotal,
+  pricePerSeat,
+  note,
+}) {
   return new Promise((resolve, reject) => {
     const seatsTotalNum = Number(seatsTotal);
     const priceNum = Number(pricePerSeat);
@@ -207,7 +249,7 @@ function createTrip({ driverId, fromCity, toCity, departureTime, seatsTotal, pri
   });
 }
 
-// Последние поездки (для пассажира)
+// Список для пассажира
 function getLatestTrips(limit = 20) {
   return new Promise((resolve, reject) => {
     db.all(
@@ -227,7 +269,7 @@ function getLatestTrips(limit = 20) {
   });
 }
 
-// Инфо о поездке + данные водителя (включая машину)
+// Поездка + водитель (для уведомлений)
 function getTripWithDriver(tripId) {
   return new Promise((resolve, reject) => {
     db.get(
@@ -254,7 +296,7 @@ function getTripWithDriver(tripId) {
   });
 }
 
-// Поездки конкретного водителя (для истории)
+// Поездки водителя (история)
 function getDriverTripsByTelegramId(telegramId) {
   return new Promise((resolve, reject) => {
     db.all(
@@ -276,7 +318,8 @@ function getDriverTripsByTelegramId(telegramId) {
   });
 }
 
-// Бронирования по поездке для водителя
+// -------- Бронирования --------
+
 function getTripBookingsForDriver(tripId, driverId) {
   return new Promise((resolve, reject) => {
     db.all(
@@ -302,7 +345,7 @@ function getTripBookingsForDriver(tripId, driverId) {
   });
 }
 
-// Бронирование + уменьшение мест
+// Создание бронирования + расчёт денег
 function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
   return new Promise((resolve, reject) => {
     const seatsNum = Number(seatsBooked);
@@ -342,15 +385,33 @@ function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
                 return reject(err);
               }
 
+              // Расчёт денег
+              const price = Number(trip.price_per_seat) || 0;
+              const amountTotal = price * seatsNum;
+              const feePct = Number(process.env.SERVICE_FEE_PCT || 0); // 0..100
+              let appFee = amountTotal * feePct / 100;
+              appFee = Math.round(appFee * 100) / 100;
+              let driverAmount = amountTotal - appFee;
+              driverAmount = Math.round(driverAmount * 100) / 100;
+
               db.run('BEGIN TRANSACTION', (errBegin) => {
                 if (errBegin) return reject(errBegin);
 
                 db.run(
                   `
-                    INSERT INTO bookings (trip_id, passenger_id, seats_booked, status)
-                    VALUES (?, ?, ?, 'booked')
+                    INSERT INTO bookings (
+                      trip_id,
+                      passenger_id,
+                      seats_booked,
+                      status,
+                      amount_total,
+                      app_fee,
+                      driver_amount,
+                      is_paid
+                    )
+                    VALUES (?, ?, ?, 'booked', ?, ?, ?, 0)
                   `,
-                  [tripId, passenger.id, seatsNum],
+                  [tripId, passenger.id, seatsNum, amountTotal, appFee, driverAmount],
                   function (errIns) {
                     if (errIns) {
                       db.run('ROLLBACK');
@@ -471,6 +532,31 @@ function markBookingNoShow({ bookingId, driverId }) {
   });
 }
 
+// -------- Статистика для владельца --------
+
+function getAdminStats() {
+  return new Promise((resolve, reject) => {
+    db.get(
+      `
+        SELECT
+          COUNT(DISTINCT trip_id) AS trips_count,
+          COUNT(*) AS bookings_count,
+          COALESCE(SUM(seats_booked), 0) AS seats_booked_total,
+          COALESCE(SUM(amount_total), 0) AS total_turnover,
+          COALESCE(SUM(app_fee), 0) AS total_app_fee,
+          COALESCE(SUM(driver_amount), 0) AS total_driver_amount
+        FROM bookings
+        WHERE status = 'booked'
+      `,
+      [],
+      (err, row) => {
+        if (err) return reject(err);
+        resolve(row || null);
+      }
+    );
+  });
+}
+
 module.exports = {
   db,
   upsertUserFromTelegram,
@@ -484,4 +570,5 @@ module.exports = {
   getTripBookingsForDriver,
   createBooking,
   markBookingNoShow,
+  getAdminStats,
 };
