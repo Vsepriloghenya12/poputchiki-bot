@@ -2,7 +2,6 @@ require('dotenv').config();
 const { Telegraf } = require('telegraf');
 const express = require('express');
 const path = require('path');
-const bodyParser = require('body-parser');
 
 const {
   upsertUserFromTelegram,
@@ -12,45 +11,61 @@ const {
 } = require('./db');
 
 const botToken = process.env.BOT_TOKEN;
+const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:3000';
+const PORT = process.env.PORT || 3000;
 
 if (!botToken) {
-  console.error('Ошибка: не задан BOT_TOKEN в .env');
+  console.error('Ошибка: переменная BOT_TOKEN не задана');
   process.exit(1);
 }
+
+// ====== ИНИЦИАЛИЗАЦИЯ БОТА И СЕРВЕРА ======
 
 const bot = new Telegraf(botToken);
 const app = express();
 
-// Парсер JSON для API
-app.use(bodyParser.json());
+// JSON для API
+app.use(express.json());
 
-// Статика для Mini App
+// Статика Mini App
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ====== ПРОСТОЙ БОТ ======
+// ====== ОБРАБОТЧИКИ БОТА ======
 
 bot.start((ctx) => {
-  ctx.reply(
-    'Привет! Это бот "попутчики".\n' +
-    'Скоро вы сможете открыть мини-приложение и находить попутчиков.\n\n' +
-    'Сейчас Mini App доступен по адресу (локально): http://localhost:3000'
+  return ctx.reply(
+    'Привет! Это бот "попутчики". Нажмите кнопку ниже, чтобы открыть мини-приложение.',
+    {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            {
+              text: 'Открыть попутчики',
+              web_app: { url: WEBAPP_URL },
+            },
+          ],
+        ],
+      },
+    }
   );
 });
 
 bot.help((ctx) => {
-  ctx.reply('Пока доступна команда /start. Логика поездок в Mini App в разработке.');
+  ctx.reply(
+    'Основной функционал доступен в мини-приложении. Нажмите кнопку «Открыть попутчики» в /start.'
+  );
 });
 
 bot.on('text', (ctx) => {
-  ctx.reply('Я ещё учусь. Основной функционал будет в Mini App.');
+  ctx.reply('Используйте команду /start и откройте мини-приложение по кнопке.');
 });
 
 // ====== API ДЛЯ MINI APP ======
 
-// 1) Инициализация пользователя из Telegram WebApp
+// Инициализация пользователя из Telegram WebApp
 app.post('/api/init-user', async (req, res) => {
   try {
-    const { user } = req.body; // ожидаем { user: { id, first_name, ... } }
+    const { user } = req.body;
 
     if (!user || !user.id) {
       return res.status(400).json({ error: 'Некорректный объект user' });
@@ -64,7 +79,7 @@ app.post('/api/init-user', async (req, res) => {
   }
 });
 
-// 2) Создание поездки водителем
+// Создание поездки водителем
 app.post('/api/trips', async (req, res) => {
   try {
     const {
@@ -76,13 +91,22 @@ app.post('/api/trips', async (req, res) => {
       price_per_seat,
     } = req.body;
 
-    if (!telegram_id || !from_city || !to_city || !departure_time || !seats_total || !price_per_seat) {
+    if (
+      !telegram_id ||
+      !from_city ||
+      !to_city ||
+      !departure_time ||
+      !seats_total ||
+      !price_per_seat
+    ) {
       return res.status(400).json({ error: 'Не все поля заполнены' });
     }
 
     const user = await getUserByTelegramId(telegram_id);
     if (!user) {
-      return res.status(400).json({ error: 'Пользователь не найден. Сначала вызовите /api/init-user.' });
+      return res
+        .status(400)
+        .json({ error: 'Пользователь не найден. Сначала откройте мини-приложение через бота.' });
     }
 
     const trip = await createTrip({
@@ -101,7 +125,7 @@ app.post('/api/trips', async (req, res) => {
   }
 });
 
-// 3) Получение списка последних поездок (для пассажира)
+// Получение списка последних поездок для пассажира
 app.get('/api/trips', async (req, res) => {
   try {
     const trips = await getLatestTrips(20);
@@ -112,16 +136,15 @@ app.get('/api/trips', async (req, res) => {
   }
 });
 
-// Маршрут по умолчанию — мини-приложение
+// Главная — отдать Mini App
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Порт
-const PORT = process.env.PORT || 3000;
+// ====== ЗАПУСК HTTP-СЕРВЕРА И БОТА ======
 
 app.listen(PORT, () => {
-  console.log(`Веб-сервер запущен на http://localhost:${PORT}`);
+  console.log(`Веб-сервер запущен на http://0.0.0.0:${PORT}`);
 });
 
 bot.launch()
@@ -130,6 +153,7 @@ bot.launch()
   })
   .catch((err) => {
     console.error('Ошибка запуска бота:', err);
+    process.exit(1);
   });
 
 // Корректное завершение
