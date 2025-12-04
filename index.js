@@ -1,7 +1,9 @@
 require('dotenv').config();
+
 const { Telegraf } = require('telegraf');
 const express = require('express');
 const path = require('path');
+const bodyParser = require('body-parser');
 
 const {
   upsertUserFromTelegram,
@@ -10,28 +12,31 @@ const {
   getUserByTelegramId,
 } = require('./db');
 
-const botToken = process.env.BOT_TOKEN;
+// ====== ПЕРЕМЕННЫЕ ОКРУЖЕНИЯ ======
+
+const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:3000';
 const PORT = process.env.PORT || 3000;
 
-if (!botToken) {
-  console.error('Ошибка: переменная BOT_TOKEN не задана');
+if (!BOT_TOKEN) {
+  console.error('Ошибка: не задан BOT_TOKEN в .env или переменных окружения');
   process.exit(1);
 }
 
 // ====== ИНИЦИАЛИЗАЦИЯ БОТА И СЕРВЕРА ======
 
-const bot = new Telegraf(botToken);
+const bot = new Telegraf(BOT_TOKEN);
 const app = express();
 
-// JSON для API
-app.use(express.json());
+// Парсим JSON в запросах API
+app.use(bodyParser.json());
 
-// Статика Mini App
+// Раздача статики для Mini App (папка public)
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ====== ОБРАБОТЧИКИ БОТА ======
+// ====== ЛОГИКА БОТА ======
 
+// /start — приветствие + кнопка открытия Mini App
 bot.start((ctx) => {
   return ctx.reply(
     'Привет! Это бот "попутчики". Нажмите кнопку ниже, чтобы открыть мини-приложение.',
@@ -51,18 +56,23 @@ bot.start((ctx) => {
 });
 
 bot.help((ctx) => {
-  ctx.reply(
-    'Основной функционал доступен в мини-приложении. Нажмите кнопку «Открыть попутчики» в /start.'
+  return ctx.reply(
+    'Здесь водители создают поездки, а пассажиры бронируют места.\n' +
+    'Нажмите /start и откройте мини-приложение по кнопке.'
   );
 });
 
+// На любые текстовые сообщения — подсказка использовать Mini App
 bot.on('text', (ctx) => {
-  ctx.reply('Используйте команду /start и откройте мини-приложение по кнопке.');
+  return ctx.reply(
+    'Основной функционал доступен в мини-приложении.\n' +
+    'Нажмите /start и откройте "попутчики" по кнопке.'
+  );
 });
 
 // ====== API ДЛЯ MINI APP ======
 
-// Инициализация пользователя из Telegram WebApp
+// 1) Инициализация/регистрация пользователя из Telegram WebApp
 app.post('/api/init-user', async (req, res) => {
   try {
     const { user } = req.body;
@@ -72,14 +82,14 @@ app.post('/api/init-user', async (req, res) => {
     }
 
     const dbUser = await upsertUserFromTelegram(user);
-    res.json({ user: dbUser });
+    return res.json({ user: dbUser });
   } catch (err) {
     console.error('Ошибка /api/init-user:', err);
-    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
-// Создание поездки водителем
+// 2) Создание поездки водителем
 app.post('/api/trips', async (req, res) => {
   try {
     const {
@@ -104,9 +114,9 @@ app.post('/api/trips', async (req, res) => {
 
     const user = await getUserByTelegramId(telegram_id);
     if (!user) {
-      return res
-        .status(400)
-        .json({ error: 'Пользователь не найден. Сначала откройте мини-приложение через бота.' });
+      return res.status(400).json({
+        error: 'Пользователь не найден. Сначала откройте Mini App через /start.',
+      });
     }
 
     const trip = await createTrip({
@@ -118,25 +128,26 @@ app.post('/api/trips', async (req, res) => {
       pricePerSeat: price_per_seat,
     });
 
-    res.json({ trip });
+    return res.json({ trip });
   } catch (err) {
     console.error('Ошибка /api/trips (POST):', err);
-    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
-// Получение списка последних поездок для пассажира
+// 3) Получение списка последних поездок (для пассажира)
 app.get('/api/trips', async (req, res) => {
   try {
     const trips = await getLatestTrips(20);
-    res.json({ trips });
+    return res.json({ trips });
   } catch (err) {
     console.error('Ошибка /api/trips (GET):', err);
-    res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
 
-// Главная — отдать Mini App
+// ====== МАРШРУТ ПО УМОЛЧАНИЮ — MINI APP ======
+
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
@@ -153,9 +164,8 @@ bot.launch()
   })
   .catch((err) => {
     console.error('Ошибка запуска бота:', err);
-    process.exit(1);
   });
 
-// Корректное завершение
+// Корректное завершение бота
 process.once('SIGINT', () => bot.stop('SIGINT'));
 process.once('SIGTERM', () => bot.stop('SIGTERM'));
