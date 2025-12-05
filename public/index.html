@@ -495,6 +495,16 @@
     const btnLoadPassengerActive = document.getElementById('btn-load-passenger-active');
     const passengerActiveList = document.getElementById('passenger-active-list');
 
+        // Проверка: ещё активна ли поездка / бронь (с учётом 10 минут после начала)
+    function isStillActiveByDeparture(departureTimeStr) {
+      if (!departureTimeStr) return true;
+      const ts = Date.parse(departureTimeStr);
+      if (!Number.isFinite(ts)) return true;
+      const now = Date.now();
+      const cutoff = now - 10 * 60 * 1000; // 10 минут после начала
+      return ts >= cutoff;
+    }
+
     // Инициализация из Telegram
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       tg.expand();
@@ -689,15 +699,21 @@
 
       fetch(`/api/driver/active-trip?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
         .then((res) => res.json())
-        .then((data) => {
+                .then((data) => {
           if (data.error) {
             driverActiveInfo.textContent = 'Ошибка: ' + data.error;
             return;
           }
 
           const trip = data.trip;
-          if (!trip) {
-            driverActiveInfo.textContent = 'Активных поездок (с учётом 10 минут после начала) пока нет.';
+
+          // Если нет поездки или она уже старше 10 минут после выезда – считаем, что активных нет
+          if (!trip || !isStillActiveByDeparture(trip.departure_time)) {
+            driverActiveInfo.textContent =
+              'Активных поездок (с учётом 10 минут после начала) пока нет.';
+            btnActivePassengers.classList.add('hidden');
+            btnCancelActiveTrip.classList.add('hidden');
+            activeTripId = null;
             return;
           }
 
@@ -752,15 +768,20 @@
         });
     }
 
-    function renderTrips(trips) {
-      if (!trips || trips.length === 0) {
+        function renderTrips(trips) {
+      // фильтруем по времени локально (10 минут после начала – уже не показываем)
+      const visibleTrips = (trips || []).filter((trip) =>
+        isStillActiveByDeparture(trip.departure_time)
+      );
+
+      if (!visibleTrips || visibleTrips.length === 0) {
         tripsList.textContent = 'Пока нет доступных поездок.';
         return;
       }
 
       tripsList.innerHTML = '';
 
-      trips.forEach((trip) => {
+      visibleTrips.forEach((trip) => {
         const div = document.createElement('div');
         div.className = 'trip';
 
@@ -1252,15 +1273,20 @@
         });
     }
 
-    function renderPassengerActiveBookings(bookings) {
-      if (!bookings || bookings.length === 0) {
+        function renderPassengerActiveBookings(bookings) {
+      // фильтруем по времени локально (10 минут после начала – уже не активно)
+      const activeBookings = (bookings || []).filter((b) =>
+        isStillActiveByDeparture(b.departure_time)
+      );
+
+      if (!activeBookings || activeBookings.length === 0) {
         passengerActiveList.textContent = 'Активных бронирований сейчас нет.';
         return;
       }
 
       passengerActiveList.innerHTML = '';
 
-      bookings.forEach((b) => {
+      activeBookings.forEach((b) => {
         const div = document.createElement('div');
         div.className = 'booking';
 
