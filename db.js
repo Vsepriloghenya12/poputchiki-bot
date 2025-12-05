@@ -806,8 +806,9 @@ async function getDriverDailyStats(driverId) {
   const stats = await getAsync(
     `
       SELECT
-        COUNT(DISTINCT b.trip_id) AS trips_count,
-        COUNT(b.id) AS bookings_count,
+        -- только по активным (неотменённым) броням
+        SUM(CASE WHEN b.status = 'booked' THEN 1 ELSE 0 END) AS bookings_count,
+        COUNT(DISTINCT CASE WHEN b.status = 'booked' THEN b.trip_id END) AS trips_count,
         COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.seats_booked ELSE 0 END), 0) AS seats_count,
         COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.app_fee ELSE 0 END), 0) AS app_fee_total,
         COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.driver_amount ELSE 0 END), 0) AS driver_amount_total
@@ -861,15 +862,15 @@ async function saveDriverPaymentProof(driverId, originalName, storedName) {
 // ---------------- АДМИН-СТАТИСТИКА ----------------
 
 async function getAdminStats() {
-  const stats = await getAsync(
+     const stats = await getAsync(
     `
       SELECT
-        COUNT(DISTINCT b.trip_id) AS trips_count,
-        COUNT(b.id) AS bookings_count,
-        COALESCE(SUM(b.seats_booked), 0) AS seats_booked_total,
-        COALESCE(SUM(b.amount_total), 0) AS total_turnover,
-        COALESCE(SUM(b.app_fee), 0) AS total_app_fee,
-        COALESCE(SUM(b.driver_amount), 0) AS total_driver_amount
+        COUNT(DISTINCT CASE WHEN b.status = 'booked' THEN b.trip_id END) AS trips_count,
+        SUM(CASE WHEN b.status = 'booked' THEN 1 ELSE 0 END) AS bookings_count,
+        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.seats_booked ELSE 0 END), 0) AS seats_booked_total,
+        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.amount_total ELSE 0 END), 0) AS total_turnover,
+        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.app_fee ELSE 0 END), 0) AS total_app_fee,
+        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.driver_amount ELSE 0 END), 0) AS total_driver_amount
       FROM bookings b
       WHERE 1 = 1
     `
@@ -887,7 +888,7 @@ async function getAdminStats() {
 
 // Водители за сегодня + их чеки
 async function getAdminDailyDrivers() {
-  const rows = await allAsync(
+    const rows = await allAsync(
     `
       SELECT
         d.id AS driver_id,
@@ -896,10 +897,10 @@ async function getAdminDailyDrivers() {
         d.last_name,
         d.username,
         d.is_blocked,
-        COUNT(DISTINCT t.id) AS trips_count,
-        COUNT(b.id) AS bookings_count,
-        COALESCE(SUM(b.seats_booked), 0) AS seats_count,
-        COALESCE(SUM(b.app_fee), 0) AS app_fee_total
+        COUNT(DISTINCT CASE WHEN b.status = 'booked' THEN t.id END) AS trips_count,
+        SUM(CASE WHEN b.status = 'booked' THEN 1 ELSE 0 END) AS bookings_count,
+        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.seats_booked ELSE 0 END), 0) AS seats_count,
+        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.app_fee ELSE 0 END), 0) AS app_fee_total
       FROM bookings b
       JOIN trips t ON t.id = b.trip_id
       JOIN users d ON d.id = t.driver_id
