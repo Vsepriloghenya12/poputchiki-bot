@@ -31,6 +31,17 @@ db.serialize(() => {
     )
   `);
 
+  // Добавляем колонку is_blocked, если её ещё нет
+  db.run(
+    `ALTER TABLE users ADD COLUMN is_blocked INTEGER DEFAULT 0`,
+    (err) => {
+      // если уже есть — просто игнорируем ошибку
+      if (err && !String(err.message).includes('duplicate column')) {
+        console.error('Ошибка ALTER TABLE users (is_blocked):', err.message);
+      }
+    }
+  );
+
   // Поездки
   db.run(`
     CREATE TABLE IF NOT EXISTS trips (
@@ -199,6 +210,7 @@ async function getDriverProfileByTelegramId(telegramId) {
     car_make: user.car_make,
     car_color: user.car_color,
     car_plate: user.car_plate,
+    is_blocked: user.is_blocked || 0,
   };
 }
 
@@ -218,6 +230,18 @@ async function updateDriverCarProfile(telegramId, { carMake, carColor, carPlate 
   );
 
   return getDriverProfileByTelegramId(telegramId);
+}
+
+// блокировка / разблокировка водителя по telegram_id
+async function setUserBlockedByTelegramId(telegramId, blocked) {
+  await runAsync(
+    `
+      UPDATE users
+      SET is_blocked = ?
+      WHERE telegram_id = ?
+    `,
+    [blocked ? 1 : 0, String(telegramId)]
+  );
 }
 
 // ---------------- ПОЕЗДКИ ----------------
@@ -346,7 +370,7 @@ async function getDriverTripsByTelegramId(telegramId) {
   return rows;
 }
 
-// Удаление поездки водителем
+// Удаление поездки водителем (только до +10 минут после начала)
 function deleteTripByDriver(tripId, driverId) {
   return new Promise((resolve, reject) => {
     const tripIdNum = Number(tripId);
@@ -366,6 +390,17 @@ function deleteTripByDriver(tripId, driverId) {
           const e = new Error('Нет прав на удаление этой поездки');
           e.code = 'FORBIDDEN';
           return reject(e);
+        }
+
+        const departTs = Date.parse(trip.departure_time);
+        if (Number.isFinite(departTs)) {
+          const now = Date.now();
+          const limit = departTs + 10 * 60 * 1000;
+          if (now > limit) {
+            const e = new Error('Нельзя отменить поездку позже чем через 10 минут после начала');
+            e.code = 'TOO_LATE';
+            return reject(e);
+          }
         }
 
         db.serialize(() => {
@@ -678,7 +713,8 @@ function cancelBookingByPassenger({ bookingId, passengerId }) {
 
           const departTs = Date.parse(row.departure_time);
           const now = Date.now();
-          if (Number.isFinite(departTs) && now > departTs) {
+          // после начала поездки отмена запрещена
+          if (Number.isFinite(departTs) && now >= departTs) {
             const e = new Error('Нельзя отменить бронь после начала поездки');
             e.code = 'TOO_LATE';
             return reject(e);
@@ -859,6 +895,7 @@ async function getAdminDailyDrivers() {
         d.first_name,
         d.last_name,
         d.username,
+        d.is_blocked,
         COUNT(DISTINCT t.id) AS trips_count,
         COUNT(b.id) AS bookings_count,
         COALESCE(SUM(b.seats_booked), 0) AS seats_count,
@@ -867,7 +904,7 @@ async function getAdminDailyDrivers() {
       JOIN trips t ON t.id = b.trip_id
       JOIN users d ON d.id = t.driver_id
       WHERE date(b.created_at, 'localtime') = date('now','localtime')
-      GROUP BY d.id, d.telegram_id, d.first_name, d.last_name, d.username
+      GROUP BY d.id, d.telegram_id, d.first_name, d.last_name, d.username, d.is_blocked
       ORDER BY app_fee_total DESC, bookings_count DESC
     `
   );
@@ -896,6 +933,7 @@ async function getAdminDailyDrivers() {
       bookings_count: row.bookings_count || 0,
       seats_count: row.seats_count || 0,
       app_fee_total: row.app_fee_total || 0,
+      is_blocked: row.is_blocked || 0,
       last_proof_original_name: proof ? proof.file_original_name : null,
       last_proof_file: proof ? proof.file_stored_name : null,
     });
@@ -920,6 +958,7 @@ module.exports = {
 
   getDriverProfileByTelegramId,
   updateDriverCarProfile,
+  setUserBlockedByTelegramId,
 
   createBooking,
   getTripBookingsForDriver,

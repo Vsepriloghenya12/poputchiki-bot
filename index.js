@@ -30,6 +30,7 @@ const {
   deleteTripByDriver,
   getPassengerBookingsByTelegramId,
   cancelBookingByPassenger,
+  setUserBlockedByTelegramId,
 } = require('./db');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -46,10 +47,14 @@ const bot = new Telegraf(BOT_TOKEN);
 const app = express();
 
 // Хранилище файлов чеков
-const uploadDir = path.join(__dirname, 'uploads');
+const uploadDir = process.env.UPLOADS_PATH
+  ? process.env.UPLOADS_PATH
+  : path.join(__dirname, 'uploads');
+
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
 }
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, uploadDir),
   filename: (req, file, cb) => {
@@ -127,7 +132,7 @@ app.post('/api/init-user', async (req, res) => {
   }
 });
 
-// Создание поездки (с учётом платного режима)
+// Создание поездки (с учётом платного режима и блокировок)
 app.post('/api/trips', async (req, res) => {
   try {
     const {
@@ -158,7 +163,14 @@ app.post('/api/trips', async (req, res) => {
       });
     }
 
-       const settings = await getAppSettings();
+    if (user.is_blocked) {
+      return res.status(403).json({
+        error:
+          'Ваш аккаунт заблокирован администратором. Создание новых поездок временно недоступно.',
+      });
+    }
+
+    const settings = await getAppSettings();
 
     if (settings && settings.monetization_enabled) {
       const stats = await getDriverDailyStats(user.id);
@@ -239,6 +251,9 @@ app.post('/api/driver/delete-trip', async (req, res) => {
     if (err.code === 'FORBIDDEN') {
       return res.status(403).json({ error: 'Нет прав на удаление этой поездки' });
     }
+    if (err.code === 'TOO_LATE') {
+      return res.status(400).json({ error: 'Нельзя отменить поездку позже чем через 10 минут после начала.' });
+    }
 
     return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
@@ -311,6 +326,7 @@ app.get('/api/driver/daily-stats', async (req, res) => {
       },
       stats: stats,
       has_proof_today: !!hasProof,
+      is_blocked: user.is_blocked || 0,
     });
   } catch (err) {
     console.error('Ошибка /api/driver/daily-stats:', err);
@@ -377,7 +393,7 @@ app.post('/api/bookings', async (req, res) => {
 
     const tripFull = await getTripWithDriver(tripIdNum);
 
-    // Уведомление водителю
+    // Уведомление водителю о новой брони
     if (tripFull && tripFull.driver_telegram_id) {
       const passengerName = `${passenger.first_name || ''} ${passenger.last_name || ''}`.trim();
       const passengerUsername = passenger.username ? `@${passenger.username}` : '';
@@ -472,6 +488,25 @@ app.post('/api/bookings/cancel', async (req, res) => {
       passengerId: passenger.id,
     });
 
+    // Уведомление водителю об отмене
+    const tripFull = await getTripWithDriver(row.trip_id);
+    if (tripFull && tripFull.driver_telegram_id) {
+      const passengerName = `${passenger.first_name || ''} ${passenger.last_name || ''}`.trim();
+      const passengerUsername = passenger.username ? `@${passenger.username}` : '';
+
+      const textForDriver =
+        'Отмена брони в "попутчики":\n\n' +
+        `Маршрут: ${tripFull.from_city} → ${tripFull.to_city}\n` +
+        `Выезд: ${tripFull.departure_time}\n\n` +
+        `Пассажир: ${passengerName || 'без имени'} ${passengerUsername}\n` +
+        `Отменено мест: ${row.seats_booked}\n\n` +
+        'Места возвращены в свободные.';
+
+      bot.telegram
+        .sendMessage(tripFull.driver_telegram_id, textForDriver)
+        .catch((err) => console.error('Ошибка отправки уведомления водителю об отмене:', err));
+    }
+
     return res.json({ success: true, booking: row });
   } catch (err) {
     console.error('Ошибка /api/bookings/cancel:', err);
@@ -493,7 +528,7 @@ app.post('/api/bookings/cancel', async (req, res) => {
   }
 });
 
-// Активные брони пассажира
+// Активные брони пассажира (до 10 минут после начала)
 app.get('/api/passenger/active-bookings', async (req, res) => {
   try {
     const telegram_id = req.query.telegram_id;
@@ -545,7 +580,7 @@ app.get('/api/driver/trips', async (req, res) => {
   }
 });
 
-// Активная поездка водителя
+// Активная поездка водителя (до 10 минут после начала)
 app.get('/api/driver/active-trip', async (req, res) => {
   try {
     const telegram_id = req.query.telegram_id;
@@ -560,10 +595,11 @@ app.get('/api/driver/active-trip', async (req, res) => {
 
     const trips = await getDriverTripsByTelegramId(telegram_id);
     const now = Date.now();
+    const cutoff = now - 10 * 60 * 1000;
 
     const futureTrips = trips.filter((t) => {
       const ts = Date.parse(t.departure_time);
-      return Number.isFinite(ts) && ts >= now;
+      return Number.isFinite(ts) && ts >= cutoff;
     });
 
     if (futureTrips.length === 0) {
@@ -717,6 +753,30 @@ app.get('/api/admin/daily-drivers', async (req, res) => {
     return res.json({ drivers });
   } catch (err) {
     console.error('Ошибка /api/admin/daily-drivers:', err);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+// Блокировка / разблокировка водителя админом
+app.post('/api/admin/block-driver', async (req, res) => {
+  try {
+    const { telegram_id, driver_telegram_id, block } = req.body;
+
+    if (!telegram_id || !driver_telegram_id) {
+      return res
+        .status(400)
+        .json({ error: 'Не указаны telegram_id или driver_telegram_id' });
+    }
+
+    if (String(telegram_id) !== String(ADMIN_TELEGRAM_ID)) {
+      return res.status(403).json({ error: 'Нет доступа' });
+    }
+
+    await setUserBlockedByTelegramId(driver_telegram_id, !!block);
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error('Ошибка /api/admin/block-driver:', err);
     return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
