@@ -425,10 +425,14 @@
 
       <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
 
-      <div class="subtitle">Водители за сегодня</div>
+           <div class="subtitle">Журнал по водителям за день</div>
+      <div class="field">
+        <label for="admin-drivers-date">Дата смены</label>
+        <input id="admin-drivers-date" type="date" />
+      </div>
       <button class="secondary-btn" id="btn-load-daily-drivers">Показать водителей</button>
       <div class="info" id="admin-daily-drivers">
-        Здесь будет список водителей, которые сегодня возили пассажиров, и их чеки.
+        Здесь будет список водителей за выбранный день и их чеки.
       </div>
     </div>
   </div>
@@ -486,6 +490,7 @@
 
     const btnLoadDailyDrivers = document.getElementById('btn-load-daily-drivers');
     const adminDailyDrivers = document.getElementById('admin-daily-drivers');
+    const adminDriversDate = document.getElementById('admin-drivers-date');
 
     const btnLoadPassengerActive = document.getElementById('btn-load-passenger-active');
     const passengerActiveList = document.getElementById('passenger-active-list');
@@ -1454,7 +1459,7 @@
     });
 
     // Админ: водители за сегодня
-    btnLoadDailyDrivers.addEventListener('click', () => {
+        btnLoadDailyDrivers.addEventListener('click', () => {
       if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) {
         adminDailyDrivers.textContent = 'Нет доступа.';
         return;
@@ -1462,7 +1467,14 @@
 
       adminDailyDrivers.textContent = 'Загрузка списка водителей...';
 
-      fetch(`/api/admin/daily-drivers?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+      const dateVal = adminDriversDate.value; // 'YYYY-MM-DD' или ''
+
+      let url = `/api/admin/daily-drivers?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`;
+      if (dateVal) {
+        url += `&date=${encodeURIComponent(dateVal)}`;
+      }
+
+      fetch(url)
         .then((res) =>
           res.json().then((data) => ({ ok: res.ok, data }))
         )
@@ -1474,7 +1486,7 @@
 
           const list = data.drivers || [];
           if (!list.length) {
-            adminDailyDrivers.textContent = 'Сегодня пока нет поездок с бронями.';
+            adminDailyDrivers.textContent = 'За выбранный день пока нет поездок с бронями.';
             return;
           }
 
@@ -1487,8 +1499,8 @@
 
             let proofText = 'чек не прикреплялся';
             if (d.last_proof_file) {
-              const url = `/uploads/${encodeURIComponent(d.last_proof_file)}`;
-              proofText = `последний чек: <a href="${url}" target="_blank">${d.last_proof_original_name || 'файл'}</a>`;
+              const urlFile = `/uploads/${encodeURIComponent(d.last_proof_file)}`;
+              proofText = `последний чек: <a href="${urlFile}" target="_blank">${d.last_proof_original_name || 'файл'}</a>`;
             }
 
             const btnLabel = d.is_blocked ? 'Разблокировать' : 'Заблокировать';
@@ -1497,8 +1509,8 @@
             html +=
               `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #e5e7eb;">` +
               `<strong>${name}</strong> ${username}<br/>` +
-              `Поездок: ${d.trips_count || 0}, броней: ${d.bookings_count || 0}, мест: ${d.seats_count || 0}<br/>` +
-              `Комиссия за сегодня: ${fee.toFixed(2)} ₽<br/>` +
+              `Поездок с бронями: ${d.trips_count || 0}, броней: ${d.bookings_count || 0}, мест: ${d.seats_count || 0}<br/>` +
+              `Комиссия за день: ${fee.toFixed(2)} ₽<br/>` +
               `Статус: ${statusText}<br/>` +
               `${proofText}<br/>` +
               `<button class="danger-btn admin-block-btn" data-driver-tg="${d.telegram_id}" data-action="${action}">${btnLabel}</button>` +
@@ -1509,7 +1521,7 @@
           initAdminDriverBlockButtons();
         })
         .catch((err) => {
-          console.error('Ошибка загрузки водителей за сегодня:', err);
+          console.error('Ошибка загрузки водителей за день:', err);
           adminDailyDrivers.textContent = 'Произошла ошибка при загрузке списка.';
         });
     });

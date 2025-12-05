@@ -392,29 +392,35 @@ function deleteTripByDriver(tripId, driverId) {
           return reject(e);
         }
 
+        // 1) НЕЛЬЗЯ удалять поездку после её начала (даже без брони)
         const departTs = Date.parse(trip.departure_time);
         if (Number.isFinite(departTs)) {
           const now = Date.now();
-          const limit = departTs + 10 * 60 * 1000;
-          if (now > limit) {
-            const e = new Error('Нельзя отменить поездку позже чем через 10 минут после начала');
+          if (now >= departTs) {
+            const e = new Error('Нельзя отменить поездку после её начала');
             e.code = 'TOO_LATE';
             return reject(e);
           }
         }
 
-        db.serialize(() => {
-          db.run('BEGIN TRANSACTION', (errBegin) => {
-            if (errBegin) return reject(errBegin);
+        // 2) НЕЛЬЗЯ удалять поездку, по которой уже были брони (любые статусы)
+        db.get(
+          `SELECT COUNT(*) AS cnt FROM bookings WHERE trip_id = ?`,
+          [tripIdNum],
+          (err2, row) => {
+            if (err2) return reject(err2);
+            const cnt = row ? row.cnt : 0;
 
-            db.run(
-              `DELETE FROM bookings WHERE trip_id = ?`,
-              [tripIdNum],
-              (errDelBookings) => {
-                if (errDelBookings) {
-                  db.run('ROLLBACK');
-                  return reject(errDelBookings);
-                }
+            if (cnt > 0) {
+              const e = new Error('Нельзя удалить поездку, по которой уже есть бронирования');
+              e.code = 'HAS_BOOKINGS';
+              return reject(e);
+            }
+
+            // Если до выезда и без броней — можно удалять физически
+            db.serialize(() => {
+              db.run('BEGIN TRANSACTION', (errBegin) => {
+                if (errBegin) return reject(errBegin);
 
                 db.run(
                   `DELETE FROM trips WHERE id = ?`,
@@ -431,10 +437,10 @@ function deleteTripByDriver(tripId, driverId) {
                     });
                   }
                 );
-              }
-            );
-          });
-        });
+              });
+            });
+          }
+        );
       }
     );
   });
@@ -887,8 +893,19 @@ async function getAdminStats() {
 }
 
 // Водители за сегодня + их чеки
-async function getAdminDailyDrivers() {
-    const rows = await allAsync(
+async function getAdminDailyDrivers(targetDate) {
+  // targetDate: 'YYYY-MM-DD' или undefined/пусто = сегодня
+  const useCustomDate = !!targetDate;
+  const dateParam = targetDate || null;
+
+  const whereDate = useCustomDate
+    ? `date(b.created_at, 'localtime') = date(?, 'localtime')`
+    : `date(b.created_at, 'localtime') = date('now','localtime')`;
+
+  const params = [];
+  if (useCustomDate) params.push(dateParam);
+
+  const rows = await allAsync(
     `
       SELECT
         d.id AS driver_id,
@@ -904,25 +921,41 @@ async function getAdminDailyDrivers() {
       FROM bookings b
       JOIN trips t ON t.id = b.trip_id
       JOIN users d ON d.id = t.driver_id
-      WHERE date(b.created_at, 'localtime') = date('now','localtime')
+      WHERE ${whereDate}
       GROUP BY d.id, d.telegram_id, d.first_name, d.last_name, d.username, d.is_blocked
       ORDER BY app_fee_total DESC, bookings_count DESC
-    `
+    `,
+    params
   );
 
-  // для каждого водителя подтянем последний чек
   const result = [];
   for (const row of rows) {
-    const proof = await getAsync(
-      `
-        SELECT file_original_name, file_stored_name
-        FROM driver_payment_proofs
-        WHERE driver_id = ?
-        ORDER BY created_at DESC
-        LIMIT 1
-      `,
-      [row.driver_id]
-    );
+    let proof;
+    if (useCustomDate) {
+      proof = await getAsync(
+        `
+          SELECT file_original_name, file_stored_name
+          FROM driver_payment_proofs
+          WHERE driver_id = ?
+            AND date(created_at, 'localtime') = date(?, 'localtime')
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+        [row.driver_id, dateParam]
+      );
+    } else {
+      proof = await getAsync(
+        `
+          SELECT file_original_name, file_stored_name
+          FROM driver_payment_proofs
+          WHERE driver_id = ?
+            AND date(created_at, 'localtime') = date('now','localtime')
+          ORDER BY created_at DESC
+          LIMIT 1
+        `,
+        [row.driver_id]
+      );
+    }
 
     result.push({
       driver_id: row.driver_id,

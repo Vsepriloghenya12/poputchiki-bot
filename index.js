@@ -251,8 +251,11 @@ app.post('/api/driver/delete-trip', async (req, res) => {
     if (err.code === 'FORBIDDEN') {
       return res.status(403).json({ error: 'Нет прав на удаление этой поездки' });
     }
-    if (err.code === 'TOO_LATE') {
-      return res.status(400).json({ error: 'Нельзя отменить поездку позже чем через 10 минут после начала.' });
+     if (err.code === 'TOO_LATE') {
+      return res.status(400).json({ error: 'Нельзя отменить поездку после её начала.' });
+    }
+    if (err.code === 'HAS_BOOKINGS') {
+      return res.status(400).json({ error: 'Нельзя удалить поездку, по которой уже есть бронирования.' });
     }
 
     return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
@@ -741,6 +744,8 @@ app.get('/api/admin/stats', async (req, res) => {
 app.get('/api/admin/daily-drivers', async (req, res) => {
   try {
     const telegram_id = req.query.telegram_id;
+    const date = req.query.date; // 'YYYY-MM-DD' или undefined
+
     if (!telegram_id) {
       return res.status(400).json({ error: 'Не указан telegram_id' });
     }
@@ -749,7 +754,7 @@ app.get('/api/admin/daily-drivers', async (req, res) => {
       return res.status(403).json({ error: 'Нет доступа' });
     }
 
-    const drivers = await getAdminDailyDrivers();
+    const drivers = await getAdminDailyDrivers(date);
     return res.json({ drivers });
   } catch (err) {
     console.error('Ошибка /api/admin/daily-drivers:', err);
