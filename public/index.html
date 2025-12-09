@@ -162,6 +162,31 @@
     .arrow.rotated {
       transform: rotate(90deg);
     }
+        .plan-card {
+      border-radius: 14px;
+      border: 1px solid #e5e7eb;
+      padding: 8px 9px;
+      margin-top: 6px;
+      font-size: 13px;
+      background: #f9fafb;
+    }
+    .collapsible-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    .collapsible-header span {
+      font-weight: 600;
+      font-size: 14px;
+    }
+    .arrow {
+      font-size: 16px;
+      transition: transform 0.15s ease;
+    }
+    .arrow.rotated {
+      transform: rotate(90deg);
+    }
   </style>
 </head>
 <body>
@@ -267,6 +292,27 @@
       </div>
     </div>
 
+        <!-- Водитель: запланированные поездки пассажиров -->
+    <div class="card hidden" id="driver-passenger-plans">
+      <div class="collapsible-header" id="driver-passenger-plans-header">
+        <span>Запланированные поездки пассажиров</span>
+        <span class="arrow" id="driver-passenger-plans-arrow">▶</span>
+      </div>
+      <div class="info small-text">
+        Здесь показываются запросы пассажиров. Нажмите «Забрать пассажира», чтобы ему пришло сообщение
+        «Вас заберёт водитель».
+      </div>
+      <div id="driver-passenger-plans-content" class="hidden" style="margin-top:8px;">
+        <div class="info" id="driver-passenger-plans-list">
+          Запросы пассажиров ещё не загружены.
+        </div>
+        <button class="secondary-btn" id="btn-reload-driver-passenger-plans" style="margin-top:6px;">
+          Обновить список запросов
+        </button>
+      </div>
+    </div>
+
+
     <!-- Водитель: запланированные поездки пассажиров -->
     <div class="card hidden" id="driver-passenger-plans">
       <div class="collapsible-header" id="driver-passenger-plans-header">
@@ -304,6 +350,43 @@
       <button class="secondary-btn" id="btn-load-passenger-active">Показать активные поездки</button>
       <div class="info" id="passenger-active-list">
         Активные брони ещё не загружены.
+      </div>
+    </div>
+
+        <!-- Пассажир: запланированные поездки -->
+    <div class="card hidden" id="passenger-plans-section">
+      <div class="subtitle">Запланировать поездку</div>
+      <div class="field">
+        <label for="plan-from-city">Откуда</label>
+        <input id="plan-from-city" type="text" placeholder="Например: Сочи" />
+      </div>
+      <div class="field">
+        <label for="plan-to-city">Куда</label>
+        <input id="plan-to-city" type="text" placeholder="Например: Роза Плато" />
+      </div>
+      <div class="field">
+        <label for="plan-desired-time">Желаемая дата и время</label>
+        <input id="plan-desired-time" type="datetime-local" />
+      </div>
+      <div class="field">
+        <label for="plan-seats-needed">Сколько мест нужно</label>
+        <input id="plan-seats-needed" type="number" min="1" max="8" value="1" />
+      </div>
+      <div class="field">
+        <label for="plan-note">Комментарий (опционально)</label>
+        <input id="plan-note" type="text" placeholder="Например: подойдёт выезд с 8 до 10 утра" />
+      </div>
+      <button class="secondary-btn" id="btn-create-passenger-plan">Создать план поездки</button>
+      <div class="info" id="passenger-plan-message"></div>
+
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
+
+      <div class="subtitle">Мои запланированные поездки</div>
+      <div class="info small-text">
+        Когда водитель выбирает ваш план, вы получаете сообщение «Вас заберёт водитель».
+      </div>
+      <div class="info" id="passenger-plans-list">
+        Планы ещё не загружены.
       </div>
     </div>
 
@@ -542,47 +625,45 @@
     }
 
     // Переключение ролей
-    btnDriver.addEventListener('click', () => {
+        btnDriver.addEventListener('click', () => {
       if (!currentTelegramUser) {
-        roleInfo.textContent =
-          'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
+        roleInfo.textContent = 'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
         return;
       }
-      roleInfo.textContent =
-        'Режим водителя: создавайте поездки, сохраняйте машину, смотрите активную поездку и запросы пассажиров.';
+      roleInfo.textContent = 'Режим водителя: создавайте поездки, сохраняйте машину, смотрите активную поездку и запросы пассажиров.';
       driverSection.classList.remove('hidden');
       driverHistory.classList.remove('hidden');
       driverActive.classList.remove('hidden');
       driverPassengerPlansCard.classList.remove('hidden');
       passengerSection.classList.add('hidden');
       passengerActiveSection.classList.add('hidden');
-      passengerPlansSection.classList.add('hidden');
+      if (passengerPlansSection) {
+        passengerPlansSection.classList.add('hidden');
+      }
       driverPaymentBlock.classList.remove('hidden');
 
       loadDriverProfile();
       loadDriverActiveTrip();
       loadDriverPaymentInfo();
-      loadDriverTrips();
       loadDriverPassengerPlans();
     });
 
-    btnPassenger.addEventListener('click', () => {
+       btnPassenger.addEventListener('click', () => {
       if (!currentTelegramUser) {
-        roleInfo.textContent =
-          'Откройте мини-приложение через Telegram, чтобы просматривать поездки.';
+        roleInfo.textContent = 'Откройте мини-приложение через Telegram, чтобы просматривать поездки.';
         return;
       }
-      roleInfo.textContent =
-        'Режим пассажира: просматривайте и бронируйте поездки, планируйте поездки заранее.';
+      roleInfo.textContent = 'Режим пассажира: просматривайте и бронируйте поездки, планируйте поездки заранее.';
       passengerSection.classList.remove('hidden');
       passengerActiveSection.classList.remove('hidden');
-      passengerPlansSection.classList.remove('hidden');
+      if (passengerPlansSection) {
+        passengerPlansSection.classList.remove('hidden');
+      }
       driverSection.classList.add('hidden');
       driverHistory.classList.add('hidden');
       driverActive.classList.add('hidden');
       driverPassengerPlansCard.classList.add('hidden');
       driverPaymentBlock.classList.add('hidden');
-
       loadTrips();
       loadPassengerActiveBookings();
       loadPassengerPlans();
@@ -1684,6 +1765,315 @@
         alert('Реквизиты скопированы.');
       }
     });
+
+        // Пассажир: планы поездок
+    if (btnCreatePassengerPlan) {
+      btnCreatePassengerPlan.addEventListener('click', () => {
+        if (!currentTelegramUser) {
+          passengerPlanMessage.textContent = 'Откройте мини-приложение через Telegram.';
+          return;
+        }
+
+        const fromCity = planFromCityInput.value.trim();
+        const toCity = planToCityInput.value.trim();
+        const desiredTime = planDesiredTimeInput.value;
+        const seatsNeeded = planSeatsNeededInput.value;
+        const note = planNoteInput.value.trim();
+
+        if (!fromCity || !toCity || !desiredTime || !seatsNeeded) {
+          passengerPlanMessage.textContent = 'Заполните обязательные поля.';
+          return;
+        }
+
+        passengerPlanMessage.textContent = 'Создание плана поездки...';
+
+        fetch('/api/passenger/plans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telegram_id: String(currentTelegramUser.id),
+            from_city: fromCity,
+            to_city: toCity,
+            desired_time: desiredTime,
+            seats_needed: seatsNeeded,
+            note,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.error) {
+              passengerPlanMessage.textContent = 'Ошибка: ' + data.error;
+            } else {
+              passengerPlanMessage.textContent =
+                'План поездки создан. Водители увидят его в своём списке.';
+              planFromCityInput.value = '';
+              planToCityInput.value = '';
+              planDesiredTimeInput.value = '';
+              planSeatsNeededInput.value = '1';
+              planNoteInput.value = '';
+              loadPassengerPlans();
+            }
+          })
+          .catch((err) => {
+            console.error('Ошибка /api/passenger/plans (POST):', err);
+            passengerPlanMessage.textContent = 'Внутренняя ошибка сервера.';
+          });
+      });
+    }
+
+    function loadPassengerPlans() {
+      if (!currentTelegramUser) {
+        passengerPlansList.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      passengerPlansList.textContent = 'Загрузка запланированных поездок...';
+
+      fetch(`/api/passenger/plans?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            passengerPlansList.textContent = 'Ошибка: ' + data.error;
+          } else {
+            renderPassengerPlans(data.plans || []);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/passenger/plans (GET):', err);
+          passengerPlansList.textContent =
+            'Произошла ошибка при загрузке списка запланированных поездок.';
+        });
+    }
+
+    function renderPassengerPlans(plans) {
+      if (!plans || plans.length === 0) {
+        passengerPlansList.textContent = 'У вас пока нет запланированных поездок.';
+        return;
+      }
+
+      passengerPlansList.innerHTML = '';
+      plans.forEach((p) => {
+        const div = document.createElement('div');
+        div.className = 'plan-card';
+
+        const header = document.createElement('div');
+        header.className = 'trip-header';
+
+        const routeSpan = document.createElement('div');
+        routeSpan.className = 'trip-route';
+        routeSpan.textContent = `${p.from_city} → ${p.to_city}`;
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'small-text';
+        timeSpan.textContent = p.desired_time;
+
+        header.appendChild(routeSpan);
+        header.appendChild(timeSpan);
+
+        const meta = document.createElement('div');
+        meta.className = 'trip-meta';
+
+        let statusText = '';
+        if (p.status === 'active') statusText = 'Активен';
+        else if (p.status === 'taken') statusText = 'Вас заберёт водитель';
+        else if (p.status === 'cancelled') statusText = 'Отменён';
+        else if (p.status === 'expired') statusText = 'Истёк';
+        else statusText = p.status || 'неизвестно';
+
+        let driverInfo = '';
+        if (p.status === 'taken' && p.driver_username) {
+          driverInfo =
+            '<br/>Водитель: ' +
+            formatName(p.driver_first_name, p.driver_last_name, p.driver_username);
+        }
+
+        meta.innerHTML =
+          `Нужно мест: ${p.seats_needed}` +
+          (p.note ? `<br/>Комментарий: ${p.note}` : '') +
+          `<br/><span class="tag">Статус: ${statusText}</span>` +
+          driverInfo;
+
+        div.appendChild(header);
+        div.appendChild(meta);
+
+        if (p.status === 'active') {
+          const btnCancel = document.createElement('button');
+          btnCancel.className = 'danger-btn';
+          btnCancel.textContent = 'Отменить план';
+          btnCancel.addEventListener('click', () => {
+            cancelPassengerPlan(p.id);
+          });
+          div.appendChild(btnCancel);
+        }
+
+        passengerPlansList.appendChild(div);
+      });
+    }
+
+    function cancelPassengerPlan(planId) {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+      if (!confirm('Отменить эту запланированную поездку?')) return;
+
+      fetch('/api/passenger/plans/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          plan_id: planId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Запланированная поездка отменена.');
+            loadPassengerPlans();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/passenger/plans/cancel:', err);
+          alert('Произошла ошибка при отмене запланированной поездки.');
+        });
+    }
+
+    // Водитель: планы пассажиров
+    if (driverPassengerPlansHeader) {
+      driverPassengerPlansHeader.addEventListener('click', () => {
+        const isHidden = driverPassengerPlansContent.classList.contains('hidden');
+        if (isHidden) {
+          driverPassengerPlansContent.classList.remove('hidden');
+          driverPassengerPlansArrow.classList.add('rotated');
+          loadDriverPassengerPlans();
+        } else {
+          driverPassengerPlansContent.classList.add('hidden');
+          driverPassengerPlansArrow.classList.remove('rotated');
+        }
+      });
+    }
+
+    if (btnReloadDriverPassengerPlans) {
+      btnReloadDriverPassengerPlans.addEventListener('click', () => {
+        loadDriverPassengerPlans();
+      });
+    }
+
+    function loadDriverPassengerPlans() {
+      if (!currentTelegramUser) {
+        driverPassengerPlansList.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      driverPassengerPlansList.textContent = 'Загрузка запросов пассажиров...';
+
+      fetch(`/api/driver/passenger-plans?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverPassengerPlansList.textContent = 'Ошибка: ' + data.error;
+          } else {
+            renderDriverPassengerPlans(data.plans || []);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/driver/passenger-plans:', err);
+          driverPassengerPlansList.textContent =
+            'Произошла ошибка при загрузке запросов пассажиров.';
+        });
+    }
+
+    function renderDriverPassengerPlans(plans) {
+      if (!plans || plans.length === 0) {
+        driverPassengerPlansList.textContent = 'Запросов пассажиров сейчас нет.';
+        return;
+      }
+
+      driverPassengerPlansList.innerHTML = '';
+
+      plans.forEach((p) => {
+        const div = document.createElement('div');
+        div.className = 'plan-card';
+
+        const header = document.createElement('div');
+        header.className = 'trip-header';
+
+        const routeSpan = document.createElement('div');
+        routeSpan.className = 'trip-route';
+        routeSpan.textContent = `${p.from_city} → ${p.to_city}`;
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'small-text';
+        timeSpan.textContent = p.desired_time;
+
+        header.appendChild(routeSpan);
+        header.appendChild(timeSpan);
+
+        const meta = document.createElement('div');
+        meta.className = 'trip-meta';
+
+        const passengerName = formatName(
+          p.passenger_first_name,
+          p.passenger_last_name,
+          p.passenger_username
+        );
+
+        meta.innerHTML =
+          `Пассажир: ${passengerName}<br/>` +
+          `Нужно мест: ${p.seats_needed}<br/>` +
+          `Неявок у пассажира: ${p.passenger_no_show_count || 0}` +
+          (p.note ? `<br/>Комментарий: ${p.note}` : '');
+
+        const btnTake = document.createElement('button');
+        btnTake.className = 'primary-btn';
+        btnTake.textContent = 'Забрать пассажира';
+        btnTake.addEventListener('click', () => {
+          takePassengerPlan(p.id);
+        });
+
+        div.appendChild(header);
+        div.appendChild(meta);
+        div.appendChild(btnTake);
+
+        driverPassengerPlansList.appendChild(div);
+      });
+    }
+
+    function takePassengerPlan(planId) {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+
+      if (!confirm('Вы хотите забрать этого пассажира? Ему придёт сообщение «Вас заберёт водитель».')) {
+        return;
+      }
+
+      fetch('/api/driver/passenger-plans/take', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          plan_id: planId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Вы взяли эту запланированную поездку. Пассажиру отправлено уведомление.');
+            loadDriverPassengerPlans();
+            loadPassengerPlans();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/driver/passenger-plans/take:', err);
+          alert('Произошла ошибка при выборе запланированной поездки.');
+        });
+    }
 
     // Админ-панель
     function loadAdminSettings() {
