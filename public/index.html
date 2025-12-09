@@ -4,6 +4,10 @@
   <meta charset="UTF-8" />
   <title>попутчики</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <!-- Важно: скрипт Telegram WebApp -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
   <style>
     body {
       margin: 0;
@@ -489,14 +493,12 @@
     const driverPassengerPlansList = document.getElementById('driver-passenger-plans-list');
     const btnReloadDriverPassengerPlans = document.getElementById('btn-reload-driver-passenger-plans');
 
-    // ===== Вспомогательные функции =====
-
     function isStillActiveByDeparture(departureTimeStr) {
       if (!departureTimeStr) return true;
       const ts = Date.parse(departureTimeStr);
       if (!Number.isFinite(ts)) return true;
       const now = Date.now();
-      const cutoff = now - 10 * 60 * 1000; // 10 минут после начала
+      const cutoff = now - 10 * 60 * 1000;
       return ts >= cutoff;
     }
 
@@ -506,8 +508,7 @@
       return (full || 'без имени') + u;
     }
 
-    // ===== Инициализация из Telegram =====
-
+    // Инициализация из Telegram
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       tg.expand();
       currentTelegramUser = tg.initDataUnsafe.user;
@@ -540,8 +541,7 @@
         'Это мини-приложение работает только внутри Telegram. Откройте его через бота.';
     }
 
-    // ===== Переключение ролей =====
-
+    // Переключение ролей
     btnDriver.addEventListener('click', () => {
       if (!currentTelegramUser) {
         roleInfo.textContent =
@@ -588,8 +588,7 @@
       loadPassengerPlans();
     });
 
-    // ===== Водитель: профиль машины =====
-
+    // Водитель: профиль машины
     function loadDriverProfile() {
       if (!currentTelegramUser) return;
 
@@ -649,8 +648,7 @@
         });
     });
 
-    // ===== Водитель: создание поездки =====
-
+    // Водитель: создание поездки
     document.getElementById('btn-create-trip').addEventListener('click', () => {
       if (!currentTelegramUser) {
         driverMessage.textContent = 'Откройте мини-приложение через Telegram.';
@@ -707,8 +705,7 @@
         });
     });
 
-    // ===== Водитель: история поездок =====
-
+    // Водитель: история поездок
     btnLoadDriverTrips.addEventListener('click', loadDriverTrips);
 
     function loadDriverTrips() {
@@ -940,8 +937,7 @@
         });
     }
 
-    // ===== Водитель: активная поездка =====
-
+    // Водитель: активная поездка
     btnLoadActiveTrip.addEventListener('click', loadDriverActiveTrip);
     btnActivePassengers.addEventListener('click', () => {
       if (activeTripId) {
@@ -995,8 +991,7 @@
         });
     }
 
-    // ===== Пассажир: список поездок и бронирования =====
-
+    // Пассажир: список поездок
     function loadTrips() {
       tripsList.textContent = 'Загрузка поездок...';
 
@@ -1236,8 +1231,7 @@
         });
     }
 
-    // ===== Пассажир: планы поездок =====
-
+    // Пассажир: планы поездок
     btnCreatePassengerPlan.addEventListener('click', () => {
       if (!currentTelegramUser) {
         passengerPlanMessage.textContent = 'Откройте мини-приложение через Telegram.';
@@ -1413,8 +1407,7 @@
         });
     }
 
-    // ===== Водитель: планы пассажиров =====
-
+    // Водитель: планы пассажиров
     driverPassengerPlansHeader.addEventListener('click', () => {
       const isHidden = driverPassengerPlansContent.classList.contains('hidden');
       if (isHidden) {
@@ -1537,7 +1530,7 @@
           } else {
             alert('Вы взяли эту запланированную поездку. Пассажиру отправлено уведомление.');
             loadDriverPassengerPlans();
-            loadPassengerPlans(); // на всякий случай, если пассажир откроет позже
+            loadPassengerPlans();
           }
         })
         .catch((err) => {
@@ -1546,8 +1539,7 @@
         });
     }
 
-    // ===== Водитель: блок оплаты =====
-
+    // Водитель: блок оплаты
     function loadDriverPaymentInfo() {
       if (!currentTelegramUser) {
         driverPaymentBlock.classList.add('hidden');
@@ -1693,8 +1685,7 @@
       }
     });
 
-    // ===== Админ-панель =====
-
+    // Админ-панель
     function loadAdminSettings() {
       if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) {
         return;
