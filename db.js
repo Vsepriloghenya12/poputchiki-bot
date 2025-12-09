@@ -27,20 +27,10 @@ db.serialize(() => {
       no_show_count INTEGER DEFAULT 0,
       car_make TEXT,
       car_color TEXT,
-      car_plate TEXT
+      car_plate TEXT,
+      is_blocked INTEGER DEFAULT 0
     )
   `);
-
-  // Добавляем колонку is_blocked, если её ещё нет
-  db.run(
-    `ALTER TABLE users ADD COLUMN is_blocked INTEGER DEFAULT 0`,
-    (err) => {
-      // если уже есть — просто игнорируем ошибку
-      if (err && !String(err.message).includes('duplicate column')) {
-        console.error('Ошибка ALTER TABLE users (is_blocked):', err.message);
-      }
-    }
-  );
 
   // Поездки
   db.run(`
@@ -97,7 +87,7 @@ db.serialize(() => {
     )
   `);
 
-  // Гарантируем, что есть строка настроек с id=1
+  // Гарантируем, что есть строка настроек с id = 1
   db.run(`
     INSERT OR IGNORE INTO app_settings (id, monetization_enabled, payment_details)
     VALUES (1, 0, '')
@@ -133,9 +123,13 @@ function allAsync(sql, params = []) {
   });
 }
 
-// ---------------- РАБОТА С ПОЛЬЗОВАТЕЛЯМИ ----------------
+// ---------------- ПОЛЬЗОВАТЕЛИ ----------------
 
 async function upsertUserFromTelegram(tgUser) {
+  if (!tgUser || !tgUser.id) {
+    throw new Error('Некорректные данные пользователя Telegram');
+  }
+
   const {
     id,
     first_name,
@@ -155,10 +149,10 @@ async function upsertUserFromTelegram(tgUser) {
   if (existing) {
     await runAsync(
       `
-      UPDATE users
-      SET first_name = ?, last_name = ?, username = ?, language_code = ?, is_premium = ?
-      WHERE telegram_id = ?
-    `,
+        UPDATE users
+        SET first_name = ?, last_name = ?, username = ?, language_code = ?, is_premium = ?
+        WHERE telegram_id = ?
+      `,
       [
         first_name || null,
         last_name || null,
@@ -198,9 +192,11 @@ function getUserByTelegramId(telegramId) {
   );
 }
 
+// Профиль водителя (машина)
 async function getDriverProfileByTelegramId(telegramId) {
   const user = await getUserByTelegramId(telegramId);
   if (!user) return null;
+
   return {
     id: user.id,
     telegram_id: user.telegram_id,
@@ -232,7 +228,7 @@ async function updateDriverCarProfile(telegramId, { carMake, carColor, carPlate 
   return getDriverProfileByTelegramId(telegramId);
 }
 
-// блокировка / разблокировка водителя по telegram_id
+// блокировка / разблокировка пользователя по telegram_id
 async function setUserBlockedByTelegramId(telegramId, blocked) {
   await runAsync(
     `
@@ -301,7 +297,7 @@ async function createTrip({
   return trip;
 }
 
-// Список последних поездок (для пассажиров)
+// Список поездок (для пассажира)
 async function getLatestTrips(limit = 50) {
   const rows = await allAsync(
     `
@@ -348,7 +344,7 @@ async function getTripWithDriver(tripId) {
   return row;
 }
 
-// Все поездки водителя (для истории и активной)
+// Все поездки водителя (история + активные)
 async function getDriverTripsByTelegramId(telegramId) {
   const rows = await allAsync(
     `
@@ -370,7 +366,7 @@ async function getDriverTripsByTelegramId(telegramId) {
   return rows;
 }
 
-// Удаление поездки водителем (только до +10 минут после начала)
+// Удаление поездки водителем
 function deleteTripByDriver(tripId, driverId) {
   return new Promise((resolve, reject) => {
     const tripIdNum = Number(tripId);
@@ -392,7 +388,7 @@ function deleteTripByDriver(tripId, driverId) {
           return reject(e);
         }
 
-        // 1) НЕЛЬЗЯ удалять поездку после её начала (даже без брони)
+        // Нельзя удалять поездку после её начала
         const departTs = Date.parse(trip.departure_time);
         if (Number.isFinite(departTs)) {
           const now = Date.now();
@@ -403,7 +399,7 @@ function deleteTripByDriver(tripId, driverId) {
           }
         }
 
-        // 2) НЕЛЬЗЯ удалять поездку, по которой уже были брони (любые статусы)
+        // Нельзя удалять поездку, по которой уже были брони
         db.get(
           `SELECT COUNT(*) AS cnt FROM bookings WHERE trip_id = ?`,
           [tripIdNum],
@@ -417,28 +413,14 @@ function deleteTripByDriver(tripId, driverId) {
               return reject(e);
             }
 
-            // Если до выезда и без броней — можно удалять физически
-            db.serialize(() => {
-              db.run('BEGIN TRANSACTION', (errBegin) => {
-                if (errBegin) return reject(errBegin);
-
-                db.run(
-                  `DELETE FROM trips WHERE id = ?`,
-                  [tripIdNum],
-                  (errDelTrip) => {
-                    if (errDelTrip) {
-                      db.run('ROLLBACK');
-                      return reject(errDelTrip);
-                    }
-
-                    db.run('COMMIT', (errCommit) => {
-                      if (errCommit) return reject(errCommit);
-                      resolve(trip);
-                    });
-                  }
-                );
-              });
-            });
+            db.run(
+              `DELETE FROM trips WHERE id = ?`,
+              [tripIdNum],
+              (errDel) => {
+                if (errDel) return reject(errDel);
+                resolve(trip);
+              }
+            );
           }
         );
       }
@@ -485,7 +467,6 @@ async function createBooking({
   const appFee = Math.round(amountTotal * APP_FEE_PERCENT);
   const driverAmount = amountTotal - appFee;
 
-  // Транзакция: создаём бронь, уменьшаем seats_available
   return new Promise((resolve, reject) => {
     db.serialize(() => {
       db.run('BEGIN TRANSACTION', (errBegin) => {
@@ -719,7 +700,6 @@ function cancelBookingByPassenger({ bookingId, passengerId }) {
 
           const departTs = Date.parse(row.departure_time);
           const now = Date.now();
-          // после начала поездки отмена запрещена
           if (Number.isFinite(departTs) && now >= departTs) {
             const e = new Error('Нельзя отменить бронь после начала поездки');
             e.code = 'TOO_LATE';
@@ -808,11 +788,9 @@ async function updateAppSettings({ monetizationEnabled, paymentDetails }) {
 // ---------------- СТАТИСТИКА ДЛЯ ВОДИТЕЛЯ (ПО ДНЮ) ----------------
 
 async function getDriverDailyStats(driverId) {
-  // Статистика по бронированиям за сегодняшний день (локальное время)
   const stats = await getAsync(
     `
       SELECT
-        -- только по активным (неотменённым) броням
         SUM(CASE WHEN b.status = 'booked' THEN 1 ELSE 0 END) AS bookings_count,
         COUNT(DISTINCT CASE WHEN b.status = 'booked' THEN b.trip_id END) AS trips_count,
         COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.seats_booked ELSE 0 END), 0) AS seats_count,
@@ -868,7 +846,7 @@ async function saveDriverPaymentProof(driverId, originalName, storedName) {
 // ---------------- АДМИН-СТАТИСТИКА ----------------
 
 async function getAdminStats() {
-     const stats = await getAsync(
+  const stats = await getAsync(
     `
       SELECT
         COUNT(DISTINCT CASE WHEN b.status = 'booked' THEN b.trip_id END) AS trips_count,
@@ -892,9 +870,8 @@ async function getAdminStats() {
   };
 }
 
-// Водители за сегодня + их чеки
+// Водители за выбранный день + их чеки
 async function getAdminDailyDrivers(targetDate) {
-  // targetDate: 'YYYY-MM-DD' или undefined/пусто = сегодня
   const useCustomDate = !!targetDate;
   const dateParam = targetDate || null;
 
@@ -929,6 +906,7 @@ async function getAdminDailyDrivers(targetDate) {
   );
 
   const result = [];
+
   for (const row of rows) {
     let proof;
     if (useCustomDate) {
