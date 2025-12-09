@@ -8,11 +8,11 @@
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <style>
+    <style>
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #f3f4f6;
+      background: #e5e7eb; /* чуть темнее фон, чтобы карточки выделялись */
       color: #111827;
     }
     .container {
@@ -20,22 +20,27 @@
       margin: 0 auto;
       padding: 12px 12px 60px 12px;
     }
+
     .card {
       background: #ffffff;
-      border-radius: 16px;
+      border-radius: 18px;
       padding: 14px 14px 16px 14px;
-      margin-bottom: 12px;
-      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+      margin-bottom: 14px;
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+      border: 1px solid #e5e7eb;
     }
+
     .title-row {
       display: flex;
       align-items: center;
       gap: 10px;
-      margin-bottom: 6px;
+      margin-bottom: 8px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid #e5e7eb;
     }
     .logo {
-      width: 32px;
-      height: 32px;
+      width: 36px;
+      height: 36px;
       border-radius: 999px;
       background: linear-gradient(135deg, #2563eb, #10b981);
       display: flex;
@@ -44,26 +49,34 @@
       color: #ffffff;
       font-weight: 700;
       font-size: 18px;
+      flex-shrink: 0;
     }
     .title {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 700;
     }
+
     .subtitle {
-      font-size: 15px;
-      font-weight: 600;
-      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #374151;
+      margin-bottom: 8px;
     }
+
     .info {
       font-size: 13px;
       color: #4b5563;
       margin-top: 4px;
       white-space: pre-line;
+      line-height: 1.4;
     }
     .small-text {
       font-size: 11px;
       color: #6b7280;
     }
+
     .field {
       margin-bottom: 8px;
     }
@@ -82,6 +95,15 @@
       padding: 7px 9px;
       font-size: 14px;
       box-sizing: border-box;
+      background: #f9fafb;
+    }
+    .field input:focus,
+    .field textarea:focus,
+    .field select:focus {
+      outline: none;
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+      background: #ffffff;
     }
     .field-inline {
       display: flex;
@@ -91,6 +113,7 @@
       flex: 1;
       margin-bottom: 0;
     }
+
     .role-buttons {
       display: flex;
       gap: 8px;
@@ -99,25 +122,43 @@
     .role-buttons button {
       flex: 1;
     }
+
     button {
       border-radius: 999px;
       border: none;
       padding: 8px 12px;
       font-size: 14px;
       cursor: pointer;
+      transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+    }
+    button:active {
+      transform: translateY(1px);
+      box-shadow: none;
     }
     .primary-btn {
       background: #2563eb;
       color: #ffffff;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+    }
+    .primary-btn:hover {
+      background: #1d4ed8;
     }
     .secondary-btn {
       background: #e5e7eb;
       color: #111827;
     }
+    .secondary-btn:hover {
+      background: #d1d5db;
+    }
     .danger-btn {
       background: #ef4444;
       color: #ffffff;
+      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
     }
+    .danger-btn:hover {
+      background: #dc2626;
+    }
+
     .trip-card,
     .booking-card,
     .plan-card {
@@ -128,6 +169,7 @@
       font-size: 13px;
       background: #f9fafb;
     }
+
     .trip-header,
     .booking-header {
       display: flex;
@@ -149,25 +191,57 @@
     .booking-meta {
       font-size: 12px;
       color: #4b5563;
+      line-height: 1.4;
     }
+
     .tag {
       display: inline-block;
       padding: 2px 6px;
       border-radius: 999px;
       font-size: 11px;
       border: 1px solid #e5e7eb;
-      background: #f3f4f6;
+      background: #eef2ff;
+      color: #3730a3;
       margin-right: 4px;
       margin-top: 2px;
     }
+
     .hidden {
       display: none !important;
     }
+
+    /* Секционные акценты: водитель / пассажир / админ */
+
+    #driver-section,
+    #driver-active,
+    #driver-history,
+    #driver-passenger-plans,
+    #driver-payment-block {
+      border-left: 4px solid #2563eb;
+      padding-left: 12px;
+    }
+
+    #passenger-section,
+    #passenger-active,
+    #passenger-plans-section {
+      border-left: 4px solid #10b981;
+      padding-left: 12px;
+    }
+
+    #admin-section {
+      border-left: 4px solid #f97316;
+      padding-left: 12px;
+    }
+
     .collapsible-header {
       display: flex;
       justify-content: space-between;
       align-items: center;
       cursor: pointer;
+      padding: 4px 6px;
+      border-radius: 10px;
+      background: #f3f4f6;
+      margin-top: 4px;
     }
     .collapsible-header span {
       font-weight: 600;
