@@ -93,7 +93,7 @@
       border-radius: 10px;
       border: 1px solid #d1d5db;
       padding: 7px 9px;
-      font-size: 14px;
+      font-size: 15px;
       box-sizing: border-box;
       background: #f9fafb;
     }
@@ -119,8 +119,37 @@
       gap: 8px;
       margin-top: 4px;
     }
-    .role-buttons button {
+        .role-buttons button {
       flex: 1;
+      border-radius: 16px;
+      padding: 12px 0;
+      font-size: 15px;
+      font-weight: 700;
+      color: #ffffff;
+      border: none;
+      cursor: pointer;
+      transition: transform 0.1s ease, box-shadow 0.15s ease;
+    }
+
+    #btn-driver {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      box-shadow: 0 3px 8px rgba(37, 99, 235, 0.4);
+    }
+    #btn-driver:hover {
+      background: linear-gradient(135deg, #1e40af, #1d4ed8);
+    }
+
+    #btn-passenger {
+      background: linear-gradient(135deg, #10b981, #059669);
+      box-shadow: 0 3px 8px rgba(16, 185, 129, 0.4);
+    }
+    #btn-passenger:hover {
+      background: linear-gradient(135deg, #047857, #059669);
+    }
+
+    .role-buttons button:active {
+      transform: scale(0.97);
+      box-shadow: none;
     }
 
     button {
@@ -180,8 +209,8 @@
     }
     .trip-route,
     .booking-status {
-      font-weight: 600;
-      font-size: 13px;
+      font-weight: 700;
+      font-size: 14px;
     }
     .booking-status {
       color: #059669;
@@ -254,6 +283,12 @@
     .arrow.rotated {
       transform: rotate(90deg);
     }
+        .card-collapsible-content {
+      margin-top: 8px;
+    }
+    .card-collapsed .card-collapsible-content {
+      display: none;
+    }
   </style>
 </head>
 <body>
@@ -282,7 +317,8 @@
     </div>
 
     <!-- Водитель: создание поездки + машина -->
-    <div class="card hidden" id="driver-section">
+        <div class="card hidden" id="driver-section"
+         data-collapsible="1" data-title="Водитель: поездка и машина">
       <div class="subtitle">Создать поездку</div>
 
       <div class="field">
@@ -337,7 +373,8 @@
     </div>
 
     <!-- Водитель: активная поездка -->
-    <div class="card hidden" id="driver-active">
+        <div class="card hidden" id="driver-active"
+         data-collapsible="1" data-title="Водитель: активная поездка">
       <div class="subtitle">Активная поездка</div>
       <div class="info small-text">
         Показывается ближайшая поездка (включая 10 минут после начала).
@@ -355,7 +392,8 @@
     </div>
 
     <!-- Водитель: история поездок -->
-    <div class="card hidden" id="driver-history">
+        <div class="card hidden" id="driver-history"
+         data-collapsible="1" data-title="Водитель: мои поездки">
       <div class="subtitle">Мои поездки</div>
       <button class="secondary-btn" id="btn-load-driver-trips">Обновить список</button>
       <div class="info" id="driver-trips-list">
@@ -364,7 +402,8 @@
     </div>
 
     <!-- Водитель: запланированные поездки пассажиров -->
-    <div class="card hidden" id="driver-passenger-plans">
+        <div class="card hidden" id="driver-passenger-plans"
+         data-collapsible="1" data-title="Запланированные поездки пассажиров">
       <div class="collapsible-header" id="driver-passenger-plans-header">
         <span>Запланированные поездки пассажиров</span>
         <span class="arrow" id="driver-passenger-plans-arrow">▶</span>
@@ -384,7 +423,8 @@
     </div>
 
     <!-- Пассажир: список поездок -->
-    <div class="card hidden" id="passenger-section">
+        <div class="card hidden" id="passenger-section"
+         data-collapsible="1" data-title="Пассажир: доступные поездки">
       <div class="subtitle">Доступные поездки</div>
       <div class="info small-text">
         Список поездок с ещё свободными местами и с выездом не старше 10 минут назад.
@@ -395,7 +435,8 @@
     </div>
 
     <!-- Пассажир: мои активные поездки -->
-    <div class="card hidden" id="passenger-active">
+        <div class="card hidden" id="passenger-active"
+         data-collapsible="1" data-title="Пассажир: активные брони">
       <div class="subtitle">Мои активные бронирования</div>
       <button class="secondary-btn" id="btn-load-passenger-active">Показать активные поездки</button>
       <div class="info" id="passenger-active-list">
@@ -404,7 +445,8 @@
     </div>
 
     <!-- Пассажир: планы поездок -->
-    <div class="card hidden" id="passenger-plans-section">
+        <div class="card hidden" id="passenger-plans-section"
+         data-collapsible="1" data-title="Пассажир: запланированные поездки">
       <div class="subtitle">Запланировать поездку</div>
       <div class="field">
         <label for="plan-from-city">Откуда</label>
@@ -441,7 +483,8 @@
     </div>
 
     <!-- Водитель: блок оплаты -->
-    <div class="card hidden" id="driver-payment-block">
+        <div class="card hidden" id="driver-payment-block"
+         data-collapsible="1" data-title="Водитель: оплата комиссии">
       <div class="subtitle">Оплата комиссии за сегодня</div>
       <div class="info" id="driver-payment-info">
         Загрузка информации о сегодняшних поездках.
@@ -469,7 +512,8 @@
     </div>
 
     <!-- Админ: статистика и управление оплатой -->
-    <div class="card hidden" id="admin-section">
+        <div class="card hidden" id="admin-section"
+         data-collapsible="1" data-title="Админ-панель">
       <div class="subtitle">Админ-панель сервиса</div>
 
       <div class="info" id="admin-settings-info">
@@ -614,6 +658,56 @@
     }
           function formatDateReadable(str) {
       if (!str) return str;
+          // Сворачиваемые карточки: любая .card с data-collapsible="1"
+    (function initCollapsibleCards() {
+      const cards = document.querySelectorAll('.card[data-collapsible="1"]');
+
+      cards.forEach((card) => {
+        const titleAttr = card.getAttribute('data-title');
+        let titleText = titleAttr && titleAttr.trim();
+
+        if (!titleText) {
+          const firstSubtitle = card.querySelector('.subtitle');
+          titleText = firstSubtitle ? firstSubtitle.textContent.trim() : 'Блок';
+        }
+
+        // Переносим существующее содержимое в обёртку
+        const content = document.createElement('div');
+        content.className = 'card-collapsible-content';
+        while (card.firstChild) {
+          content.appendChild(card.firstChild);
+        }
+
+        // Создаём заголовок карточки
+        const header = document.createElement('div');
+        header.className = 'collapsible-header';
+
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = titleText;
+
+        const arrow = document.createElement('span');
+        arrow.className = 'arrow';
+        arrow.textContent = '▶';
+
+        header.appendChild(titleSpan);
+        header.appendChild(arrow);
+
+        card.appendChild(header);
+        card.appendChild(content);
+
+        // По умолчанию — свёрнуто
+        card.classList.add('card-collapsed');
+
+        header.addEventListener('click', () => {
+          const collapsed = card.classList.toggle('card-collapsed');
+          if (collapsed) {
+            arrow.classList.remove('rotated');
+          } else {
+            arrow.classList.add('rotated');
+          }
+        });
+      });
+    })();
 
       const d = new Date(str);
       if (isNaN(d.getTime())) return str;
