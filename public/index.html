@@ -659,10 +659,15 @@
           function formatDateReadable(str) {
       if (!str) return str;
           // Сворачиваемые карточки: любая .card с data-collapsible="1"
+        // Сворачиваемые карточки: любая .card с data-collapsible="1"
     (function initCollapsibleCards() {
       const cards = document.querySelectorAll('.card[data-collapsible="1"]');
 
       cards.forEach((card) => {
+        // если уже инициализировали — больше не трогаем, чтобы не плодить заголовки
+        if (card.dataset.collapsibleInitialized === '1') return;
+        card.dataset.collapsibleInitialized = '1';
+
         const titleAttr = card.getAttribute('data-title');
         let titleText = titleAttr && titleAttr.trim();
 
@@ -671,14 +676,14 @@
           titleText = firstSubtitle ? firstSubtitle.textContent.trim() : 'Блок';
         }
 
-        // Переносим существующее содержимое в обёртку
+        // переносим существующее содержимое в обёртку
         const content = document.createElement('div');
         content.className = 'card-collapsible-content';
         while (card.firstChild) {
           content.appendChild(card.firstChild);
         }
 
-        // Создаём заголовок карточки
+        // создаём заголовок карточки
         const header = document.createElement('div');
         header.className = 'collapsible-header';
 
@@ -695,7 +700,7 @@
         card.appendChild(header);
         card.appendChild(content);
 
-        // По умолчанию — свёрнуто
+        // по умолчанию — свёрнуто
         card.classList.add('card-collapsed');
 
         header.addEventListener('click', () => {
