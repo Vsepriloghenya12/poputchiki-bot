@@ -597,6 +597,15 @@
       const cutoff = now - 10 * 60 * 1000;
       return ts >= cutoff;
     }
+        // Запланированные поездки: считаем актуальными только до 20 минут после желаемого времени выезда
+    function isPlanStillActive(desiredTimeStr) {
+      if (!desiredTimeStr) return true;
+      const ts = Date.parse(desiredTimeStr);
+      if (!Number.isFinite(ts)) return true;
+      const now = Date.now();
+      const cutoff = now - 20 * 60 * 1000; // 20 минут назад
+      return ts >= cutoff;
+    }
 
     function formatName(first, last, username) {
       const full = `${first || ''} ${last || ''}`.trim();
@@ -1411,14 +1420,23 @@
         });
     }
 
-    function renderPassengerPlans(plans) {
-      if (!plans || plans.length === 0) {
+        function renderPassengerPlans(plans) {
+      // скрываем активные планы, у которых прошло больше 20 минут от желаемого времени выезда
+      const filtered = (plans || []).filter((p) => {
+        if (p.status !== 'active') {
+          // неактивные (taken/cancelled/expired) показываем как есть
+          return true;
+        }
+        return isPlanStillActive(p.desired_time);
+      });
+
+      if (!filtered || filtered.length === 0) {
         passengerPlansList.textContent = 'У вас пока нет запланированных поездок.';
         return;
       }
 
       passengerPlansList.innerHTML = '';
-      plans.forEach((p) => {
+      filtered.forEach((p) => {
         const div = document.createElement('div');
         div.className = 'plan-card';
 
@@ -1456,6 +1474,7 @@
         meta.innerHTML =
           `Нужно мест: ${p.seats_needed}` +
           (p.note ? `<br/>Комментарий: ${p.note}` : '') +
+          `<br/>Время планируемого выезда: ${p.desired_time}` + // явная строка со временем
           `<br/><span class="tag">Статус: ${statusText}</span>` +
           driverInfo;
 
@@ -1555,15 +1574,18 @@
         });
     }
 
-    function renderDriverPassengerPlans(plans) {
-      if (!plans || plans.length === 0) {
+        function renderDriverPassengerPlans(plans) {
+      // для водителя показываем только актуальные запросы (до +20 минут от желаемого времени)
+      const activePlans = (plans || []).filter((p) => isPlanStillActive(p.desired_time));
+
+      if (!activePlans || activePlans.length === 0) {
         driverPassengerPlansList.textContent = 'Запросов пассажиров сейчас нет.';
         return;
       }
 
       driverPassengerPlansList.innerHTML = '';
 
-      plans.forEach((p) => {
+      activePlans.forEach((p) => {
         const div = document.createElement('div');
         div.className = 'plan-card';
 
@@ -1594,7 +1616,8 @@
           `Пассажир: ${passengerName}<br/>` +
           `Нужно мест: ${p.seats_needed}<br/>` +
           `Неявок у пассажира: ${p.passenger_no_show_count || 0}` +
-          (p.note ? `<br/>Комментарий: ${p.note}` : '');
+          (p.note ? `<br/>Комментарий: ${p.note}` : '') +
+          `<br/>Время планируемого выезда: ${p.desired_time}`; // явная строка со временем
 
         const btnTake = document.createElement('button');
         btnTake.className = 'primary-btn';
