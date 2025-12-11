@@ -612,6 +612,34 @@
       const u = username ? ` @${username}` : '';
       return (full || 'без имени') + u;
     }
+          function formatDateReadable(str) {
+      if (!str) return str;
+
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return str;
+
+      const day = d.getDate();
+      const month = d.getMonth();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+
+      const MONTHS = [
+        "января",
+        "февраля",
+        "марта",
+        "апреля",
+        "мая",
+        "июня",
+        "июля",
+        "августа",
+        "сентября",
+        "октября",
+        "ноября",
+        "декабря"
+      ];
+
+      return `${day} ${MONTHS[month]}, ${hours}:${minutes}`;
+    }
 
     // Инициализация из Telegram
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
@@ -1449,7 +1477,7 @@
 
         const timeSpan = document.createElement('span');
         timeSpan.className = 'small-text';
-        timeSpan.textContent = p.desired_time;
+        timeSpan.textContent = formatDateReadable(p.desired_time);
 
         header.appendChild(routeSpan);
         header.appendChild(timeSpan);
@@ -1474,7 +1502,7 @@
         meta.innerHTML =
           `Нужно мест: ${p.seats_needed}` +
           (p.note ? `<br/>Комментарий: ${p.note}` : '') +
-          `<br/>Время планируемого выезда: ${p.desired_time}` + // явная строка со временем
+          `<br/>Время планируемого выезда: ${formatDateReadable(p.desired_time)}` +
           `<br/><span class="tag">Статус: ${statusText}</span>` +
           driverInfo;
 
@@ -1598,7 +1626,7 @@
 
         const timeSpan = document.createElement('span');
         timeSpan.className = 'small-text';
-        timeSpan.textContent = p.desired_time;
+        timeSpan.textContent = formatDateReadable(p.desired_time);
 
         header.appendChild(routeSpan);
         header.appendChild(timeSpan);
@@ -1617,7 +1645,7 @@
           `Нужно мест: ${p.seats_needed}<br/>` +
           `Неявок у пассажира: ${p.passenger_no_show_count || 0}` +
           (p.note ? `<br/>Комментарий: ${p.note}` : '') +
-          `<br/>Время планируемого выезда: ${p.desired_time}`; // явная строка со временем
+          `<br/>Время планируемого выезда: ${formatDateReadable(p.desired_time)}`;
 
         const btnTake = document.createElement('button');
         btnTake.className = 'primary-btn';
