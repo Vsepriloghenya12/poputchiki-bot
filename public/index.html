@@ -657,14 +657,29 @@
       return (full || 'без имени') + u;
     }
           function formatDateReadable(str) {
-      if (!str) return str;
-          // Сворачиваемые карточки: любая .card с data-collapsible="1"
-        // Сворачиваемые карточки: любая .card с data-collapsible="1"
-    function initCollapsibleCards() {
+  if (!str) return str;
+
+  const d = new Date(str);
+  if (isNaN(d.getTime())) return str;
+
+  const day = d.getDate();
+  const month = d.getMonth();
+  const hours = String(d.getHours()).padStart(2, '0');
+  const minutes = String(d.getMinutes()).padStart(2, '0');
+
+  const MONTHS = [
+    "января", "февраля", "марта", "апреля", "мая", "июня",
+    "июля", "августа", "сентября", "октября", "ноября", "декабря"
+  ];
+
+  return `${day} ${MONTHS[month]}, ${hours}:${minutes}`;
+}
+
+// Сворачиваемые карточки: любая .card с data-collapsible="1"
+function initCollapsibleCards() {
   const cards = document.querySelectorAll('.card[data-collapsible="1"]');
 
   cards.forEach((card) => {
-    // защита от повторной инициализации (важно)
     if (card.dataset.collapsibleInitialized === '1') return;
     card.dataset.collapsibleInitialized = '1';
 
@@ -676,14 +691,10 @@
       titleText = firstSubtitle ? firstSubtitle.textContent.trim() : 'Блок';
     }
 
-    // переносим существующее содержимое в обёртку
     const content = document.createElement('div');
     content.className = 'card-collapsible-content';
-    while (card.firstChild) {
-      content.appendChild(card.firstChild);
-    }
+    while (card.firstChild) content.appendChild(card.firstChild);
 
-    // создаём заголовок карточки
     const header = document.createElement('div');
     header.className = 'collapsible-header';
 
@@ -700,7 +711,6 @@
     card.appendChild(header);
     card.appendChild(content);
 
-    // по умолчанию — свёрнуто
     card.classList.add('card-collapsed');
 
     header.addEventListener('click', () => {
@@ -711,7 +721,7 @@
   });
 }
 
-// первый запуск
+// запуск
 initCollapsibleCards();
 
       const d = new Date(str);
