@@ -563,6 +563,7 @@
     let activeTripId = null;
 
     const userInfoDiv = document.getElementById('user-info');
+    userInfoDiv.innerHTML += `<br/>URL: ${window.location.href}`;
     const btnDriver = document.getElementById('btn-driver');
     const btnPassenger = document.getElementById('btn-passenger');
     const roleInfo = document.getElementById('role-info');
