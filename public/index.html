@@ -289,6 +289,100 @@
     .card-collapsed .card-collapsible-content {
       display: none;
     }
+    /* Tabs */
+.tabs-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 16px;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.10);
+  margin-bottom: 12px;
+  position: sticky;
+  top: 8px;
+  z-index: 50;
+}
+.tab-btn {
+  flex: 1;
+  border: 1px solid #e5e7eb;
+  background: #f3f4f6;
+  border-radius: 14px;
+  padding: 10px 8px;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+}
+.tab-btn.active {
+  background: #111827;
+  color: #ffffff;
+  border-color: #111827;
+}
+
+/* Filters */
+.filters {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: 10px 0 10px 0;
+  padding: 10px;
+  background: #f9fafb;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+}
+.filters .field { margin-bottom: 0; }
+.filters .field label { font-size: 11px; font-weight: 800; color: #374151; }
+.filters .actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+
+.badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  border: 1px solid #e5e7eb;
+  background: #fff;
+  margin-left: 6px;
+}
+.badge.soon { background: #ecfeff; border-color: #06b6d4; }
+.badge.now  { background: #ecfdf5; border-color: #10b981; }
+.badge.late { background: #fff1f2; border-color: #ef4444; }
+
+.error-text {
+  font-size: 12px;
+  color: #dc2626;
+  margin-top: 6px;
+  font-weight: 800;
+}
+.tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.tab-btn {
+  flex: 1;
+  min-width: 110px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  border-color: #111827;
+  background: #111827;
+  color: #ffffff;
+}
+.tabs { display:flex; gap:8px; flex-wrap:wrap; }
+.tab-btn{
+  flex:1; min-width:110px; padding:10px 12px;
+  border-radius:12px; border:1px solid #e5e7eb;
+  background:#f9fafb; font-weight:700; cursor:pointer;
+}
+.tab-btn.active{ border-color:#111827; background:#111827; color:#fff; }
   </style>
 </head>
 <body>
@@ -315,6 +409,36 @@
         Выберите режим, чтобы продолжить.
       </div>
     </div>
+    <!-- TAB BAR (скрыт, пока не выбрана роль) -->
+<div class="card hidden" id="tabs-card">
+  <div class="tabs" id="tabs-driver" class="hidden">
+    <button class="tab-btn" data-role="driver" data-tab="create">Создать</button>
+    <button class="tab-btn" data-role="driver" data-tab="active">Активная</button>
+    <button class="tab-btn" data-role="driver" data-tab="history">История</button>
+    <button class="tab-btn" data-role="driver" data-tab="plans">Пассажиры</button>
+  </div>
+
+  <div class="tabs hidden" id="tabs-passenger">
+    <button class="tab-btn" data-role="passenger" data-tab="trips">Поездки</button>
+    <button class="tab-btn" data-role="passenger" data-tab="bookings">Мои брони</button>
+    <button class="tab-btn" data-role="passenger" data-tab="plan">План поездки</button>
+  </div>
+</div>
+
+    <!-- Tabs: Driver -->
+<div class="tabs-bar hidden" id="driver-tabs-bar">
+  <button class="tab-btn" data-role="driver" data-tab="create">Создать</button>
+  <button class="tab-btn" data-role="driver" data-tab="active">Активная</button>
+  <button class="tab-btn" data-role="driver" data-tab="history">История</button>
+  <button class="tab-btn" data-role="driver" data-tab="plans">Пассажиры</button>
+</div>
+
+<!-- Tabs: Passenger -->
+<div class="tabs-bar hidden" id="passenger-tabs-bar">
+  <button class="tab-btn" data-role="passenger" data-tab="trips">Поездки</button>
+  <button class="tab-btn" data-role="passenger" data-tab="bookings">Мои брони</button>
+  <button class="tab-btn" data-role="passenger" data-tab="plan">План</button>
+</div>
 
     <!-- Водитель: создание поездки + машина -->
         <div class="card hidden" id="driver-section"
@@ -428,6 +552,42 @@
       <div class="info small-text">
         Список поездок с ещё свободными местами и с выездом не старше 10 минут назад.
       </div>
+      <div class="filters" id="passenger-filters">
+  <div class="field">
+    <label>Откуда</label>
+    <select id="filter-from">
+      <option value="">Любой</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Куда</label>
+    <select id="filter-to">
+      <option value="">Любой</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Дата</label>
+    <select id="filter-day">
+      <option value="any">Любая</option>
+      <option value="today">Сегодня</option>
+      <option value="tomorrow">Завтра</option>
+    </select>
+  </div>
+  <div class="field">
+    <label>Сортировка</label>
+    <select id="filter-sort">
+      <option value="time_asc">По времени ↑</option>
+      <option value="time_desc">По времени ↓</option>
+    </select>
+  </div>
+  <div class="actions">
+    <button class="secondary-btn" id="btn-apply-filters" type="button">Применить</button>
+    <button class="secondary-btn" id="btn-reset-filters" type="button">Сброс</button>
+  </div>
+</div>
+
+<button class="secondary-btn" id="btn-refresh-trips" type="button">Обновить</button>
+
       <div id="trips-list" class="info">
         Поездки ещё не загружены.
       </div>
@@ -624,6 +784,7 @@
     const btnCreatePassengerPlan = document.getElementById('btn-create-passenger-plan');
     const passengerPlanMessage = document.getElementById('passenger-plan-message');
     const passengerPlansList = document.getElementById('passenger-plans-list');
+    
 
     // Планы пассажиров для водителя
     const driverPassengerPlansCard = document.getElementById('driver-passenger-plans');
@@ -632,7 +793,8 @@
     const driverPassengerPlansContent = document.getElementById('driver-passenger-plans-content');
     const driverPassengerPlansList = document.getElementById('driver-passenger-plans-list');
     const btnReloadDriverPassengerPlans = document.getElementById('btn-reload-driver-passenger-plans');
-
+    
+    
     function isStillActiveByDeparture(departureTimeStr) {
       if (!departureTimeStr) return true;
       const ts = Date.parse(departureTimeStr);
@@ -724,6 +886,111 @@ function initCollapsibleCards() {
 // первый запуск
 initCollapsibleCards();
 
+// ---------- Tabs + auto-refresh ----------
+const driverTabsBar = document.getElementById('driver-tabs-bar');
+const passengerTabsBar = document.getElementById('passenger-tabs-bar');
+
+let currentRole = null;
+let driverAutoTimer = null;
+let passengerAutoTimer = null;
+
+function setActiveTabUI(bar, tab) {
+  if (!bar) return;
+  bar.querySelectorAll('.tab-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+}
+
+function hideAllRoleSections() {
+  driverSection.classList.add('hidden');
+  driverActive.classList.add('hidden');
+  driverHistory.classList.add('hidden');
+  driverPassengerPlansCard.classList.add('hidden');
+  driverPaymentBlock.classList.add('hidden');
+
+  passengerSection.classList.add('hidden');
+  passengerActiveSection.classList.add('hidden');
+  passengerPlansSection.classList.add('hidden');
+}
+
+function showDriverTab(tab) {
+  hideAllRoleSections();
+
+  driverTabsBar.classList.remove('hidden');
+  passengerTabsBar.classList.add('hidden');
+  currentRole = 'driver';
+  setActiveTabUI(driverTabsBar, tab);
+
+  // общие для водителя
+  driverPaymentBlock.classList.remove('hidden');
+
+  if (tab === 'create') driverSection.classList.remove('hidden');
+  if (tab === 'active') driverActive.classList.remove('hidden');
+  if (tab === 'history') driverHistory.classList.remove('hidden');
+  if (tab === 'plans') driverPassengerPlansCard.classList.remove('hidden');
+
+  // ленивые загрузки по вкладкам
+  if (tab === 'create') loadDriverProfile();
+  if (tab === 'active') loadDriverActiveTrip();
+  if (tab === 'history') loadDriverTrips();
+  if (tab === 'plans') loadDriverPassengerPlans();
+  loadDriverPaymentInfo();
+}
+
+function showPassengerTab(tab) {
+  hideAllRoleSections();
+
+  passengerTabsBar.classList.remove('hidden');
+  driverTabsBar.classList.add('hidden');
+  currentRole = 'passenger';
+  setActiveTabUI(passengerTabsBar, tab);
+
+  if (tab === 'trips') passengerSection.classList.remove('hidden');
+  if (tab === 'bookings') passengerActiveSection.classList.remove('hidden');
+  if (tab === 'plan') passengerPlansSection.classList.remove('hidden');
+
+  if (tab === 'trips') loadTrips();
+  if (tab === 'bookings') loadPassengerActiveBookings();
+  if (tab === 'plan') loadPassengerPlans();
+}
+
+function stopAutoRefresh() {
+  if (driverAutoTimer) clearInterval(driverAutoTimer);
+  if (passengerAutoTimer) clearInterval(passengerAutoTimer);
+  driverAutoTimer = null;
+  passengerAutoTimer = null;
+}
+
+function startDriverAutoRefresh() {
+  stopAutoRefresh();
+  driverAutoTimer = setInterval(() => {
+    if (currentRole !== 'driver') return;
+    // активная поездка + планы пассажиров
+    loadDriverActiveTrip();
+    loadDriverPassengerPlans();
+  }, 45000); // 45 сек
+}
+
+function startPassengerAutoRefresh() {
+  stopAutoRefresh();
+  passengerAutoTimer = setInterval(() => {
+    if (currentRole !== 'passenger') return;
+    // список поездок
+    loadTrips();
+  }, 45000); // 45 сек
+}
+
+// клики по табам
+driverTabsBar?.querySelectorAll('.tab-btn').forEach((btn) => {
+  btn.addEventListener('click', () => showDriverTab(btn.dataset.tab));
+});
+passengerTabsBar?.querySelectorAll('.tab-btn').forEach((btn) => {
+  btn.addEventListener('click', () => showPassengerTab(btn.dataset.tab));
+});
+
+// ручное обновление списка поездок пассажира
+document.getElementById('btn-refresh-trips')?.addEventListener('click', () => loadTrips());
+
       // Инициализация из Telegram
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       tg.expand();
@@ -759,50 +1026,26 @@ initCollapsibleCards();
 
     // Переключение ролей
     btnDriver.addEventListener('click', () => {
-      if (!currentTelegramUser) {
-        roleInfo.textContent =
-          'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
-        return;
-      }
-      roleInfo.textContent =
-        'Режим водителя: создавайте поездки, сохраняйте машину, смотрите активную поездку и запросы пассажиров.';
-      driverSection.classList.remove('hidden');
-      driverHistory.classList.remove('hidden');
-      driverActive.classList.remove('hidden');
-      driverPassengerPlansCard.classList.remove('hidden');
-      passengerSection.classList.add('hidden');
-      passengerActiveSection.classList.add('hidden');
-      passengerPlansSection.classList.add('hidden');
-      driverPaymentBlock.classList.remove('hidden');
-
-      loadDriverProfile();
-      loadDriverActiveTrip();
-      loadDriverPaymentInfo();
-      loadDriverTrips();
-      loadDriverPassengerPlans();
-    });
+  if (!currentTelegramUser) {
+    roleInfo.textContent =
+      'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
+    return;
+  }
+  roleInfo.textContent =
+    'Режим водителя: вкладки Создать / Активная / История / Пассажиры.';
+  showDriverTab('create');
+});
 
     btnPassenger.addEventListener('click', () => {
-      if (!currentTelegramUser) {
-        roleInfo.textContent =
-          'Откройте мини-приложение через Telegram, чтобы просматривать поездки.';
-        return;
-      }
-      roleInfo.textContent =
-        'Режим пассажира: просматривайте и бронируйте поездки, планируйте поездки заранее.';
-      passengerSection.classList.remove('hidden');
-      passengerActiveSection.classList.remove('hidden');
-      passengerPlansSection.classList.remove('hidden');
-      driverSection.classList.add('hidden');
-      driverHistory.classList.add('hidden');
-      driverActive.classList.add('hidden');
-      driverPassengerPlansCard.classList.add('hidden');
-      driverPaymentBlock.classList.add('hidden');
-
-      loadTrips();
-      loadPassengerActiveBookings();
-      loadPassengerPlans();
-    });
+  if (!currentTelegramUser) {
+    roleInfo.textContent =
+      'Откройте мини-приложение через Telegram, чтобы просматривать поездки.';
+    return;
+  }
+  roleInfo.textContent =
+    'Режим пассажира: вкладки Поездки / Мои брони / План.';
+  showPassengerTab('trips');
+});
 
     // Водитель: профиль машины
     function loadDriverProfile() {
