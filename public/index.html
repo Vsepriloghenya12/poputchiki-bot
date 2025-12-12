@@ -656,7 +656,7 @@
       const u = username ? ` @${username}` : '';
       return (full || 'без имени') + u;
     }
-          function formatDateReadable(str) {
+      function formatDateReadable(str) {
   if (!str) return str;
 
   const d = new Date(str);
@@ -719,9 +719,8 @@ function initCollapsibleCards() {
       else arrow.classList.add('rotated');
     });
   });
-}
 
-// запуск
+// первый запуск
 initCollapsibleCards();
 
       const d = new Date(str);
