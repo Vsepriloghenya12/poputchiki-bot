@@ -377,11 +377,21 @@
   background: #111827;
   color: #ffffff;
 }
-.tabs { display:flex; gap:8px; flex-wrap:wrap; }
-.tab-btn{
-  flex:1; min-width:110px; padding:10px 12px;
-  border-radius:12px; border:1px solid #e5e7eb;
-  background:#f9fafb; font-weight:700; cursor:pointer;
+.tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr; /* 2 колонки */
+  gap: 8px;
+}
+.tab-btn {
+  width: 100%;
+  min-width: 0;            /* важно: убрать min-width */
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  font-weight: 700;
+  cursor: pointer;
+  box-sizing: border-box;
 }
 .tab-btn.active{ border-color:#111827; background:#111827; color:#fff; }
   </style>
