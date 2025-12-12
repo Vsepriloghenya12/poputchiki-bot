@@ -8,11 +8,11 @@
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-    <style>
+  <style>
     body {
       margin: 0;
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #e5e7eb; /* чуть темнее фон, чтобы карточки выделялись */
+      background: #e5e7eb;
       color: #111827;
     }
     .container {
@@ -119,7 +119,7 @@
       gap: 8px;
       margin-top: 4px;
     }
-        .role-buttons button {
+    .role-buttons button {
       flex: 1;
       border-radius: 16px;
       padding: 12px 0;
@@ -283,96 +283,84 @@
     .arrow.rotated {
       transform: rotate(90deg);
     }
-        .card-collapsible-content {
+    .card-collapsible-content {
       margin-top: 8px;
     }
     .card-collapsed .card-collapsible-content {
       display: none;
     }
     /* Tabs */
-/* Tabs */
-.tabs-bar{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap:8px;
-  padding:10px;
-  background:#ffffff;
-  border:1px solid #e5e7eb;
-  border-radius:16px;
-  box-shadow:0 6px 14px rgba(15,23,42,0.10);
-  margin-bottom:12px;
-  position:sticky;
-  top:8px;
-  z-index:50;
-  box-sizing:border-box;
-}
+    .tabs-bar {
+      display: flex;
+      gap: 8px;
+      padding: 10px;
+      background: #ffffff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.10);
+      margin-bottom: 12px;
+      position: sticky;
+      top: 8px;
+      z-index: 50;
+    }
+    .tab-btn {
+      flex: 1;
+      border: 1px solid #e5e7eb;
+      background: #f3f4f6;
+      border-radius: 14px;
+      padding: 10px 8px;
+      font-weight: 800;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    .tab-btn.active {
+      background: #111827;
+      color: #ffffff;
+      border-color: #111827;
+    }
 
-.tab-btn{
-  width:100%;
-  min-width:0;
-  border:1px solid #e5e7eb;
-  background:#f3f4f6;
-  border-radius:14px;
-  padding:10px 8px;
-  font-weight:800;
-  font-size:13px;
-  cursor:pointer;
-  box-sizing:border-box;
+    /* Filters */
+    .filters {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 10px 0 10px 0;
+      padding: 10px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 14px;
+    }
+    .filters .field { margin-bottom: 0; }
+    .filters .field label { font-size: 11px; font-weight: 800; color: #374151; }
+    .filters .actions { grid-column: 1 / -1; display: flex; gap: 8px; }
 
-  /* чтобы длинные подписи не ломали ширину */
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
+    .badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 900;
+      border: 1px solid #e5e7eb;
+      background: #fff;
+      margin-left: 6px;
+    }
+    .badge.soon { background: #ecfeff; border-color: #06b6d4; }
+    .badge.now  { background: #ecfdf5; border-color: #10b981; }
+    .badge.late { background: #fff1f2; border-color: #ef4444; }
 
-.tab-btn.active{
-  background:#111827;
-  color:#ffffff;
-  border-color:#111827;
-}
+    .error-text {
+      font-size: 12px;
+      color: #dc2626;
+      margin-top: 6px;
+      font-weight: 800;
+    }
 
-/* Filters */
-.filters {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  margin: 10px 0 10px 0;
-  padding: 10px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-radius: 14px;
-}
-.filters .field { margin-bottom: 0; }
-.filters .field label { font-size: 11px; font-weight: 800; color: #374151; }
-.filters .actions { grid-column: 1 / -1; display: flex; gap: 8px; }
-
-.badge {
-  display: inline-block;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 900;
-  border: 1px solid #e5e7eb;
-  background: #fff;
-  margin-left: 6px;
-}
-.badge.soon { background: #ecfeff; border-color: #06b6d4; }
-.badge.now  { background: #ecfdf5; border-color: #10b981; }
-.badge.late { background: #fff1f2; border-color: #ef4444; }
-
-.error-text {
-  font-size: 12px;
-  color: #dc2626;
-  margin-top: 6px;
-  font-weight: 800;
-}
-
-.tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* 2 колонки */
-  gap: 8px;
-}
-.tab-btn.active{ border-color:#111827; background:#111827; color:#fff; }
+    /* Подсветка выбранной роли */
+    .active-role {
+      background: #111827 !important;
+      color: #ffffff !important;
+      box-shadow: 0 3px 8px rgba(17, 24, 39, 0.4);
+    }
   </style>
 </head>
 <body>
@@ -399,40 +387,24 @@
         Выберите режим, чтобы продолжить.
       </div>
     </div>
-    <!-- TAB BAR (скрыт, пока не выбрана роль) -->
-<div class="card hidden" id="tabs-card">
-  <div class="tabs" id="tabs-driver" class="hidden">
-    <button class="tab-btn" data-role="driver" data-tab="create">Создать</button>
-    <button class="tab-btn" data-role="driver" data-tab="active">Активная</button>
-    <button class="tab-btn" data-role="driver" data-tab="history">История</button>
-    <button class="tab-btn" data-role="driver" data-tab="plans">Пассажиры</button>
-  </div>
-
-  <div class="tabs hidden" id="tabs-passenger">
-    <button class="tab-btn" data-role="passenger" data-tab="trips">Поездки</button>
-    <button class="tab-btn" data-role="passenger" data-tab="bookings">Мои брони</button>
-    <button class="tab-btn" data-role="passenger" data-tab="plan">План поездки</button>
-  </div>
-</div>
 
     <!-- Tabs: Driver -->
-<div class="tabs-bar hidden" id="driver-tabs-bar">
-  <button class="tab-btn" data-role="driver" data-tab="create">Создать</button>
-  <button class="tab-btn" data-role="driver" data-tab="active">Активная</button>
-  <button class="tab-btn" data-role="driver" data-tab="history">История</button>
-  <button class="tab-btn" data-role="driver" data-tab="plans">Пассажиры</button>
-</div>
+    <div class="tabs-bar hidden" id="driver-tabs-bar">
+      <button class="tab-btn" data-role="driver" data-tab="create">Создать</button>
+      <button class="tab-btn" data-role="driver" data-tab="active">Активная</button>
+      <button class="tab-btn" data-role="driver" data-tab="history">История</button>
+      <button class="tab-btn" data-role="driver" data-tab="plans">Пассажиры</button>
+    </div>
 
-<!-- Tabs: Passenger -->
-<div class="tabs-bar hidden" id="passenger-tabs-bar">
-  <button class="tab-btn" data-role="passenger" data-tab="trips">Поездки</button>
-  <button class="tab-btn" data-role="passenger" data-tab="bookings">Мои брони</button>
-  <button class="tab-btn" data-role="passenger" data-tab="plan">План</button>
-</div>
+    <!-- Tabs: Passenger -->
+    <div class="tabs-bar hidden" id="passenger-tabs-bar">
+      <button class="tab-btn" data-role="passenger" data-tab="trips">Поездки</button>
+      <button class="tab-btn" data-role="passenger" data-tab="bookings">Мои брони</button>
+      <button class="tab-btn" data-role="passenger" data-tab="plan">План</button>
+    </div>
 
     <!-- Водитель: создание поездки + машина -->
-        <div class="card hidden" id="driver-section"
-         data-collapsible="1" data-title="Водитель: поездка и машина">
+    <div class="card hidden" id="driver-section" data-collapsible="1" data-title="Водитель: поездка и машина">
       <div class="subtitle">Создать поездку</div>
 
       <div class="field">
@@ -487,8 +459,7 @@
     </div>
 
     <!-- Водитель: активная поездка -->
-        <div class="card hidden" id="driver-active"
-         data-collapsible="1" data-title="Водитель: активная поездка">
+    <div class="card hidden" id="driver-active" data-collapsible="1" data-title="Водитель: активная поездка">
       <div class="subtitle">Активная поездка</div>
       <div class="info small-text">
         Показывается ближайшая поездка (включая 10 минут после начала).
@@ -506,8 +477,7 @@
     </div>
 
     <!-- Водитель: история поездок -->
-        <div class="card hidden" id="driver-history"
-         data-collapsible="1" data-title="Водитель: мои поездки">
+    <div class="card hidden" id="driver-history" data-collapsible="1" data-title="Водитель: мои поездки">
       <div class="subtitle">Мои поездки</div>
       <button class="secondary-btn" id="btn-load-driver-trips">Обновить список</button>
       <div class="info" id="driver-trips-list">
@@ -516,7 +486,7 @@
     </div>
 
     <!-- Водитель: запланированные поездки пассажиров -->
-        <div class="card hidden" id="driver-passenger-plans">
+    <div class="card hidden" id="driver-passenger-plans">
       <div class="collapsible-header" id="driver-passenger-plans-header">
         <span>Запланированные поездки пассажиров</span>
         <span class="arrow" id="driver-passenger-plans-arrow">▶</span>
@@ -536,47 +506,46 @@
     </div>
 
     <!-- Пассажир: список поездок -->
-        <div class="card hidden" id="passenger-section"
-         data-collapsible="1" data-title="Пассажир: доступные поездки">
+    <div class="card hidden" id="passenger-section" data-collapsible="1" data-title="Пассажир: доступные поездки">
       <div class="subtitle">Доступные поездки</div>
       <div class="info small-text">
         Список поездок с ещё свободными местами и с выездом не старше 10 минут назад.
       </div>
       <div class="filters" id="passenger-filters">
-  <div class="field">
-    <label>Откуда</label>
-    <select id="filter-from">
-      <option value="">Любой</option>
-    </select>
-  </div>
-  <div class="field">
-    <label>Куда</label>
-    <select id="filter-to">
-      <option value="">Любой</option>
-    </select>
-  </div>
-  <div class="field">
-    <label>Дата</label>
-    <select id="filter-day">
-      <option value="any">Любая</option>
-      <option value="today">Сегодня</option>
-      <option value="tomorrow">Завтра</option>
-    </select>
-  </div>
-  <div class="field">
-    <label>Сортировка</label>
-    <select id="filter-sort">
-      <option value="time_asc">По времени ↑</option>
-      <option value="time_desc">По времени ↓</option>
-    </select>
-  </div>
-  <div class="actions">
-    <button class="secondary-btn" id="btn-apply-filters" type="button">Применить</button>
-    <button class="secondary-btn" id="btn-reset-filters" type="button">Сброс</button>
-  </div>
-</div>
+        <div class="field">
+          <label>Откуда</label>
+          <select id="filter-from">
+            <option value="">Любой</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Куда</label>
+          <select id="filter-to">
+            <option value="">Любой</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Дата</label>
+          <select id="filter-day">
+            <option value="any">Любая</option>
+            <option value="today">Сегодня</option>
+            <option value="tomorrow">Завтра</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Сортировка</label>
+          <select id="filter-sort">
+            <option value="time_asc">По времени ↑</option>
+            <option value="time_desc">По времени ↓</option>
+          </select>
+        </div>
+        <div class="actions">
+          <button class="secondary-btn" id="btn-apply-filters" type="button">Применить</button>
+          <button class="secondary-btn" id="btn-reset-filters" type="button">Сброс</button>
+        </div>
+      </div>
 
-<button class="secondary-btn" id="btn-refresh-trips" type="button">Обновить</button>
+      <button class="secondary-btn" id="btn-refresh-trips" type="button">Обновить</button>
 
       <div id="trips-list" class="info">
         Поездки ещё не загружены.
@@ -584,8 +553,7 @@
     </div>
 
     <!-- Пассажир: мои активные поездки -->
-        <div class="card hidden" id="passenger-active"
-         data-collapsible="1" data-title="Пассажир: активные брони">
+    <div class="card hidden" id="passenger-active" data-collapsible="1" data-title="Пассажир: активные брони">
       <div class="subtitle">Мои активные бронирования</div>
       <button class="secondary-btn" id="btn-load-passenger-active">Показать активные поездки</button>
       <div class="info" id="passenger-active-list">
@@ -594,8 +562,7 @@
     </div>
 
     <!-- Пассажир: планы поездок -->
-        <div class="card hidden" id="passenger-plans-section"
-         data-collapsible="1" data-title="Пассажир: запланированные поездки">
+    <div class="card hidden" id="passenger-plans-section" data-collapsible="1" data-title="Пассажир: запланированные поездки">
       <div class="subtitle">Запланировать поездку</div>
       <div class="field">
         <label for="plan-from-city">Откуда</label>
@@ -632,8 +599,7 @@
     </div>
 
     <!-- Водитель: блок оплаты -->
-        <div class="card hidden" id="driver-payment-block"
-         data-collapsible="1" data-title="Водитель: оплата комиссии">
+    <div class="card hidden" id="driver-payment-block" data-collapsible="1" data-title="Водитель: оплата комиссии">
       <div class="subtitle">Оплата комиссии за сегодня</div>
       <div class="info" id="driver-payment-info">
         Загрузка информации о сегодняшних поездках.
@@ -661,8 +627,7 @@
     </div>
 
     <!-- Админ: статистика и управление оплатой -->
-        <div class="card hidden" id="admin-section"
-         data-collapsible="1" data-title="Админ-панель">
+    <div class="card hidden" id="admin-section" data-collapsible="1" data-title="Админ-панель">
       <div class="subtitle">Админ-панель сервиса</div>
 
       <div class="info" id="admin-settings-info">
@@ -774,7 +739,17 @@
     const btnCreatePassengerPlan = document.getElementById('btn-create-passenger-plan');
     const passengerPlanMessage = document.getElementById('passenger-plan-message');
     const passengerPlansList = document.getElementById('passenger-plans-list');
-    
+
+    // === Новые элементы для фильтров пассажира ===
+    const filterFrom = document.getElementById('filter-from');
+    const filterTo = document.getElementById('filter-to');
+    const filterDay = document.getElementById('filter-day');
+    const filterSort = document.getElementById('filter-sort');
+    const btnApplyFilters = document.getElementById('btn-apply-filters');
+    const btnResetFilters = document.getElementById('btn-reset-filters');
+
+    // Подсветка кнопок роли
+    const roleButtons = document.querySelectorAll('#btn-driver, #btn-passenger');
 
     // Планы пассажиров для водителя
     const driverPassengerPlansCard = document.getElementById('driver-passenger-plans');
@@ -783,8 +758,7 @@
     const driverPassengerPlansContent = document.getElementById('driver-passenger-plans-content');
     const driverPassengerPlansList = document.getElementById('driver-passenger-plans-list');
     const btnReloadDriverPassengerPlans = document.getElementById('btn-reload-driver-passenger-plans');
-    
-    
+
     function isStillActiveByDeparture(departureTimeStr) {
       if (!departureTimeStr) return true;
       const ts = Date.parse(departureTimeStr);
@@ -793,13 +767,12 @@
       const cutoff = now - 10 * 60 * 1000;
       return ts >= cutoff;
     }
-        // Запланированные поездки: считаем актуальными только до 20 минут после желаемого времени выезда
     function isPlanStillActive(desiredTimeStr) {
       if (!desiredTimeStr) return true;
       const ts = Date.parse(desiredTimeStr);
       if (!Number.isFinite(ts)) return true;
       const now = Date.now();
-      const cutoff = now - 20 * 60 * 1000; // 20 минут назад
+      const cutoff = now - 20 * 60 * 1000;
       return ts >= cutoff;
     }
 
@@ -808,180 +781,178 @@
       const u = username ? ` @${username}` : '';
       return (full || 'без имени') + u;
     }
-     function formatDateReadable(str) {
-  if (!str) return str;
+    function formatDateReadable(str) {
+      if (!str) return str;
 
-  const d = new Date(str);
-  if (isNaN(d.getTime())) return str;
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return str;
 
-  const day = d.getDate();
-  const month = d.getMonth();
-  const hours = String(d.getHours()).padStart(2, '0');
-  const minutes = String(d.getMinutes()).padStart(2, '0');
+      const day = d.getDate();
+      const month = d.getMonth();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
 
-  const MONTHS = [
-    "января", "февраля", "марта", "апреля", "мая", "июня",
-    "июля", "августа", "сентября", "октября", "ноября", "декабря"
-  ];
+      const MONTHS = [
+        "января", "февраля", "марта", "апреля", "мая", "июня",
+        "июля", "августа", "сентября", "октября", "ноября", "декабря"
+      ];
 
-  return `${day} ${MONTHS[month]}, ${hours}:${minutes}`;
-}
-
-// Сворачиваемые карточки: любая .card с data-collapsible="1"
-function initCollapsibleCards() {
-  const cards = document.querySelectorAll('.card[data-collapsible="1"]');
-
-  cards.forEach((card) => {
-    if (card.dataset.collapsibleInitialized === '1') return;
-    card.dataset.collapsibleInitialized = '1';
-
-    const titleAttr = card.getAttribute('data-title');
-    let titleText = titleAttr && titleAttr.trim();
-
-    if (!titleText) {
-      const firstSubtitle = card.querySelector('.subtitle');
-      titleText = firstSubtitle ? firstSubtitle.textContent.trim() : 'Блок';
+      return `${day} ${MONTHS[month]}, ${hours}:${minutes}`;
     }
 
-    const content = document.createElement('div');
-    content.className = 'card-collapsible-content';
-    while (card.firstChild) content.appendChild(card.firstChild);
+    // Сворачиваемые карточки
+    function initCollapsibleCards() {
+      const cards = document.querySelectorAll('.card[data-collapsible="1"]');
 
-    const header = document.createElement('div');
-    header.className = 'collapsible-header';
+      cards.forEach((card) => {
+        if (card.dataset.collapsibleInitialized === '1') return;
+        card.dataset.collapsibleInitialized = '1';
 
-    const titleSpan = document.createElement('span');
-    titleSpan.textContent = titleText;
+        const titleAttr = card.getAttribute('data-title');
+        let titleText = titleAttr && titleAttr.trim();
 
-    const arrow = document.createElement('span');
-    arrow.className = 'arrow';
-    arrow.textContent = '▶';
+        if (!titleText) {
+          const firstSubtitle = card.querySelector('.subtitle');
+          titleText = firstSubtitle ? firstSubtitle.textContent.trim() : 'Блок';
+        }
 
-    header.appendChild(titleSpan);
-    header.appendChild(arrow);
+        const content = document.createElement('div');
+        content.className = 'card-collapsible-content';
+        while (card.firstChild) content.appendChild(card.firstChild);
 
-    card.appendChild(header);
-    card.appendChild(content);
+        const header = document.createElement('div');
+        header.className = 'collapsible-header';
 
-    card.classList.add('card-collapsed');
+        const titleSpan = document.createElement('span');
+        titleSpan.textContent = titleText;
 
-    header.addEventListener('click', () => {
-      const collapsed = card.classList.toggle('card-collapsed');
-      if (collapsed) arrow.classList.remove('rotated');
-      else arrow.classList.add('rotated');
+        const arrow = document.createElement('span');
+        arrow.className = 'arrow';
+        arrow.textContent = '▶';
+
+        header.appendChild(titleSpan);
+        header.appendChild(arrow);
+
+        card.appendChild(header);
+        card.appendChild(content);
+
+        card.classList.add('card-collapsed');
+
+        header.addEventListener('click', () => {
+          const collapsed = card.classList.toggle('card-collapsed');
+          if (collapsed) arrow.classList.remove('rotated');
+          else arrow.classList.add('rotated');
+        });
+      });
+    }
+
+    initCollapsibleCards();
+
+    // ---------- Tabs + auto-refresh ----------
+    const driverTabsBar = document.getElementById('driver-tabs-bar');
+    const passengerTabsBar = document.getElementById('passenger-tabs-bar');
+
+    let currentRole = null;
+    let driverAutoTimer = null;
+    let passengerAutoTimer = null;
+
+    function setActiveTabUI(bar, tab) {
+      if (!bar) return;
+      bar.querySelectorAll('.tab-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+      });
+    }
+
+    function hideAllRoleSections() {
+      driverSection.classList.add('hidden');
+      driverActive.classList.add('hidden');
+      driverHistory.classList.add('hidden');
+      driverPassengerPlansCard.classList.add('hidden');
+      driverPaymentBlock.classList.add('hidden');
+
+      passengerSection.classList.add('hidden');
+      passengerActiveSection.classList.add('hidden');
+      passengerPlansSection.classList.add('hidden');
+    }
+
+    function showDriverTab(tab) {
+      hideAllRoleSections();
+
+      driverTabsBar.classList.remove('hidden');
+      passengerTabsBar.classList.add('hidden');
+      currentRole = 'driver';
+      setActiveTabUI(driverTabsBar, tab);
+
+      driverPaymentBlock.classList.remove('hidden');
+
+      if (tab === 'create') driverSection.classList.remove('hidden');
+      if (tab === 'active') driverActive.classList.remove('hidden');
+      if (tab === 'history') driverHistory.classList.remove('hidden');
+      if (tab === 'plans') driverPassengerPlansCard.classList.remove('hidden');
+
+      if (tab === 'create') loadDriverProfile();
+      if (tab === 'active') loadDriverActiveTrip();
+      if (tab === 'history') loadDriverTrips();
+      if (tab === 'plans') loadDriverPassengerPlans();
+      loadDriverPaymentInfo();
+
+      startDriverAutoRefresh();
+    }
+
+    function showPassengerTab(tab) {
+      hideAllRoleSections();
+
+      passengerTabsBar.classList.remove('hidden');
+      driverTabsBar.classList.add('hidden');
+      currentRole = 'passenger';
+      setActiveTabUI(passengerTabsBar, tab);
+
+      if (tab === 'trips') passengerSection.classList.remove('hidden');
+      if (tab === 'bookings') passengerActiveSection.classList.remove('hidden');
+      if (tab === 'plan') passengerPlansSection.classList.remove('hidden');
+
+      if (tab === 'trips') loadTrips();
+      if (tab === 'bookings') loadPassengerActiveBookings();
+      if (tab === 'plan') loadPassengerPlans();
+
+      startPassengerAutoRefresh();
+    }
+
+    function stopAutoRefresh() {
+      if (driverAutoTimer) clearInterval(driverAutoTimer);
+      if (passengerAutoTimer) clearInterval(passengerAutoTimer);
+      driverAutoTimer = null;
+      passengerAutoTimer = null;
+    }
+
+    function startDriverAutoRefresh() {
+      stopAutoRefresh();
+      driverAutoTimer = setInterval(() => {
+        if (currentRole !== 'driver') return;
+        loadDriverActiveTrip();
+        loadDriverPassengerPlans();
+      }, 45000);
+    }
+
+    function startPassengerAutoRefresh() {
+      stopAutoRefresh();
+      passengerAutoTimer = setInterval(() => {
+        if (currentRole !== 'passenger') return;
+        loadTrips();
+      }, 45000);
+    }
+
+    // клики по табам
+    driverTabsBar?.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => showDriverTab(btn.dataset.tab));
     });
-  });
-}
+    passengerTabsBar?.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => showPassengerTab(btn.dataset.tab));
+    });
 
-// первый запуск
-initCollapsibleCards();
+    document.getElementById('btn-refresh-trips')?.addEventListener('click', () => loadTrips());
 
-// ---------- Tabs + auto-refresh ----------
-const driverTabsBar = document.getElementById('driver-tabs-bar');
-const passengerTabsBar = document.getElementById('passenger-tabs-bar');
-
-let currentRole = null;
-let driverAutoTimer = null;
-let passengerAutoTimer = null;
-
-function setActiveTabUI(bar, tab) {
-  if (!bar) return;
-  bar.querySelectorAll('.tab-btn').forEach((b) => {
-    b.classList.toggle('active', b.dataset.tab === tab);
-  });
-}
-
-function hideAllRoleSections() {
-  driverSection.classList.add('hidden');
-  driverActive.classList.add('hidden');
-  driverHistory.classList.add('hidden');
-  driverPassengerPlansCard.classList.add('hidden');
-  driverPaymentBlock.classList.add('hidden');
-
-  passengerSection.classList.add('hidden');
-  passengerActiveSection.classList.add('hidden');
-  passengerPlansSection.classList.add('hidden');
-}
-
-function showDriverTab(tab) {
-  hideAllRoleSections();
-
-  driverTabsBar.classList.remove('hidden');
-  passengerTabsBar.classList.add('hidden');
-  currentRole = 'driver';
-  setActiveTabUI(driverTabsBar, tab);
-
-  // общие для водителя
-  driverPaymentBlock.classList.remove('hidden');
-
-  if (tab === 'create') driverSection.classList.remove('hidden');
-  if (tab === 'active') driverActive.classList.remove('hidden');
-  if (tab === 'history') driverHistory.classList.remove('hidden');
-  if (tab === 'plans') driverPassengerPlansCard.classList.remove('hidden');
-
-  // ленивые загрузки по вкладкам
-  if (tab === 'create') loadDriverProfile();
-  if (tab === 'active') loadDriverActiveTrip();
-  if (tab === 'history') loadDriverTrips();
-  if (tab === 'plans') loadDriverPassengerPlans();
-  loadDriverPaymentInfo();
-}
-
-function showPassengerTab(tab) {
-  hideAllRoleSections();
-
-  passengerTabsBar.classList.remove('hidden');
-  driverTabsBar.classList.add('hidden');
-  currentRole = 'passenger';
-  setActiveTabUI(passengerTabsBar, tab);
-
-  if (tab === 'trips') passengerSection.classList.remove('hidden');
-  if (tab === 'bookings') passengerActiveSection.classList.remove('hidden');
-  if (tab === 'plan') passengerPlansSection.classList.remove('hidden');
-
-  if (tab === 'trips') loadTrips();
-  if (tab === 'bookings') loadPassengerActiveBookings();
-  if (tab === 'plan') loadPassengerPlans();
-}
-
-function stopAutoRefresh() {
-  if (driverAutoTimer) clearInterval(driverAutoTimer);
-  if (passengerAutoTimer) clearInterval(passengerAutoTimer);
-  driverAutoTimer = null;
-  passengerAutoTimer = null;
-}
-
-function startDriverAutoRefresh() {
-  stopAutoRefresh();
-  driverAutoTimer = setInterval(() => {
-    if (currentRole !== 'driver') return;
-    // активная поездка + планы пассажиров
-    loadDriverActiveTrip();
-    loadDriverPassengerPlans();
-  }, 45000); // 45 сек
-}
-
-function startPassengerAutoRefresh() {
-  stopAutoRefresh();
-  passengerAutoTimer = setInterval(() => {
-    if (currentRole !== 'passenger') return;
-    // список поездок
-    loadTrips();
-  }, 45000); // 45 сек
-}
-
-// клики по табам
-driverTabsBar?.querySelectorAll('.tab-btn').forEach((btn) => {
-  btn.addEventListener('click', () => showDriverTab(btn.dataset.tab));
-});
-passengerTabsBar?.querySelectorAll('.tab-btn').forEach((btn) => {
-  btn.addEventListener('click', () => showPassengerTab(btn.dataset.tab));
-});
-
-// ручное обновление списка поездок пассажира
-document.getElementById('btn-refresh-trips')?.addEventListener('click', () => loadTrips());
-
-      // Инициализация из Telegram
+    // Инициализация из Telegram
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       tg.expand();
       currentTelegramUser = tg.initDataUnsafe.user;
@@ -1016,26 +987,36 @@ document.getElementById('btn-refresh-trips')?.addEventListener('click', () => lo
 
     // Переключение ролей
     btnDriver.addEventListener('click', () => {
-  if (!currentTelegramUser) {
-    roleInfo.textContent =
-      'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
-    return;
-  }
-  roleInfo.textContent =
-    'Режим водителя: вкладки Создать / Активная / История / Пассажиры.';
-  showDriverTab('create');
-});
+      if (!currentTelegramUser) {
+        roleInfo.textContent =
+          'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
+        return;
+      }
+      roleInfo.textContent =
+        'Режим водителя: вкладки Создать / Активная / История / Пассажиры.';
+
+      roleButtons.forEach(b => b.classList.remove('active-role'));
+      btnDriver.classList.add('active-role');
+
+      showDriverTab('create');
+      startDriverAutoRefresh();
+    });
 
     btnPassenger.addEventListener('click', () => {
-  if (!currentTelegramUser) {
-    roleInfo.textContent =
-      'Откройте мини-приложение через Telegram, чтобы просматривать поездки.';
-    return;
-  }
-  roleInfo.textContent =
-    'Режим пассажира: вкладки Поездки / Мои брони / План.';
-  showPassengerTab('trips');
-});
+      if (!currentTelegramUser) {
+        roleInfo.textContent =
+          'Откройте мини-приложение через Telegram, чтобы просматривать поездки.';
+        return;
+      }
+      roleInfo.textContent =
+        'Режим пассажира: вкладки Поездки / Мои брони / План.';
+
+      roleButtons.forEach(b => b.classList.remove('active-role'));
+      btnPassenger.classList.add('active-role');
+
+      showPassengerTab('trips');
+      startPassengerAutoRefresh();
+    });
 
     // Водитель: профиль машины
     function loadDriverProfile() {
@@ -1430,8 +1411,8 @@ document.getElementById('btn-refresh-trips')?.addEventListener('click', () => lo
 
           activeTripId = t.id;
           driverActiveInfo.innerHTML =
-            `${t.from_city} → ${t.to_city}\n` +
-            `Выезд: ${t.departure_time}\n` +
+            `${t.from_city} → ${t.to_city}<br/>` +
+            `Выезд: ${t.departure_time}<br/>` +
             `Мест всего: ${t.seats_total}, свободно: ${t.seats_available}`;
         })
         .catch((err) => {
@@ -1445,7 +1426,21 @@ document.getElementById('btn-refresh-trips')?.addEventListener('click', () => lo
     function loadTrips() {
       tripsList.textContent = 'Загрузка поездок...';
 
-      fetch('/api/trips')
+      let url = '/api/trips';
+      const params = new URLSearchParams();
+
+      if (currentRole === 'passenger') {
+        if (filterFrom.value) params.append('from', filterFrom.value);
+        if (filterTo.value) params.append('to', filterTo.value);
+        if (filterDay.value !== 'any') params.append('day', filterDay.value);
+        if (filterSort.value) params.append('sort', filterSort.value);
+      }
+
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+
+      fetch(url)
         .then((res) => res.json())
         .then((data) => {
           if (data.error) {
@@ -1764,11 +1759,9 @@ document.getElementById('btn-refresh-trips')?.addEventListener('click', () => lo
         });
     }
 
-        function renderPassengerPlans(plans) {
-      // скрываем активные планы, у которых прошло больше 20 минут от желаемого времени выезда
+    function renderPassengerPlans(plans) {
       const filtered = (plans || []).filter((p) => {
         if (p.status !== 'active') {
-          // неактивные (taken/cancelled/expired) показываем как есть
           return true;
         }
         return isPlanStillActive(p.desired_time);
@@ -1872,13 +1865,13 @@ document.getElementById('btn-refresh-trips')?.addEventListener('click', () => lo
     // Водитель: планы пассажиров (UI)
     if (driverPassengerPlansHeader) {
       driverPassengerPlansHeader.addEventListener('click', () => {
-        const isHidden = driverPassengerPlansContent.classList.contains('hidden');
-        if (isHidden) {
-          driverPassengerPlansContent.classList.remove('hidden');
+        const wasHidden = driverPassengerPlansContent.classList.contains('hidden');
+        driverPassengerPlansContent.classList.toggle('hidden');
+
+        if (wasHidden) {
           driverPassengerPlansArrow.classList.add('rotated');
           loadDriverPassengerPlans();
         } else {
-          driverPassengerPlansContent.classList.add('hidden');
           driverPassengerPlansArrow.classList.remove('rotated');
         }
       });
@@ -1918,8 +1911,7 @@ document.getElementById('btn-refresh-trips')?.addEventListener('click', () => lo
         });
     }
 
-        function renderDriverPassengerPlans(plans) {
-      // для водителя показываем только актуальные запросы (до +20 минут от желаемого времени)
+    function renderDriverPassengerPlans(plans) {
       const activePlans = (plans || []).filter((p) => isPlanStillActive(p.desired_time));
 
       if (!activePlans || activePlans.length === 0) {
@@ -2162,6 +2154,21 @@ document.getElementById('btn-refresh-trips')?.addEventListener('click', () => lo
       }
     });
 
+    // === Обработчики фильтров пассажира ===
+    if (btnApplyFilters) {
+      btnApplyFilters.addEventListener('click', () => loadTrips());
+    }
+
+    if (btnResetFilters) {
+      btnResetFilters.addEventListener('click', () => {
+        filterFrom.value = '';
+        filterTo.value = '';
+        filterDay.value = 'any';
+        filterSort.value = 'time_asc';
+        loadTrips();
+      });
+    }
+
     // Админ-панель
     function loadAdminSettings() {
       if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) {
@@ -2331,9 +2338,7 @@ document.getElementById('btn-refresh-trips')?.addEventListener('click', () => lo
             let proofText = 'чек не прикреплялся';
             if (d.last_proof_file) {
               const urlFile = `/uploads/${encodeURIComponent(d.last_proof_file)}`;
-              proofText = `последний чек: <a href="${urlFile}" target="_blank">${
-                d.last_proof_original_name || 'файл'
-              }</a>`;
+              proofText = `последний чек: <a href="${urlFile}" target="_blank">${d.last_proof_original_name || 'файл'}</a>`;
             }
 
             const btnLabel = d.is_blocked ? 'Разблокировать' : 'Заблокировать';
@@ -2342,15 +2347,11 @@ document.getElementById('btn-refresh-trips')?.addEventListener('click', () => lo
             html +=
               `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #e5e7eb;">` +
               `<strong>${name}</strong> ${username}<br/>` +
-              `Поездок с бронями: ${d.trips_count || 0}, броней: ${
-                d.bookings_count || 0
-              }, мест: ${d.seats_count || 0}<br/>` +
+              `Поездок с бронями: ${d.trips_count || 0}, броней: ${d.bookings_count || 0}, мест: ${d.seats_count || 0}<br/>` +
               `Комиссия за день: ${fee.toFixed(2)} ₽<br/>` +
               `Статус: ${statusText}<br/>` +
               `${proofText}<br/>` +
-              `<button class="danger-btn admin-block-btn" data-driver-tg="${
-                d.telegram_id
-              }" data-action="${action}">${btnLabel}</button>` +
+              `<button class="danger-btn admin-block-btn" data-driver-tg="${d.telegram_id}" data-action="${action}">${btnLabel}</button>` +
               `</div>`;
           });
 
