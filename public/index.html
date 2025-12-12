@@ -656,7 +656,7 @@
       const u = username ? ` @${username}` : '';
       return (full || 'без имени') + u;
     }
-      function formatDateReadable(str) {
+     function formatDateReadable(str) {
   if (!str) return str;
 
   const d = new Date(str);
@@ -719,37 +719,12 @@ function initCollapsibleCards() {
       else arrow.classList.add('rotated');
     });
   });
+}
 
 // первый запуск
 initCollapsibleCards();
 
-      const d = new Date(str);
-      if (isNaN(d.getTime())) return str;
-
-      const day = d.getDate();
-      const month = d.getMonth();
-      const hours = String(d.getHours()).padStart(2, '0');
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-
-      const MONTHS = [
-        "января",
-        "февраля",
-        "марта",
-        "апреля",
-        "мая",
-        "июня",
-        "июля",
-        "августа",
-        "сентября",
-        "октября",
-        "ноября",
-        "декабря"
-      ];
-
-      return `${day} ${MONTHS[month]}, ${hours}:${minutes}`;
-    }
-
-    // Инициализация из Telegram
+      // Инициализация из Telegram
     if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
       tg.expand();
       currentTelegramUser = tg.initDataUnsafe.user;
