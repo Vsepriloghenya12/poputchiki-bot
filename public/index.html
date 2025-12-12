@@ -290,33 +290,45 @@
       display: none;
     }
     /* Tabs */
-.tabs-bar {
-  display: flex;
-  gap: 8px;
-  padding: 10px;
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  box-shadow: 0 6px 14px rgba(15, 23, 42, 0.10);
-  margin-bottom: 12px;
-  position: sticky;
-  top: 8px;
-  z-index: 50;
+/* Tabs */
+.tabs-bar{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:8px;
+  padding:10px;
+  background:#ffffff;
+  border:1px solid #e5e7eb;
+  border-radius:16px;
+  box-shadow:0 6px 14px rgba(15,23,42,0.10);
+  margin-bottom:12px;
+  position:sticky;
+  top:8px;
+  z-index:50;
+  box-sizing:border-box;
 }
-.tab-btn {
-  flex: 1;
-  border: 1px solid #e5e7eb;
-  background: #f3f4f6;
-  border-radius: 14px;
-  padding: 10px 8px;
-  font-weight: 800;
-  font-size: 13px;
-  cursor: pointer;
+
+.tab-btn{
+  width:100%;
+  min-width:0;
+  border:1px solid #e5e7eb;
+  background:#f3f4f6;
+  border-radius:14px;
+  padding:10px 8px;
+  font-weight:800;
+  font-size:13px;
+  cursor:pointer;
+  box-sizing:border-box;
+
+  /* чтобы длинные подписи не ломали ширину */
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
-.tab-btn.active {
-  background: #111827;
-  color: #ffffff;
-  border-color: #111827;
+
+.tab-btn.active{
+  background:#111827;
+  color:#ffffff;
+  border-color:#111827;
 }
 
 /* Filters */
@@ -354,44 +366,11 @@
   margin-top: 6px;
   font-weight: 800;
 }
+
 .tabs {
   display: grid;
   grid-template-columns: 1fr 1fr; /* 2 колонки */
   gap: 8px;
-}
-
-.tab-btn {
-  width: 100%;
-  min-width: 0;            /* важно: убрать min-width */
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  font-weight: 700;
-  cursor: pointer;
-  box-sizing: border-box;
-}
-
-.tab-btn.active {
-  border-color: #111827;
-  background: #111827;
-  color: #ffffff;
-}
-.tabs {
-  display: grid;
-  grid-template-columns: 1fr 1fr; /* 2 колонки */
-  gap: 8px;
-}
-.tab-btn {
-  width: 100%;
-  min-width: 0;            /* важно: убрать min-width */
-  padding: 8px 10px;
-  border-radius: 12px;
-  border: 1px solid #e5e7eb;
-  background: #f9fafb;
-  font-weight: 700;
-  cursor: pointer;
-  box-sizing: border-box;
 }
 .tab-btn.active{ border-color:#111827; background:#111827; color:#fff; }
   </style>
