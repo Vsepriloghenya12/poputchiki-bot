@@ -660,59 +660,59 @@
       if (!str) return str;
           // Сворачиваемые карточки: любая .card с data-collapsible="1"
         // Сворачиваемые карточки: любая .card с data-collapsible="1"
-    (function initCollapsibleCards() {
-      const cards = document.querySelectorAll('.card[data-collapsible="1"]');
+    function initCollapsibleCards() {
+  const cards = document.querySelectorAll('.card[data-collapsible="1"]');
 
-      cards.forEach((card) => {
-        // если уже инициализировали — больше не трогаем, чтобы не плодить заголовки
-        if (card.dataset.collapsibleInitialized === '1') return;
-        card.dataset.collapsibleInitialized = '1';
+  cards.forEach((card) => {
+    // защита от повторной инициализации (важно)
+    if (card.dataset.collapsibleInitialized === '1') return;
+    card.dataset.collapsibleInitialized = '1';
 
-        const titleAttr = card.getAttribute('data-title');
-        let titleText = titleAttr && titleAttr.trim();
+    const titleAttr = card.getAttribute('data-title');
+    let titleText = titleAttr && titleAttr.trim();
 
-        if (!titleText) {
-          const firstSubtitle = card.querySelector('.subtitle');
-          titleText = firstSubtitle ? firstSubtitle.textContent.trim() : 'Блок';
-        }
+    if (!titleText) {
+      const firstSubtitle = card.querySelector('.subtitle');
+      titleText = firstSubtitle ? firstSubtitle.textContent.trim() : 'Блок';
+    }
 
-        // переносим существующее содержимое в обёртку
-        const content = document.createElement('div');
-        content.className = 'card-collapsible-content';
-        while (card.firstChild) {
-          content.appendChild(card.firstChild);
-        }
+    // переносим существующее содержимое в обёртку
+    const content = document.createElement('div');
+    content.className = 'card-collapsible-content';
+    while (card.firstChild) {
+      content.appendChild(card.firstChild);
+    }
 
-        // создаём заголовок карточки
-        const header = document.createElement('div');
-        header.className = 'collapsible-header';
+    // создаём заголовок карточки
+    const header = document.createElement('div');
+    header.className = 'collapsible-header';
 
-        const titleSpan = document.createElement('span');
-        titleSpan.textContent = titleText;
+    const titleSpan = document.createElement('span');
+    titleSpan.textContent = titleText;
 
-        const arrow = document.createElement('span');
-        arrow.className = 'arrow';
-        arrow.textContent = '▶';
+    const arrow = document.createElement('span');
+    arrow.className = 'arrow';
+    arrow.textContent = '▶';
 
-        header.appendChild(titleSpan);
-        header.appendChild(arrow);
+    header.appendChild(titleSpan);
+    header.appendChild(arrow);
 
-        card.appendChild(header);
-        card.appendChild(content);
+    card.appendChild(header);
+    card.appendChild(content);
 
-        // по умолчанию — свёрнуто
-        card.classList.add('card-collapsed');
+    // по умолчанию — свёрнуто
+    card.classList.add('card-collapsed');
 
-        header.addEventListener('click', () => {
-          const collapsed = card.classList.toggle('card-collapsed');
-          if (collapsed) {
-            arrow.classList.remove('rotated');
-          } else {
-            arrow.classList.add('rotated');
-          }
-        });
-      });
-    })();
+    header.addEventListener('click', () => {
+      const collapsed = card.classList.toggle('card-collapsed');
+      if (collapsed) arrow.classList.remove('rotated');
+      else arrow.classList.add('rotated');
+    });
+  });
+}
+
+// первый запуск
+initCollapsibleCards();
 
       const d = new Date(str);
       if (isNaN(d.getTime())) return str;
