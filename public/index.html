@@ -632,312 +632,63 @@
 
   <script>
     const tg = window.Telegram ? window.Telegram.WebApp : null;
-    const ADMIN_ID = 504348666;
+const ADMIN_ID = 504348666;
 
-    let currentTelegramUser = null;
-    let activeTripId = null;
+let currentTelegramUser = null;
+let activeTripId = null;
 
-    const CITIES = ["", "Сочи", "Адлер", "Аэропорт Сочи", "Красная Поляна", "Роза Хутор", "Роза Плато", "Газпром", "Эсто-Садок"];
+const userInfoDiv = document.getElementById('user-info');
+userInfoDiv.innerHTML += `<br/>URL: ${window.location.href}`;  // оставляем для отладки
 
-    const userInfoDiv = document.getElementById('user-info');
-    userInfoDiv.innerHTML += `<br/>URL: ${window.location.href}`;
-
-    const btnDriver = document.getElementById('btn-driver');
-    const btnPassenger = document.getElementById('btn-passenger');
-    const roleInfo = document.getElementById('role-info');
-
-    const driverSection = document.getElementById('driver-section');
-    const driverActive = document.getElementById('driver-active');
-    const driverHistory = document.getElementById('driver-history');
-    const driverPassengerPlansCard = document.getElementById('driver-passenger-plans');
-    const driverPaymentBlock = document.getElementById('driver-payment-block');
-
-    const passengerSection = document.getElementById('passenger-section');
-    const passengerActiveSection = document.getElementById('passenger-active');
-    const passengerPlansSection = document.getElementById('passenger-plans-section');
-
-    const driverMessage = document.getElementById('driver-message');
-    const tripsList = document.getElementById('trips-list');
-
-    const btnLoadDriverTrips = document.getElementById('btn-load-driver-trips');
-    const driverTripsList = document.getElementById('driver-trips-list');
-    const driverBookingsTitle = document.getElementById('driver-bookings-title');
-    const driverBookingsList = document.getElementById('driver-bookings-list');
-
-    const btnLoadActiveTrip = document.getElementById('btn-load-active-trip');
-    const btnActivePassengers = document.getElementById('btn-active-passengers');
-    const btnCancelActiveTrip = document.getElementById('btn-cancel-active-trip');
-    const driverActiveInfo = document.getElementById('driver-active-info');
-
-    const driverCarMessage = document.getElementById('driver-car-message');
-
-    const driverPaymentInfo = document.getElementById('driver-payment-info');
-    const driverPaymentRequisites = document.getElementById('driver-payment-requisites');
-    const driverPaymentCopyBlock = document.getElementById('driver-payment-copy-block');
-    const driverPaymentDetailsCopy = document.getElementById('driver-payment-details-copy');
-    const btnCopyPaymentDetails = document.getElementById('btn-copy-payment-details');
-    const driverPaymentFile = document.getElementById('driver-payment-file');
-    const btnUploadPayment = document.getElementById('btn-upload-payment');
-
-    const adminSection = document.getElementById('admin-section');
-    const adminSettingsInfo = document.getElementById('admin-settings-info');
-    const adminPaymentDetails = document.getElementById('admin-payment-details');
-    const btnEnablePay = document.getElementById('btn-enable-pay');
-    const btnDisablePay = document.getElementById('btn-disable-pay');
-    const btnLoadStats = document.getElementById('btn-load-stats');
-    const adminStatsInfo = document.getElementById('admin-stats-info');
-    const btnLoadDailyDrivers = document.getElementById('btn-load-daily-drivers');
-    const adminDailyDrivers = document.getElementById('admin-daily-drivers');
-    const adminDriversDate = document.getElementById('admin-drivers-date');
-
-    const btnLoadPassengerActive = document.getElementById('btn-load-passenger-active');
-    const passengerActiveList = document.getElementById('passenger-active-list');
-
-    const planFromCityInput = document.getElementById('plan-from-city');
-    const planToCityInput = document.getElementById('plan-to-city');
-    const planDesiredTimeInput = document.getElementById('plan-desired-time');
-    const planSeatsNeededInput = document.getElementById('plan-seats-needed');
-    const planNoteInput = document.getElementById('plan-note');
-    const btnCreatePassengerPlan = document.getElementById('btn-create-passenger-plan');
-    const passengerPlanMessage = document.getElementById('passenger-plan-message');
-    const passengerPlansList = document.getElementById('passenger-plans-list');
-
-    const driverPassengerPlansHeader = document.getElementById('driver-passenger-plans-header');
-    const driverPassengerPlansArrow = document.getElementById('driver-passenger-plans-arrow');
-    const driverPassengerPlansContent = document.getElementById('driver-passenger-plans-content');
-    const driverPassengerPlansList = document.getElementById('driver-passenger-plans-list');
-    const btnReloadDriverPassengerPlans = document.getElementById('btn-reload-driver-passenger-plans');
-
-    const filterFrom = document.getElementById('filter-from');
-    const filterTo = document.getElementById('filter-to');
-    const filterDay = document.getElementById('filter-day');
-    const filterSort = document.getElementById('filter-sort');
-    const btnApplyFilters = document.getElementById('btn-apply-filters');
-    const btnResetFilters = document.getElementById('btn-reset-filters');
-
-    let currentFilters = { from: '', to: '', day: 'any', sort: 'time_asc' };
-
-    function setButtonLoading(btn, loading) {
-      btn.disabled = loading;
-      if (loading) {
-        btn.dataset.originalText = btn.textContent;
-        btn.textContent = '⏳';
-      } else if (btn.dataset.originalText) {
-        btn.textContent = btn.dataset.originalText;
-        delete btn.dataset.originalText;
+// Фикс для Desktop
+if (tg && (!tg.initDataUnsafe || !tg.initDataUnsafe.user)) {
+  const hash = window.location.hash.substring(1);
+  if (hash.startsWith('tgWebAppData=')) {
+    const params = new URLSearchParams(hash);
+    const dataStr = params.get('tgWebAppData');
+    if (dataStr) {
+      const dataParams = new URLSearchParams(dataStr);
+      const userJson = dataParams.get('user');
+      if (userJson) {
+        try {
+          tg.initDataUnsafe = tg.initDataUnsafe || {};
+          tg.initDataUnsafe.user = JSON.parse(decodeURIComponent(userJson));
+        } catch (e) {
+          console.error('Ошибка парсинга user:', e);
+        }
       }
     }
+  }
+}
 
-    function isStillActiveByDeparture(departureTimeStr) {
-      if (!departureTimeStr) return true;
-      const ts = Date.parse(departureTimeStr);
-      if (!Number.isFinite(ts)) return true;
-      const now = Date.now();
-      const cutoff = now - 10 * 60 * 1000;
-      return ts >= cutoff;
-    }
+// Теперь оригинальная логика (работает и на мобильных, и на десктопе)
+if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+  tg.expand();
+  currentTelegramUser = tg.initDataUnsafe.user;
 
-    function isPlanStillActive(desiredTimeStr) {
-      if (!desiredTimeStr) return true;
-      const ts = Date.parse(desiredTimeStr);
-      if (!Number.isFinite(ts)) return true;
-      const now = Date.now();
-      const cutoff = now - 20 * 60 * 1000;
-      return ts >= cutoff;
-    }
+  userInfoDiv.textContent =
+    `Вы вошли как: ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''} (@${currentTelegramUser.username || 'без username'})`;
 
-    function formatName(first, last, username) {
-      const full = `${first || ''} ${last || ''}`.trim();
-      const u = username ? ` @${username}` : '';
-      return (full || 'без имени') + u;
-    }
-
-    function formatDateReadable(str) {
-      if (!str) return str;
-      const d = new Date(str);
-      if (isNaN(d.getTime())) return str;
-      const day = d.getDate();
-      const month = d.getMonth();
-      const hours = String(d.getHours()).padStart(2, '0');
-      const minutes = String(d.getMinutes()).padStart(2, '0');
-      const MONTHS = ["января","февраля","марта","апреля","мая","июня","июля","августа","сентября","октября","ноября","декабря"];
-      return `${day} ${MONTHS[month]}, ${hours}:${minutes}`;
-    }
-
-    function initCollapsibleCards() {
-      const cards = document.querySelectorAll('.card[data-collapsible="1"]');
-      cards.forEach(card => {
-        if (card.dataset.collapsibleInitialized) return;
-        card.dataset.collapsibleInitialized = '1';
-
-        const titleText = card.dataset.title || card.querySelector('.subtitle')?.textContent.trim() || 'Блок';
-
-        const content = document.createElement('div');
-        content.className = 'card-collapsible-content';
-        while (card.firstChild) content.appendChild(card.firstChild);
-
-        const header = document.createElement('div');
-        header.className = 'collapsible-header';
-        header.innerHTML = `<span>${titleText}</span><span class="arrow">▶</span>`;
-
-        card.appendChild(header);
-        card.appendChild(content);
-        card.classList.add('card-collapsed');
-
-        header.addEventListener('click', () => {
-          card.classList.toggle('card-collapsed');
-          header.querySelector('.arrow').classList.toggle('rotated');
-        });
-      });
-    }
-
-    const driverTabsBar = document.getElementById('driver-tabs-bar');
-    const passengerTabsBar = document.getElementById('passenger-tabs-bar');
-
-    let currentRole = null;
-    let driverAutoTimer = null;
-    let passengerAutoTimer = null;
-
-    function stopAutoRefresh() {
-      if (driverAutoTimer) clearInterval(driverAutoTimer);
-      if (passengerAutoTimer) clearInterval(passengerAutoTimer);
-      driverAutoTimer = null;
-      passengerAutoTimer = null;
-    }
-
-    function setActiveTabUI(bar, tab) {
-      bar.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
-    }
-
-    function hideAllRoleSections() {
-      [driverSection, driverActive, driverHistory, driverPassengerPlansCard, driverPaymentBlock, passengerSection, passengerActiveSection, passengerPlansSection].forEach(el => el.classList.add('hidden'));
-    }
-
-    function showDriverTab(tab) {
-      hideAllRoleSections();
-      driverTabsBar.classList.remove('hidden');
-      passengerTabsBar.classList.add('hidden');
-      currentRole = 'driver';
-      setActiveTabUI(driverTabsBar, tab);
-      driverPaymentBlock.classList.remove('hidden');
-
-      if (tab === 'create') driverSection.classList.remove('hidden');
-      if (tab === 'active') driverActive.classList.remove('hidden');
-      if (tab === 'history') driverHistory.classList.remove('hidden');
-      if (tab === 'plans') driverPassengerPlansCard.classList.remove('hidden');
-
-      if (tab === 'create') loadDriverProfile();
-      if (tab === 'active') loadDriverActiveTrip();
-      if (tab === 'history') loadDriverTrips();
-      if (tab === 'plans') loadDriverPassengerPlans();
-      loadDriverPaymentInfo();
-      startDriverAutoRefresh();
-    }
-
-    function showPassengerTab(tab) {
-      hideAllRoleSections();
-      passengerTabsBar.classList.remove('hidden');
-      driverTabsBar.classList.add('hidden');
-      currentRole = 'passenger';
-      setActiveTabUI(passengerTabsBar, tab);
-
-      if (tab === 'trips') passengerSection.classList.remove('hidden');
-      if (tab === 'bookings') passengerActiveSection.classList.remove('hidden');
-      if (tab === 'plan') passengerPlansSection.classList.remove('hidden');
-
-      if (tab === 'trips') loadTrips();
-      if (tab === 'bookings') loadPassengerActiveBookings();
-      if (tab === 'plan') loadPassengerPlans();
-      startPassengerAutoRefresh();
-    }
-
-    function startDriverAutoRefresh() {
-      stopAutoRefresh();
-      driverAutoTimer = setInterval(() => {
-        if (currentRole === 'driver') {
-          loadDriverActiveTrip();
-          loadDriverPassengerPlans();
-        }
-      }, 45000);
-    }
-
-    function startPassengerAutoRefresh() {
-      stopAutoRefresh();
-      passengerAutoTimer = setInterval(() => {
-        if (currentRole === 'passenger' && !passengerSection.classList.contains('hidden')) loadTrips();
-      }, 45000);
-    }
-
-    driverTabsBar.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => showDriverTab(btn.dataset.tab)));
-    passengerTabsBar.querySelectorAll('.tab-btn').forEach(btn => btn.addEventListener('click', () => showPassengerTab(btn.dataset.tab)));
-
-    document.getElementById('btn-refresh-trips')?.addEventListener('click', loadTrips);
-
-    function populateCitySelects() {
-      [filterFrom, filterTo].forEach(select => {
-        select.innerHTML = '';
-        CITIES.forEach(city => {
-          const opt = document.createElement('option');
-          opt.value = city;
-          opt.textContent = city || 'Любой';
-          select.appendChild(opt);
-        });
-      });
-    }
-
-    function applyFilters() {
-      currentFilters = {
-        from: filterFrom.value,
-        to: filterTo.value,
-        day: filterDay.value,
-        sort: filterSort.value
-      };
-      loadTrips();
-    }
-
-    function resetFilters() {
-      filterFrom.value = '';
-      filterTo.value = '';
-      filterDay.value = 'any';
-      filterSort.value = 'time_asc';
-      applyFilters();
-    }
-
-    filterFrom.addEventListener('change', applyFilters);
-    filterTo.addEventListener('change', applyFilters);
-    filterDay.addEventListener('change', applyFilters);
-    filterSort.addEventListener('change', applyFilters);
-    btnApplyFilters.addEventListener('click', applyFilters);
-    btnResetFilters.addEventListener('click', resetFilters);
-
-    // Оригинальная инициализация Telegram (точно как у тебя — она работает!)
-    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-      tg.expand();
-      currentTelegramUser = tg.initDataUnsafe.user;
-
-      userInfoDiv.textContent =
-        `Вы вошли как: ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''} (@${currentTelegramUser.username || 'без username'})`;
-
-      fetch('/api/init-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ user: currentTelegramUser }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.error) console.error('Ошибка init-user:', data.error);
-          if (currentTelegramUser && String(currentTelegramUser.id) === String(ADMIN_ID)) {
-            adminSection.classList.remove('hidden');
-            loadAdminSettings();
-          } else {
-            adminSection.classList.add('hidden');
-          }
-        })
-        .catch((err) => console.error('Ошибка init-user:', err));
-    } else {
-      userInfoDiv.textContent =
-        'Это мини-приложение работает только внутри Telegram. Откройте его через бота.';
-    }
+  fetch('/api/init-user', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ user: currentTelegramUser }),
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      if (data.error) console.error('Ошибка init-user:', data.error);
+      if (currentTelegramUser && String(currentTelegramUser.id) === String(ADMIN_ID)) {
+        adminSection.classList.remove('hidden');
+        loadAdminSettings();
+      } else {
+        adminSection.classList.add('hidden');
+      }
+    })
+    .catch((err) => console.error('Ошибка init-user:', err));
+} else {
+  userInfoDiv.textContent =
+    'Это мини-приложение работает только внутри Telegram. Откройте его через бота.';
+}
 
     btnDriver.addEventListener('click', () => {
       if (!currentTelegramUser) {
