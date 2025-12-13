@@ -1766,22 +1766,7 @@
         });
     }
 
-    // Водитель: планы пассажиров (UI)
-    if (driverPassengerPlansHeader) {
-      driverPassengerPlansHeader.addEventListener('click', () => {
-        const wasHidden = driverPassengerPlansContent.classList.contains('hidden');
-        driverPassengerPlansContent.classList.toggle('hidden');
-
-        if (wasHidden) {
-          driverPassengerPlansArrow.classList.add('rotated');
-          loadDriverPassengerPlans();
-        } else {
-          driverPassengerPlansArrow.classList.remove('rotated');
-        }
-      });
-    }
-
-    if (btnReloadDriverPassengerPlans) {
+      if (btnReloadDriverPassengerPlans) {
       btnReloadDriverPassengerPlans.addEventListener('click', () => {
         loadDriverPassengerPlans();
       });
