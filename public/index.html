@@ -464,7 +464,7 @@
     <div class="card hidden" id="passenger-section">
       <div class="subtitle">Доступные поездки</div>
       <div class="info small-text">
-        Список поездок с ещё свободными местами и с выездом не старше 10 минут назад.
+        Список поездок с ещё свободными местами.
       </div>
       <div class="filters" id="passenger-filters">
         <div class="field">
@@ -900,7 +900,7 @@
         return;
       }
       roleInfo.textContent =
-        'Режим водителя: вкладки Создать / Активная / История / Пассажиры.';
+        'Режим водителя: создавайте поездки,ищите пассажиров';
 
       roleButtons.forEach(b => b.classList.remove('active-role'));
       btnDriver.classList.add('active-role');
@@ -916,7 +916,7 @@
         return;
       }
       roleInfo.textContent =
-        'Режим пассажира: вкладки Поездки / Мои брони / План.';
+        'Режим пассажира: изите водителя,планируйте свои поездки';
 
       roleButtons.forEach(b => b.classList.remove('active-role'));
       btnPassenger.classList.add('active-role');
