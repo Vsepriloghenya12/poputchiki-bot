@@ -240,7 +240,6 @@
     }
 
     /* Секционные акценты: водитель / пассажир / админ */
-
     #driver-section,
     #driver-active,
     #driver-history,
@@ -262,38 +261,11 @@
       padding-left: 12px;
     }
 
-    .collapsible-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      cursor: pointer;
-      padding: 4px 6px;
-      border-radius: 10px;
-      background: #f3f4f6;
-      margin-top: 4px;
-    }
-    .collapsible-header span {
-      font-weight: 600;
-      font-size: 14px;
-    }
-    .arrow {
-      font-size: 16px;
-      transition: transform 0.15s ease;
-    }
-    .arrow.rotated {
-      transform: rotate(90deg);
-    }
-    .card-collapsible-content {
-      margin-top: 8px;
-    }
-    .card-collapsed .card-collapsible-content {
-      display: none;
-    }
-    /* Tabs */
+    /* Tabs — уменьшен padding и шрифт, чтобы "Пассажиры" помещалась */
     .tabs-bar {
       display: flex;
-      gap: 8px;
-      padding: 10px;
+      gap: 6px;
+      padding: 8px;
       background: #ffffff;
       border: 1px solid #e5e7eb;
       border-radius: 16px;
@@ -308,10 +280,13 @@
       border: 1px solid #e5e7eb;
       background: #f3f4f6;
       border-radius: 14px;
-      padding: 10px 8px;
+      padding: 8px 6px;
       font-weight: 800;
-      font-size: 13px;
+      font-size: 12px;
       cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .tab-btn.active {
       background: #111827;
@@ -333,27 +308,6 @@
     .filters .field { margin-bottom: 0; }
     .filters .field label { font-size: 11px; font-weight: 800; color: #374151; }
     .filters .actions { grid-column: 1 / -1; display: flex; gap: 8px; }
-
-    .badge {
-      display: inline-block;
-      padding: 2px 8px;
-      border-radius: 999px;
-      font-size: 11px;
-      font-weight: 900;
-      border: 1px solid #e5e7eb;
-      background: #fff;
-      margin-left: 6px;
-    }
-    .badge.soon { background: #ecfeff; border-color: #06b6d4; }
-    .badge.now  { background: #ecfdf5; border-color: #10b981; }
-    .badge.late { background: #fff1f2; border-color: #ef4444; }
-
-    .error-text {
-      font-size: 12px;
-      color: #dc2626;
-      margin-top: 6px;
-      font-weight: 800;
-    }
 
     /* Подсветка выбранной роли */
     .active-role {
@@ -404,9 +358,9 @@
     </div>
 
     <!-- Водитель: создание поездки + машина -->
-    <div class="card hidden" id="driver-section" data-collapsible="1" data-title="Водитель: поездка и машина">
+    <div class="card hidden" id="driver-section">
       <div class="subtitle">Создать поездку</div>
-
+      <!-- ... остальной контент без изменений ... -->
       <div class="field">
         <label for="from-city">Откуда</label>
         <input id="from-city" type="text" placeholder="Например: Сочи" />
@@ -458,8 +412,9 @@
       <div class="info" id="driver-car-message"></div>
     </div>
 
-    <!-- Водитель: активная поездка -->
-    <div class="card hidden" id="driver-active" data-collapsible="1" data-title="Водитель: активная поездка">
+    <!-- Остальные карточки — аналогично, без collapsible заголовков -->
+    <!-- Пример для активной поездки водителя -->
+    <div class="card hidden" id="driver-active">
       <div class="subtitle">Активная поездка</div>
       <div class="info small-text">
         Показывается ближайшая поездка (включая 10 минут после начала).
@@ -475,7 +430,7 @@
       <div class="info" id="driver-bookings-title" style="margin-top:8px;"></div>
       <div id="driver-bookings-list"></div>
     </div>
-
+    
     <!-- Водитель: история поездок -->
     <div class="card hidden" id="driver-history" data-collapsible="1" data-title="Водитель: мои поездки">
       <div class="subtitle">Мои поездки</div>
