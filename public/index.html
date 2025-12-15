@@ -329,6 +329,11 @@
       border: 1px solid #e5e7eb;
       border-radius: 14px;
     }
+    .filter-toggle-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
     .filters .field { margin-bottom: 0; }
     .filters .field label { font-size: 11px; font-weight: 800; color: #374151; }
     .filters .actions { grid-column: 1 / -1; display: flex; gap: 8px; }
@@ -504,9 +509,16 @@
     <div class="card hidden" id="passenger-section">
       <div class="subtitle">Доступные поездки</div>
       <div class="info small-text">
-        Список поездок с ещё свободными местами.
-      </div>
-      <div class="filters" id="passenger-filters">
+  Список поездок с ещё свободными местами.
+</div>
+
+<div class="filter-toggle-row">
+  <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">
+    Фильтры ▼
+  </button>
+</div>
+
+<div class="filters hidden" id="passenger-filters">
         <div class="field">
           <label>Откуда</label>
           <select id="filter-from">
@@ -742,6 +754,8 @@
     const filterSort = document.getElementById('filter-sort');
     const btnApplyFilters = document.getElementById('btn-apply-filters');
     const btnResetFilters = document.getElementById('btn-reset-filters');
+    const passengerFilters = document.getElementById('passenger-filters');
+    const btnTogglePassengerFilters = document.getElementById('btn-toggle-passenger-filters');
 
     // Подсветка кнопок роли
     const roleButtons = document.querySelectorAll('#btn-driver, #btn-passenger');
@@ -2086,20 +2100,52 @@
       }
     });
 
+    function setPassengerFiltersOpen(open, persist = true) {
+  if (!passengerFilters || !btnTogglePassengerFilters) return;
+
+  passengerFilters.classList.toggle('hidden', !open);
+  btnTogglePassengerFilters.textContent = open ? 'Скрыть фильтры ▲' : 'Фильтры ▼';
+
+  if (persist) {
+    try {
+      localStorage.setItem('passengerFiltersOpen', open ? '1' : '0');
+    } catch (e) {}
+  }
+}
+
+// init + toggle
+if (btnTogglePassengerFilters && passengerFilters) {
+  let open = false;
+  try {
+    open = localStorage.getItem('passengerFiltersOpen') === '1';
+  } catch (e) {}
+  // по умолчанию будет закрыт, если ничего не сохранено
+  setPassengerFiltersOpen(open, false);
+
+  btnTogglePassengerFilters.addEventListener('click', () => {
+    const willOpen = passengerFilters.classList.contains('hidden');
+    setPassengerFiltersOpen(willOpen);
+  });
+}
+
     // === Обработчики фильтров пассажира ===
     if (btnApplyFilters) {
-      btnApplyFilters.addEventListener('click', () => loadTrips());
-    }
+  btnApplyFilters.addEventListener('click', () => {
+    loadTrips();
+    setPassengerFiltersOpen(false);
+  });
+}
 
-    if (btnResetFilters) {
-      btnResetFilters.addEventListener('click', () => {
-        filterFrom.value = '';
-        filterTo.value = '';
-        filterDay.value = 'any';
-        filterSort.value = 'time_asc';
-        loadTrips();
-      });
-    }
+if (btnResetFilters) {
+  btnResetFilters.addEventListener('click', () => {
+    filterFrom.value = '';
+    filterTo.value = '';
+    filterDay.value = 'any';
+    filterSort.value = 'time_asc';
+    loadTrips();
+    setPassengerFiltersOpen(false);
+  });
+}
 
     // Админ-панель
     function loadAdminSettings() {
