@@ -271,19 +271,68 @@ app.post('/api/trips', async (req, res) => {
   }
 });
 
-// Список поездок (пассажир) — только не полные и не устаревшие
+// Список поездок (пассажир) — только не полные и не устаревшие + фильтры
 app.get('/api/trips', async (req, res) => {
   try {
     const rawTrips = await getLatestTrips(50);
+
     const now = Date.now();
     const cutoff = now - 10 * 60 * 1000; // показываем до 10 минут после старта
 
-    const trips = (rawTrips || []).filter((t) => {
+    const qFrom = (req.query.from || '').toString().trim().toLowerCase();
+    const qTo = (req.query.to || '').toString().trim().toLowerCase();
+    const qDay = (req.query.day || 'any').toString().trim().toLowerCase();
+    const qSort = (req.query.sort || 'time_asc').toString().trim().toLowerCase();
+
+    // границы "сегодня/завтра" в локальном времени сервера
+    const dNow = new Date();
+    const startOfToday = new Date(dNow.getFullYear(), dNow.getMonth(), dNow.getDate()).getTime();
+    const startOfTomorrow = new Date(dNow.getFullYear(), dNow.getMonth(), dNow.getDate() + 1).getTime();
+    const startOfDayAfterTomorrow = new Date(dNow.getFullYear(), dNow.getMonth(), dNow.getDate() + 2).getTime();
+
+    let trips = (rawTrips || []).filter((t) => {
+      // базовая логика (как было)
       if (t.seats_available <= 0) return false;
+
       const ts = Date.parse(t.departure_time);
-      if (!Number.isFinite(ts)) return true;
-      return ts >= cutoff;
+      if (Number.isFinite(ts) && ts < cutoff) return false;
+
+      // from/to
+      if (qFrom && String(t.from_city || '').trim().toLowerCase() !== qFrom) return false;
+      if (qTo && String(t.to_city || '').trim().toLowerCase() !== qTo) return false;
+
+      // day
+      if (qDay && qDay !== 'any' && Number.isFinite(ts)) {
+        if (qDay === 'today') {
+          if (!(ts >= startOfToday && ts < startOfTomorrow)) return false;
+        } else if (qDay === 'tomorrow') {
+          if (!(ts >= startOfTomorrow && ts < startOfDayAfterTomorrow)) return false;
+        } else if (qDay === 'weekend') {
+          const dow = new Date(ts).getDay(); // 0=вс, 6=сб
+          if (!(dow === 0 || dow === 6)) return false;
+        }
+      }
+
+      return true;
     });
+
+    // сортировка
+    const timeValue = (t) => {
+      const ts = Date.parse(t.departure_time);
+      return Number.isFinite(ts) ? ts : 0;
+    };
+    const priceValue = (t) => Number(t.price_per_seat || 0);
+
+    if (qSort === 'time_desc') {
+      trips.sort((a, b) => timeValue(b) - timeValue(a));
+    } else if (qSort === 'price_asc') {
+      trips.sort((a, b) => priceValue(a) - priceValue(b));
+    } else if (qSort === 'price_desc') {
+      trips.sort((a, b) => priceValue(b) - priceValue(a));
+    } else {
+      // time_asc по умолчанию
+      trips.sort((a, b) => timeValue(a) - timeValue(b));
+    }
 
     return res.json({ trips });
   } catch (err) {
