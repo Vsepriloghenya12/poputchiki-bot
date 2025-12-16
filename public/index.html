@@ -2,32 +2,50 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>попутчики</title>
+  <title>попутчики • С Новым 2026 годом! 🎄</title>
   <meta name="viewport" content="width=390, initial-scale=1, maximum-scale=1, user-scalable=no" />
 
-  <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
-      margin: 0;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-      background: #e5e7eb;
-      color: #111827;
+      font-family: 'Manrope', sans-serif;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      color: #e2e8f0;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
     }
+
+    #snow-canvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none !important;
+      z-index: 1;
+      user-select: none;
+    }
+
     .container {
+      position: relative;
+      z-index: 2;
       max-width: 640px;
       margin: 0 auto;
       padding: 12px 12px 60px 12px;
     }
 
     .card {
-      background: #ffffff;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
       border-radius: 18px;
       padding: 14px 14px 16px 14px;
       margin-bottom: 14px;
-      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
-      border: 1px solid #e5e7eb;
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
 
     .title-row {
@@ -36,8 +54,9 @@
       gap: 10px;
       margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid #e5e7eb;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
     }
+
     .logo {
       width: 36px;
       height: 36px;
@@ -51,9 +70,14 @@
       font-size: 18px;
       flex-shrink: 0;
     }
+
     .title {
       font-size: 20px;
       font-weight: 700;
+      background: linear-gradient(90deg, #fbbf24, #f59e0b, #dc2626);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .subtitle {
@@ -61,54 +85,61 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: #374151;
+      color: #94a3b8;
       margin-bottom: 8px;
     }
 
     .info {
       font-size: 13px;
-      color: #4b5563;
+      color: #cbd5e1;
       margin-top: 4px;
       white-space: pre-line;
       line-height: 1.4;
     }
+
     .small-text {
       font-size: 11px;
-      color: #6b7280;
+      color: #94a3b8;
     }
 
     .field {
       margin-bottom: 8px;
     }
+
     .field label {
       display: block;
       font-size: 12px;
-      color: #4b5563;
+      color: #94a3b8;
       margin-bottom: 3px;
     }
+
     .field input,
     .field textarea,
     .field select {
       width: 100%;
       border-radius: 10px;
-      border: 1px solid #d1d5db;
+      border: 1px solid rgba(255, 255, 255, 0.2);
       padding: 7px 9px;
       font-size: 15px;
       box-sizing: border-box;
-      background: #f9fafb;
+      background: rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
     }
+
     .field input:focus,
     .field textarea:focus,
     .field select:focus {
       outline: none;
-      border-color: #2563eb;
-      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
-      background: #ffffff;
+      border-color: #fbbf24;
+      box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3);
+      background: rgba(255, 255, 255, 0.15);
     }
+
     .field-inline {
       display: flex;
       gap: 8px;
     }
+
     .field-inline .field {
       flex: 1;
       margin-bottom: 0;
@@ -119,6 +150,7 @@
       gap: 8px;
       margin-top: 4px;
     }
+
     .role-buttons button {
       flex: 1;
       border-radius: 16px;
@@ -135,21 +167,14 @@
       background: linear-gradient(135deg, #2563eb, #1d4ed8);
       box-shadow: 0 3px 8px rgba(37, 99, 235, 0.4);
     }
-    #btn-driver:hover {
-      background: linear-gradient(135deg, #1e40af, #1d4ed8);
-    }
 
     #btn-passenger {
       background: linear-gradient(135deg, #10b981, #059669);
       box-shadow: 0 3px 8px rgba(16, 185, 129, 0.4);
     }
-    #btn-passenger:hover {
-      background: linear-gradient(135deg, #047857, #059669);
-    }
 
     .role-buttons button:active {
       transform: scale(0.97);
-      box-shadow: none;
     }
 
     button {
@@ -158,45 +183,40 @@
       padding: 8px 12px;
       font-size: 14px;
       cursor: pointer;
-      transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
+      transition: all 0.15s ease;
     }
+
     button:active {
       transform: translateY(1px);
-      box-shadow: none;
     }
+
     .primary-btn {
-      background: #2563eb;
+      background: linear-gradient(90deg, #dc2626, #ef4444);
       color: #ffffff;
-      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
+      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
     }
-    .primary-btn:hover {
-      background: #1d4ed8;
-    }
+
     .secondary-btn {
-      background: #e5e7eb;
-      color: #111827;
+      background: rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+      border: 1px solid rgba(255, 255, 255, 0.2);
     }
-    .secondary-btn:hover {
-      background: #d1d5db;
-    }
+
     .danger-btn {
       background: #ef4444;
       color: #ffffff;
       box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
-    }
-    .danger-btn:hover {
-      background: #dc2626;
     }
 
     .trip-card,
     .booking-card,
     .plan-card {
       border-radius: 14px;
-      border: 1px solid #e5e7eb;
+      border: 1px solid rgba(255, 255, 255, 0.1);
       padding: 8px 9px;
       margin-bottom: 8px;
       font-size: 13px;
-      background: #f9fafb;
+      background: rgba(255, 255, 255, 0.05);
     }
 
     .trip-header,
@@ -207,19 +227,22 @@
       margin-bottom: 4px;
       gap: 6px;
     }
+
     .trip-route,
     .booking-status {
       font-weight: 700;
       font-size: 14px;
     }
+
     .booking-status {
-      color: #059669;
+      color: #34d399;
       white-space: nowrap;
     }
+
     .trip-meta,
     .booking-meta {
       font-size: 12px;
-      color: #4b5563;
+      color: #cbd5e1;
       line-height: 1.4;
     }
 
@@ -228,9 +251,9 @@
       padding: 2px 6px;
       border-radius: 999px;
       font-size: 11px;
-      border: 1px solid #e5e7eb;
-      background: #eef2ff;
-      color: #3730a3;
+      border: 1px solid rgba(251, 191, 36, 0.3);
+      background: rgba(251, 191, 36, 0.1);
+      color: #fbbf24;
       margin-right: 4px;
       margin-top: 2px;
     }
@@ -239,37 +262,14 @@
       display: none !important;
     }
 
-    /* Секционные акценты: водитель / пассажир / админ */
-    #driver-section,
-    #driver-active,
-    #driver-history,
-    #driver-passenger-plans,
-    #driver-payment-block {
-      border-left: 4px solid #2563eb;
-      padding-left: 12px;
-    }
-
-    #passenger-section,
-    #passenger-active,
-    #passenger-plans-section {
-      border-left: 4px solid #10b981;
-      padding-left: 12px;
-    }
-
-    #admin-section {
-      border-left: 4px solid #f97316;
-      padding-left: 12px;
-    }
-
-        /* Tabs */
     .tabs-bar {
       display: flex;
       gap: 8px;
       padding: 10px;
-      background: var(--tg-theme-bg-color, #ffffff);
-      border: 1px solid var(--tg-theme-hint-color, #e5e7eb);
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 16px;
-      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.10);
+      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
       margin-bottom: 16px;
       position: sticky;
       top: 8px;
@@ -278,9 +278,11 @@
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
     }
+
     .tabs-bar::-webkit-scrollbar {
       display: none;
     }
+
     .tab-btn {
       flex: 1 1 0;
       min-width: 80px;
@@ -289,77 +291,94 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      border: 1px solid var(--tg-theme-hint-color, #e5e7eb);
-      background: var(--tg-theme-secondary-bg-color, #f3f4f6);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.05);
       border-radius: 14px;
       padding: 10px 6px;
       font-weight: 700;
       font-size: 11.5px;
       line-height: 1.2;
-      color: var(--tg-theme-text-color, #111827);
+      color: #e2e8f0;
       cursor: pointer;
       transition: all 0.2s ease;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
     .tab-btn svg {
       width: 24px;
       height: 24px;
-      fill: var(--tg-theme-hint-color, #6b7280);
+      fill: #94a3b8;
       transition: fill 0.2s ease;
     }
+
     .tab-btn.active {
-      background: var(--tg-theme-button-color, #111827);
-      color: var(--tg-theme-button-text-color, #ffffff);
-      border-color: var(--tg-theme-button-color, #111827);
-    }
-    .tab-btn.active svg {
-      fill: var(--tg-theme-button-text-color, #ffffff);
+      background: #dc2626;
+      color: #ffffff;
+      border-color: #dc2626;
     }
 
-    /* Filters */
+    .tab-btn.active svg {
+      fill: #ffffff;
+    }
+
     .filters {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
       margin: 10px 0 10px 0;
       padding: 10px;
-      background: #f9fafb;
-      border: 1px solid #e5e7eb;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: 14px;
     }
+
     .filter-toggle-row {
-  display: flex;
-  justify-content: flex-end;
-  margin-top: 8px;
-}
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 8px;
+    }
+
     .filters .field { margin-bottom: 0; }
-    .filters .field label { font-size: 11px; font-weight: 800; color: #374151; }
+    .filters .field label { font-size: 11px; font-weight: 800; color: #94a3b8; }
     .filters .actions { grid-column: 1 / -1; display: flex; gap: 8px; }
 
-    /* Подсветка выбранной роли */
     .active-role {
       background: #111827 !important;
       color: #ffffff !important;
       box-shadow: 0 3px 8px rgba(17, 24, 39, 0.4);
     }
+
+    .new-year-badge {
+      text-align: center;
+      font-size: 36px;
+      margin: 20px 0;
+      animation: sparkle 3s infinite;
+    }
+
+    @keyframes sparkle {
+      0%, 100% { opacity: 0.8; transform: scale(1); }
+      50% { opacity: 1; transform: scale(1.05); }
+    }
   </style>
 </head>
 <body>
+  <canvas id="snow-canvas"></canvas>
+
+  <div class="new-year-badge">🎄❄️✨</div>
+
   <div class="container">
-    <!-- Шапка с логотипом -->
     <div class="card">
       <div class="title-row">
         <div class="logo">🚗</div>
         <div class="title">попутчики</div>
       </div>
       <div class="info" id="user-info">
-        Загрузка данных Telegram-пользователя...
+        Загрузка...
       </div>
     </div>
 
-    <!-- Выбор роли -->
     <div class="card">
       <div class="subtitle">Кто вы?</div>
       <div class="role-buttons">
@@ -372,43 +391,41 @@
     </div>
 
     <div class="tabs-bar hidden" id="driver-tabs-bar">
-  <button class="tab-btn" data-role="driver" data-tab="create">
-    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-    Создать
-  </button>
-  <button class="tab-btn" data-role="driver" data-tab="active">
-    <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-    Активная
-  </button>
-  <button class="tab-btn" data-role="driver" data-tab="history">
-    <svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.11L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
-    История
-  </button>
-  <button class="tab-btn" data-role="driver" data-tab="plans">
-    <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-    Пассажиры
-  </button>
-</div>
+      <button class="tab-btn" data-role="driver" data-tab="create">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Создать
+      </button>
+      <button class="tab-btn" data-role="driver" data-tab="active">
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Активная
+      </button>
+      <button class="tab-btn" data-role="driver" data-tab="history">
+        <svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.11L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+        История
+      </button>
+      <button class="tab-btn" data-role="driver" data-tab="plans">
+        <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        Пассажиры
+      </button>
+    </div>
 
-   <div class="tabs-bar hidden" id="passenger-tabs-bar">
-  <button class="tab-btn" data-role="passenger" data-tab="trips">
-    <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-    Поездки
-  </button>
-  <button class="tab-btn" data-role="passenger" data-tab="bookings">
-    <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-    Мои брони
-  </button>
-  <button class="tab-btn" data-role="passenger" data-tab="plan">
-    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-    План
-  </button>
-</div>
+    <div class="tabs-bar hidden" id="passenger-tabs-bar">
+      <button class="tab-btn" data-role="passenger" data-tab="trips">
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+        Поездки
+      </button>
+      <button class="tab-btn" data-role="passenger" data-tab="bookings">
+        <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+        Мои брони
+      </button>
+      <button class="tab-btn" data-role="passenger" data-tab="plan">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        План
+      </button>
+    </div>
 
-    <!-- Водитель: создание поездки + машина -->
     <div class="card hidden" id="driver-section">
       <div class="subtitle">Создать поездку</div>
-      <!-- ... остальной контент без изменений ... -->
       <div class="field">
         <label for="from-city">Откуда</label>
         <input id="from-city" type="text" placeholder="Например: Сочи" />
@@ -439,7 +456,7 @@
       <button class="primary-btn" id="btn-create-trip">Создать поездку</button>
       <div class="info" id="driver-message"></div>
 
-      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0;" />
 
       <div class="subtitle">Моя машина</div>
       <div class="field field-inline">
@@ -460,8 +477,6 @@
       <div class="info" id="driver-car-message"></div>
     </div>
 
-    
-    <!-- Пример для активной поездки водителя -->
     <div class="card hidden" id="driver-active">
       <div class="subtitle">Активная поездка</div>
       <div class="info small-text">
@@ -479,7 +494,6 @@
       <div id="driver-bookings-list"></div>
     </div>
 
-    <!-- Водитель: история поездок -->
     <div class="card hidden" id="driver-history">
       <div class="subtitle">Мои поездки</div>
       <button class="secondary-btn" id="btn-load-driver-trips">Обновить список</button>
@@ -488,37 +502,35 @@
       </div>
     </div>
 
-  <!-- Водитель: запланированные поездки пассажиров -->
-<div class="card hidden" id="driver-passenger-plans">
-  <div class="subtitle">Запланированные поездки пассажиров</div>
-  <div class="info small-text">
-    Здесь показываются запросы пассажиров. Нажмите «Забрать пассажира», чтобы ему пришло сообщение
-    «Вас заберёт водитель».
-  </div>
-  <div style="margin-top:8px;">
-    <div class="info" id="driver-passenger-plans-list">
-      Запросы пассажиров ещё не загружены.
+    <div class="card hidden" id="driver-passenger-plans">
+      <div class="subtitle">Запланированные поездки пассажиров</div>
+      <div class="info small-text">
+        Здесь показываются запросы пассажиров. Нажмите «Забрать пассажира», чтобы ему пришло сообщение
+        «Вас заберёт водитель».
+      </div>
+      <div style="margin-top:8px;">
+        <div class="info" id="driver-passenger-plans-list">
+          Запросы пассажиров ещё не загружены.
+        </div>
+        <button class="secondary-btn" id="btn-reload-driver-passenger-plans" style="margin-top:6px;">
+          Обновить список запросов
+        </button>
+      </div>
     </div>
-    <button class="secondary-btn" id="btn-reload-driver-passenger-plans" style="margin-top:6px;">
-      Обновить список запросов
-    </button>
-  </div>
-</div>
 
-    <!-- Пассажир: список поездок -->
     <div class="card hidden" id="passenger-section">
       <div class="subtitle">Доступные поездки</div>
       <div class="info small-text">
-  Список поездок с ещё свободными местами.
-</div>
+        Список поездок с ещё свободными местами.
+      </div>
 
-<div class="filter-toggle-row">
-  <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">
-    Фильтры ▼
-  </button>
-</div>
+      <div class="filter-toggle-row">
+        <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">
+          Фильтры ▼
+        </button>
+      </div>
 
-<div class="filters hidden" id="passenger-filters">
+      <div class="filters hidden" id="passenger-filters">
         <div class="field">
           <label>Откуда</label>
           <select id="filter-from">
@@ -559,7 +571,6 @@
       </div>
     </div>
 
-    <!-- Пассажир: мои активные поездки -->
     <div class="card hidden" id="passenger-active">
       <div class="subtitle">Мои активные бронирования</div>
       <button class="secondary-btn" id="btn-load-passenger-active">Показать активные поездки</button>
@@ -568,7 +579,6 @@
       </div>
     </div>
 
-    <!-- Пассажир: планы поездок -->
     <div class="card hidden" id="passenger-plans-section">
       <div class="subtitle">Запланировать поездку</div>
       <div class="field">
@@ -594,7 +604,7 @@
       <button class="secondary-btn" id="btn-create-passenger-plan">Создать план поездки</button>
       <div class="info" id="passenger-plan-message"></div>
 
-      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0;" />
 
       <div class="subtitle">Мои запланированные поездки</div>
       <div class="info small-text">
@@ -605,7 +615,6 @@
       </div>
     </div>
 
-    <!-- Водитель: блок оплаты -->
     <div class="card hidden" id="driver-payment-block">
       <div class="subtitle">Оплата комиссии за сегодня</div>
       <div class="info" id="driver-payment-info">
@@ -615,12 +624,7 @@
 
       <div class="field hidden" id="driver-payment-copy-block">
         <label for="driver-payment-details-copy">Реквизиты для копирования</label>
-        <textarea
-          id="driver-payment-details-copy"
-          rows="3"
-          readonly
-          style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid #d1d5db;font-size:13px;"
-        ></textarea>
+        <textarea id="driver-payment-details-copy" rows="3" readonly></textarea>
         <button class="secondary-btn" id="btn-copy-payment-details" type="button">
           Скопировать реквизиты
         </button>
@@ -633,7 +637,6 @@
       <button class="secondary-btn" id="btn-upload-payment">Загрузить чек</button>
     </div>
 
-    <!-- Админ: статистика и управление оплатой -->
     <div class="card hidden" id="admin-section">
       <div class="subtitle">Админ-панель сервиса</div>
 
@@ -643,11 +646,7 @@
 
       <div class="field">
         <label for="admin-payment-details">Реквизиты для оплаты</label>
-        <textarea
-          id="admin-payment-details"
-          rows="3"
-          style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid #d1d5db;font-size:13px;"
-        ></textarea>
+        <textarea id="admin-payment-details" rows="3"></textarea>
       </div>
 
       <div class="role-buttons" style="margin-top:4px;">
@@ -655,7 +654,7 @@
         <button class="primary-btn" id="btn-enable-pay">Включить оплату для водителей</button>
       </div>
 
-      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0;" />
 
       <div class="subtitle">Общая статистика</div>
       <button class="secondary-btn" id="btn-load-stats">Загрузить статистику</button>
@@ -663,7 +662,7 @@
         Статистика ещё не загружена.
       </div>
 
-      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
+      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0;" />
 
       <div class="subtitle">Водители за день</div>
       <div class="field">
@@ -678,14 +677,16 @@
   </div>
 
   <script>
-    const tg = window.Telegram ? window.Telegram.WebApp : null;
+    const tg = window.Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
     const ADMIN_ID = 504348666;
 
     let currentTelegramUser = null;
     let activeTripId = null;
 
     const userInfoDiv = document.getElementById('user-info');
-    userInfoDiv.innerHTML += `<br/>URL: ${window.location.href}`;
     const btnDriver = document.getElementById('btn-driver');
     const btnPassenger = document.getElementById('btn-passenger');
     const roleInfo = document.getElementById('role-info');
@@ -693,9 +694,13 @@
     const driverSection = document.getElementById('driver-section');
     const driverHistory = document.getElementById('driver-history');
     const driverActive = document.getElementById('driver-active');
+    const driverPassengerPlansCard = document.getElementById('driver-passenger-plans');
+    const driverPaymentBlock = document.getElementById('driver-payment-block');
 
     const passengerSection = document.getElementById('passenger-section');
     const passengerActiveSection = document.getElementById('passenger-active');
+    const passengerPlansSection = document.getElementById('passenger-plans-section');
+
     const driverMessage = document.getElementById('driver-message');
     const tripsList = document.getElementById('trips-list');
 
@@ -711,7 +716,6 @@
 
     const driverCarMessage = document.getElementById('driver-car-message');
 
-    const driverPaymentBlock = document.getElementById('driver-payment-block');
     const driverPaymentInfo = document.getElementById('driver-payment-info');
     const driverPaymentRequisites = document.getElementById('driver-payment-requisites');
     const driverPaymentCopyBlock = document.getElementById('driver-payment-copy-block');
@@ -736,8 +740,6 @@
     const btnLoadPassengerActive = document.getElementById('btn-load-passenger-active');
     const passengerActiveList = document.getElementById('passenger-active-list');
 
-    // Планы поездок пассажира
-    const passengerPlansSection = document.getElementById('passenger-plans-section');
     const planFromCityInput = document.getElementById('plan-from-city');
     const planToCityInput = document.getElementById('plan-to-city');
     const planDesiredTimeInput = document.getElementById('plan-desired-time');
@@ -747,7 +749,6 @@
     const passengerPlanMessage = document.getElementById('passenger-plan-message');
     const passengerPlansList = document.getElementById('passenger-plans-list');
 
-    // === Новые элементы для фильтров пассажира ===
     const filterFrom = document.getElementById('filter-from');
     const filterTo = document.getElementById('filter-to');
     const filterDay = document.getElementById('filter-day');
@@ -757,16 +758,14 @@
     const passengerFilters = document.getElementById('passenger-filters');
     const btnTogglePassengerFilters = document.getElementById('btn-toggle-passenger-filters');
 
-    // Подсветка кнопок роли
-    const roleButtons = document.querySelectorAll('#btn-driver, #btn-passenger');
-
-    // Планы пассажиров для водителя
-    const driverPassengerPlansCard = document.getElementById('driver-passenger-plans');
-    const driverPassengerPlansHeader = document.getElementById('driver-passenger-plans-header');
-    const driverPassengerPlansArrow = document.getElementById('driver-passenger-plans-arrow');
-    const driverPassengerPlansContent = document.getElementById('driver-passenger-plans-content');
     const driverPassengerPlansList = document.getElementById('driver-passenger-plans-list');
     const btnReloadDriverPassengerPlans = document.getElementById('btn-reload-driver-passenger-plans');
+
+    const roleButtons = document.querySelectorAll('#btn-driver, #btn-passenger');
+
+    let currentRole = null;
+    let driverAutoTimer = null;
+    let passengerAutoTimer = null;
 
     function isStillActiveByDeparture(departureTimeStr) {
       if (!departureTimeStr) return true;
@@ -776,6 +775,7 @@
       const cutoff = now - 10 * 60 * 1000;
       return ts >= cutoff;
     }
+
     function isPlanStillActive(desiredTimeStr) {
       if (!desiredTimeStr) return true;
       const ts = Date.parse(desiredTimeStr);
@@ -790,6 +790,7 @@
       const u = username ? ` @${username}` : '';
       return (full || 'без имени') + u;
     }
+
     function formatDateReadable(str) {
       if (!str) return str;
 
@@ -809,13 +810,8 @@
       return `${day} ${MONTHS[month]}, ${hours}:${minutes}`;
     }
 
-        // ---------- Tabs + auto-refresh ----------
     const driverTabsBar = document.getElementById('driver-tabs-bar');
     const passengerTabsBar = document.getElementById('passenger-tabs-bar');
-
-    let currentRole = null;
-    let driverAutoTimer = null;
-    let passengerAutoTimer = null;
 
     function setActiveTabUI(bar, tab) {
       if (!bar) return;
@@ -903,7 +899,6 @@
       }, 45000);
     }
 
-    // клики по табам
     driverTabsBar?.querySelectorAll('.tab-btn').forEach((btn) => {
       btn.addEventListener('click', () => showDriverTab(btn.dataset.tab));
     });
@@ -913,73 +908,83 @@
 
     document.getElementById('btn-refresh-trips')?.addEventListener('click', () => loadTrips());
 
-    // Инициализация из Telegram
-    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
-      tg.expand();
+    if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
       currentTelegramUser = tg.initDataUnsafe.user;
 
-      userInfoDiv.textContent =
-        `Вы вошли как: ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''} (@${currentTelegramUser.username || 'без username'})`;
+      userInfoDiv.textContent = `Вы вошли как: ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''}`.trim();
+      if (currentTelegramUser.username) {
+        userInfoDiv.textContent += ` @${currentTelegramUser.username}`;
+      }
 
       fetch('/api/init-user', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ user: currentTelegramUser }),
-      })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.error) {
-            console.error('Ошибка init-user:', data.error);
-          }
-          if (currentTelegramUser && String(currentTelegramUser.id) === String(ADMIN_ID)) {
-            adminSection.classList.remove('hidden');
-            loadAdminSettings();
-          } else {
-            adminSection.classList.add('hidden');
-          }
-        })
-        .catch((err) => {
-          console.error('Ошибка init-user:', err);
-        });
+      }).catch(err => console.error(err));
+
+      if (String(currentTelegramUser.id) === String(ADMIN_ID)) {
+        adminSection.classList.remove('hidden');
+        loadAdminSettings();
+      }
     } else {
-      userInfoDiv.textContent =
-        'Это мини-приложение работает только внутри Telegram. Откройте его через бота.';
+      userInfoDiv.textContent = 'Откройте через Telegram';
     }
 
-    // Переключение ролей
     btnDriver.addEventListener('click', () => {
-      if (!currentTelegramUser) {
-        roleInfo.textContent =
-          'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
-        return;
-      }
-      roleInfo.textContent =
-        'Режим водителя: создавайте поездки,ищите пассажиров';
-
+      roleInfo.textContent = 'Режим водителя: создавайте поездки, ищите пассажиров';
       roleButtons.forEach(b => b.classList.remove('active-role'));
       btnDriver.classList.add('active-role');
-
       showDriverTab('create');
-      startDriverAutoRefresh();
     });
 
     btnPassenger.addEventListener('click', () => {
-      if (!currentTelegramUser) {
-        roleInfo.textContent =
-          'Откройте мини-приложение через Telegram, чтобы просматривать поездки.';
-        return;
-      }
-      roleInfo.textContent =
-        'Режим пассажира: ищите водителя,планируйте свои поездки';
-
+      roleInfo.textContent = 'Режим пассажира: ищите водителя, планируйте свои поездки';
       roleButtons.forEach(b => b.classList.remove('active-role'));
       btnPassenger.classList.add('active-role');
-
       showPassengerTab('trips');
-      startPassengerAutoRefresh();
     });
 
-    // Водитель: профиль машины
+    // Снег
+    const canvas = document.getElementById('snow-canvas');
+    const ctx = canvas.getContext('2d');
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+    window.addEventListener('resize', () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+
+    const flakes = [];
+    for (let i = 0; i < 100; i++) {
+      flakes.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        r: Math.random() * 3 + 1,
+        speed: Math.random() * 1 + 0.5,
+        drift: Math.random() * 0.6 - 0.3,
+        opacity: Math.random() * 0.4 + 0.6
+      });
+    }
+
+    function animateSnow() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      flakes.forEach(f => {
+        ctx.fillStyle = `rgba(255,255,255,${f.opacity})`;
+        ctx.beginPath();
+        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        ctx.fill();
+        f.y += f.speed;
+        f.x += f.drift;
+        if (f.y > canvas.height) {
+          f.y = -10;
+          f.x = Math.random() * canvas.width;
+        }
+      });
+      requestAnimationFrame(animateSnow);
+    }
+    animateSnow();
+
+    // Весь твой оригинальный JavaScript от loadDriverProfile и ниже (полностью)
     function loadDriverProfile() {
       if (!currentTelegramUser) return;
 
@@ -1040,7 +1045,6 @@
         });
     });
 
-    // Водитель: создание поездки
     document.getElementById('btn-create-trip').addEventListener('click', () => {
       if (!currentTelegramUser) {
         driverMessage.textContent = 'Откройте мини-приложение через Telegram.';
@@ -1097,7 +1101,6 @@
         });
     });
 
-    // Водитель: история поездок
     btnLoadDriverTrips.addEventListener('click', loadDriverTrips);
 
     function loadDriverTrips() {
@@ -1329,7 +1332,6 @@
         });
     }
 
-    // Водитель: активная поездка
     btnLoadActiveTrip.addEventListener('click', loadDriverActiveTrip);
     btnActivePassengers.addEventListener('click', () => {
       if (activeTripId) {
@@ -1383,7 +1385,6 @@
         });
     }
 
-    // Пассажир: список поездок
     function loadTrips() {
       tripsList.textContent = 'Загрузка поездок...';
 
@@ -1516,7 +1517,6 @@
         });
     }
 
-    // Пассажир: активные брони
     btnLoadPassengerActive.addEventListener('click', loadPassengerActiveBookings);
 
     function loadPassengerActiveBookings() {
@@ -1637,7 +1637,6 @@
         });
     }
 
-    // Пассажир: планы поездок
     if (btnCreatePassengerPlan) {
       btnCreatePassengerPlan.addEventListener('click', () => {
         if (!currentTelegramUser) {
@@ -1823,7 +1822,7 @@
         });
     }
 
-      if (btnReloadDriverPassengerPlans) {
+    if (btnReloadDriverPassengerPlans) {
       btnReloadDriverPassengerPlans.addEventListener('click', () => {
         loadDriverPassengerPlans();
       });
@@ -1954,7 +1953,6 @@
         });
     }
 
-    // Водитель: блок оплаты
     function loadDriverPaymentInfo() {
       if (!currentTelegramUser) {
         driverPaymentBlock.classList.add('hidden');
@@ -2101,53 +2099,49 @@
     });
 
     function setPassengerFiltersOpen(open, persist = true) {
-  if (!passengerFilters || !btnTogglePassengerFilters) return;
+      if (!passengerFilters || !btnTogglePassengerFilters) return;
 
-  passengerFilters.classList.toggle('hidden', !open);
-  btnTogglePassengerFilters.textContent = open ? 'Скрыть фильтры ▲' : 'Фильтры ▼';
+      passengerFilters.classList.toggle('hidden', !open);
+      btnTogglePassengerFilters.textContent = open ? 'Скрыть фильтры ▲' : 'Фильтры ▼';
 
-  if (persist) {
-    try {
-      localStorage.setItem('passengerFiltersOpen', open ? '1' : '0');
-    } catch (e) {}
-  }
-}
+      if (persist) {
+        try {
+          localStorage.setItem('passengerFiltersOpen', open ? '1' : '0');
+        } catch (e) {}
+      }
+    }
 
-// init + toggle
-if (btnTogglePassengerFilters && passengerFilters) {
-  let open = false;
-  try {
-    open = localStorage.getItem('passengerFiltersOpen') === '1';
-  } catch (e) {}
-  // по умолчанию будет закрыт, если ничего не сохранено
-  setPassengerFiltersOpen(open, false);
+    if (btnTogglePassengerFilters && passengerFilters) {
+      let open = false;
+      try {
+        open = localStorage.getItem('passengerFiltersOpen') === '1';
+      } catch (e) {}
+      setPassengerFiltersOpen(open, false);
 
-  btnTogglePassengerFilters.addEventListener('click', () => {
-    const willOpen = passengerFilters.classList.contains('hidden');
-    setPassengerFiltersOpen(willOpen);
-  });
-}
+      btnTogglePassengerFilters.addEventListener('click', () => {
+        const willOpen = passengerFilters.classList.contains('hidden');
+        setPassengerFiltersOpen(willOpen);
+      });
+    }
 
-    // === Обработчики фильтров пассажира ===
     if (btnApplyFilters) {
-  btnApplyFilters.addEventListener('click', () => {
-    loadTrips();
-    setPassengerFiltersOpen(false);
-  });
-}
+      btnApplyFilters.addEventListener('click', () => {
+        loadTrips();
+        setPassengerFiltersOpen(false);
+      });
+    }
 
-if (btnResetFilters) {
-  btnResetFilters.addEventListener('click', () => {
-    filterFrom.value = '';
-    filterTo.value = '';
-    filterDay.value = 'any';
-    filterSort.value = 'time_asc';
-    loadTrips();
-    setPassengerFiltersOpen(false);
-  });
-}
+    if (btnResetFilters) {
+      btnResetFilters.addEventListener('click', () => {
+        filterFrom.value = '';
+        filterTo.value = '';
+        filterDay.value = 'any';
+        filterSort.value = 'time_asc';
+        loadTrips();
+        setPassengerFiltersOpen(false);
+      });
+    }
 
-    // Админ-панель
     function loadAdminSettings() {
       if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) {
         return;
@@ -2323,7 +2317,7 @@ if (btnResetFilters) {
             const action = d.is_blocked ? 'unblock' : 'block';
 
             html +=
-              `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #e5e7eb;">` +
+              `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.15);">` +
               `<strong>${name}</strong> ${username}<br/>` +
               `Поездок с бронями: ${d.trips_count || 0}, броней: ${d.bookings_count || 0}, мест: ${d.seats_count || 0}<br/>` +
               `Комиссия за день: ${fee.toFixed(2)} ₽<br/>` +
