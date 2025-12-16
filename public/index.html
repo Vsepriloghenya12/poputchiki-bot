@@ -1442,6 +1442,7 @@ function fillCitiesFromTrips() {
             tripsList.textContent = 'Ошибка: ' + data.error;
           } else {
             renderTrips(data.trips || []);
+               fillCitiesFromTrips();
           }
         })
         .catch((err) => {
