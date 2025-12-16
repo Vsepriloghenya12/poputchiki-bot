@@ -2,53 +2,32 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>попутчики • С Новым 2026 годом! 🎄</title>
+  <title>попутчики</title>
   <meta name="viewport" content="width=390, initial-scale=1, maximum-scale=1, user-scalable=no" />
 
   <!-- Telegram WebApp SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <!-- Премиум шрифт Manrope (как в khaps_wishlist_bot) -->
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-
     body {
-      font-family: 'Manrope', sans-serif;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
-      color: #e2e8f0;
-      min-height: 100vh;
-      position: relative;
-      overflow-x: hidden;
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #e5e7eb;
+      color: #111827;
     }
-
-    /* Падающий снег */
-    #snow-canvas {
-  position: fixed;
-  top: 0; left: 0;
-  width: 100%; height: 100%;
-  pointer-events: none !important;
-  z-index: 1;
-  user-select: none;
-}
-
     .container {
-      position: relative;
-      z-index: 2;
       max-width: 640px;
       margin: 0 auto;
       padding: 12px 12px 60px 12px;
     }
 
     .card {
-      background: rgba(255, 255, 255, 0.08);
-      backdrop-filter: blur(12px);
+      background: #ffffff;
       border-radius: 18px;
       padding: 14px 14px 16px 14px;
       margin-bottom: 14px;
-      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.12);
+      border: 1px solid #e5e7eb;
     }
 
     .title-row {
@@ -57,9 +36,8 @@
       gap: 10px;
       margin-bottom: 8px;
       padding-bottom: 6px;
-      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      border-bottom: 1px solid #e5e7eb;
     }
-
     .logo {
       width: 36px;
       height: 36px;
@@ -73,14 +51,9 @@
       font-size: 18px;
       flex-shrink: 0;
     }
-
     .title {
       font-size: 20px;
       font-weight: 700;
-      background: linear-gradient(90deg, #fbbf24, #f59e0b, #dc2626);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
     }
 
     .subtitle {
@@ -88,61 +61,54 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 0.04em;
-      color: #94a3b8;
+      color: #374151;
       margin-bottom: 8px;
     }
 
     .info {
       font-size: 13px;
-      color: #cbd5e1;
+      color: #4b5563;
       margin-top: 4px;
       white-space: pre-line;
       line-height: 1.4;
     }
-
     .small-text {
       font-size: 11px;
-      color: #94a3b8;
+      color: #6b7280;
     }
 
     .field {
       margin-bottom: 8px;
     }
-
     .field label {
       display: block;
       font-size: 12px;
-      color: #94a3b8;
+      color: #4b5563;
       margin-bottom: 3px;
     }
-
     .field input,
     .field textarea,
     .field select {
       width: 100%;
       border-radius: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      border: 1px solid #d1d5db;
       padding: 7px 9px;
       font-size: 15px;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.1);
-      color: #e2e8f0;
+      background: #f9fafb;
     }
-
     .field input:focus,
     .field textarea:focus,
     .field select:focus {
       outline: none;
-      border-color: #fbbf24;
-      box-shadow: 0 0 0 1px rgba(251, 191, 36, 0.3);
-      background: rgba(255, 255, 255, 0.15);
+      border-color: #2563eb;
+      box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+      background: #ffffff;
     }
-
     .field-inline {
       display: flex;
       gap: 8px;
     }
-
     .field-inline .field {
       flex: 1;
       margin-bottom: 0;
@@ -153,7 +119,6 @@
       gap: 8px;
       margin-top: 4px;
     }
-
     .role-buttons button {
       flex: 1;
       border-radius: 16px;
@@ -170,14 +135,21 @@
       background: linear-gradient(135deg, #2563eb, #1d4ed8);
       box-shadow: 0 3px 8px rgba(37, 99, 235, 0.4);
     }
+    #btn-driver:hover {
+      background: linear-gradient(135deg, #1e40af, #1d4ed8);
+    }
 
     #btn-passenger {
       background: linear-gradient(135deg, #10b981, #059669);
       box-shadow: 0 3px 8px rgba(16, 185, 129, 0.4);
     }
+    #btn-passenger:hover {
+      background: linear-gradient(135deg, #047857, #059669);
+    }
 
     .role-buttons button:active {
       transform: scale(0.97);
+      box-shadow: none;
     }
 
     button {
@@ -186,40 +158,45 @@
       padding: 8px 12px;
       font-size: 14px;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: background-color 0.15s ease, box-shadow 0.15s ease, transform 0.05s ease;
     }
-
     button:active {
       transform: translateY(1px);
+      box-shadow: none;
     }
-
     .primary-btn {
-      background: linear-gradient(90deg, #dc2626, #ef4444);
+      background: #2563eb;
       color: #ffffff;
-      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.35);
     }
-
+    .primary-btn:hover {
+      background: #1d4ed8;
+    }
     .secondary-btn {
-      background: rgba(255, 255, 255, 0.1);
-      color: #e2e8f0;
-      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: #e5e7eb;
+      color: #111827;
     }
-
+    .secondary-btn:hover {
+      background: #d1d5db;
+    }
     .danger-btn {
       background: #ef4444;
       color: #ffffff;
       box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
+    }
+    .danger-btn:hover {
+      background: #dc2626;
     }
 
     .trip-card,
     .booking-card,
     .plan-card {
       border-radius: 14px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid #e5e7eb;
       padding: 8px 9px;
       margin-bottom: 8px;
       font-size: 13px;
-      background: rgba(255, 255, 255, 0.05);
+      background: #f9fafb;
     }
 
     .trip-header,
@@ -230,22 +207,19 @@
       margin-bottom: 4px;
       gap: 6px;
     }
-
     .trip-route,
     .booking-status {
       font-weight: 700;
       font-size: 14px;
     }
-
     .booking-status {
-      color: #34d399;
+      color: #059669;
       white-space: nowrap;
     }
-
     .trip-meta,
     .booking-meta {
       font-size: 12px;
-      color: #cbd5e1;
+      color: #4b5563;
       line-height: 1.4;
     }
 
@@ -254,9 +228,9 @@
       padding: 2px 6px;
       border-radius: 999px;
       font-size: 11px;
-      border: 1px solid rgba(251, 191, 36, 0.3);
-      background: rgba(251, 191, 36, 0.1);
-      color: #fbbf24;
+      border: 1px solid #e5e7eb;
+      background: #eef2ff;
+      color: #3730a3;
       margin-right: 4px;
       margin-top: 2px;
     }
@@ -265,27 +239,37 @@
       display: none !important;
     }
 
-    .new-year-badge {
-      text-align: center;
-      font-size: 36px;
-      margin: 20px 0;
-      animation: sparkle 3s infinite;
+    /* Секционные акценты: водитель / пассажир / админ */
+    #driver-section,
+    #driver-active,
+    #driver-history,
+    #driver-passenger-plans,
+    #driver-payment-block {
+      border-left: 4px solid #2563eb;
+      padding-left: 12px;
     }
 
-    @keyframes sparkle {
-      0%, 100% { opacity: 0.8; transform: scale(1); }
-      50% { opacity: 1; transform: scale(1.05); }
+    #passenger-section,
+    #passenger-active,
+    #passenger-plans-section {
+      border-left: 4px solid #10b981;
+      padding-left: 12px;
     }
 
-    /* Твои оригинальные стили tabs и filters сохранены полностью */
+    #admin-section {
+      border-left: 4px solid #f97316;
+      padding-left: 12px;
+    }
+
+        /* Tabs */
     .tabs-bar {
       display: flex;
       gap: 8px;
       padding: 10px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: var(--tg-theme-bg-color, #ffffff);
+      border: 1px solid var(--tg-theme-hint-color, #e5e7eb);
       border-radius: 16px;
-      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
+      box-shadow: 0 6px 14px rgba(15, 23, 42, 0.10);
       margin-bottom: 16px;
       position: sticky;
       top: 8px;
@@ -294,7 +278,9 @@
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
     }
-    .tabs-bar::-webkit-scrollbar { display: none; }
+    .tabs-bar::-webkit-scrollbar {
+      display: none;
+    }
     .tab-btn {
       flex: 1 1 0;
       min-width: 80px;
@@ -303,58 +289,66 @@
       align-items: center;
       justify-content: center;
       gap: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--tg-theme-hint-color, #e5e7eb);
+      background: var(--tg-theme-secondary-bg-color, #f3f4f6);
       border-radius: 14px;
       padding: 10px 6px;
       font-weight: 700;
       font-size: 11.5px;
       line-height: 1.2;
-      color: #e2e8f0;
+      color: var(--tg-theme-text-color, #111827);
       cursor: pointer;
       transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .tab-btn svg {
       width: 24px;
       height: 24px;
-      fill: #94a3b8;
+      fill: var(--tg-theme-hint-color, #6b7280);
       transition: fill 0.2s ease;
     }
     .tab-btn.active {
-      background: #dc2626;
-      color: #ffffff;
-      border-color: #dc2626;
+      background: var(--tg-theme-button-color, #111827);
+      color: var(--tg-theme-button-text-color, #ffffff);
+      border-color: var(--tg-theme-button-color, #111827);
     }
     .tab-btn.active svg {
-      fill: #ffffff;
+      fill: var(--tg-theme-button-text-color, #ffffff);
     }
 
+    /* Filters */
     .filters {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
-      margin: 10px 0;
+      margin: 10px 0 10px 0;
       padding: 10px;
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
       border-radius: 14px;
     }
-
     .filter-toggle-row {
-      display: flex;
-      justify-content: flex-end;
-      margin-top: 8px;
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 8px;
+}
+    .filters .field { margin-bottom: 0; }
+    .filters .field label { font-size: 11px; font-weight: 800; color: #374151; }
+    .filters .actions { grid-column: 1 / -1; display: flex; gap: 8px; }
+
+    /* Подсветка выбранной роли */
+    .active-role {
+      background: #111827 !important;
+      color: #ffffff !important;
+      box-shadow: 0 3px 8px rgba(17, 24, 39, 0.4);
     }
   </style>
 </head>
 <body>
-  <!-- Новогодний снег -->
-  <canvas id="snow-canvas"></canvas>
-
-  <div class="new-year-badge">🎄❄️✨</div>
-
   <div class="container">
-        <!-- Шапка с логотипом -->
+    <!-- Шапка с логотипом -->
     <div class="card">
       <div class="title-row">
         <div class="logo">🚗</div>
@@ -378,41 +372,43 @@
     </div>
 
     <div class="tabs-bar hidden" id="driver-tabs-bar">
-      <button class="tab-btn" data-role="driver" data-tab="create">
-        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-        Создать
-      </button>
-      <button class="tab-btn" data-role="driver" data-tab="active">
-        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-        Активная
-      </button>
-      <button class="tab-btn" data-role="driver" data-tab="history">
-        <svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.11L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
-        История
-      </button>
-      <button class="tab-btn" data-role="driver" data-tab="plans">
-        <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-        Пассажиры
-      </button>
-    </div>
+  <button class="tab-btn" data-role="driver" data-tab="create">
+    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    Создать
+  </button>
+  <button class="tab-btn" data-role="driver" data-tab="active">
+    <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+    Активная
+  </button>
+  <button class="tab-btn" data-role="driver" data-tab="history">
+    <svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.11L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
+    История
+  </button>
+  <button class="tab-btn" data-role="driver" data-tab="plans">
+    <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+    Пассажиры
+  </button>
+</div>
 
-    <div class="tabs-bar hidden" id="passenger-tabs-bar">
-      <button class="tab-btn" data-role="passenger" data-tab="trips">
-        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
-        Поездки
-      </button>
-      <button class="tab-btn" data-role="passenger" data-tab="bookings">
-        <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
-        Мои брони
-      </button>
-      <button class="tab-btn" data-role="passenger" data-tab="plan">
-        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-        План
-      </button>
-    </div>
-        <!-- Водитель: создание поездки + машина -->
+   <div class="tabs-bar hidden" id="passenger-tabs-bar">
+  <button class="tab-btn" data-role="passenger" data-tab="trips">
+    <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
+    Поездки
+  </button>
+  <button class="tab-btn" data-role="passenger" data-tab="bookings">
+    <svg viewBox="0 0 24 24"><path d="M19 3h-4.18C14.4 1.84 13.3 1 12 1c-1.3 0-2.4.84-2.82 2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 0c.55 0 1 .45 1 1s-.45 1-1 1-1-.45-1-1 .45-1 1-1zm2 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/></svg>
+    Мои брони
+  </button>
+  <button class="tab-btn" data-role="passenger" data-tab="plan">
+    <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+    План
+  </button>
+</div>
+
+    <!-- Водитель: создание поездки + машина -->
     <div class="card hidden" id="driver-section">
       <div class="subtitle">Создать поездку</div>
+      <!-- ... остальной контент без изменений ... -->
       <div class="field">
         <label for="from-city">Откуда</label>
         <input id="from-city" type="text" placeholder="Например: Сочи" />
@@ -443,7 +439,7 @@
       <button class="primary-btn" id="btn-create-trip">Создать поездку</button>
       <div class="info" id="driver-message"></div>
 
-      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0;" />
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
 
       <div class="subtitle">Моя машина</div>
       <div class="field field-inline">
@@ -464,7 +460,8 @@
       <div class="info" id="driver-car-message"></div>
     </div>
 
-    <!-- Активная поездка водителя -->
+    
+    <!-- Пример для активной поездки водителя -->
     <div class="card hidden" id="driver-active">
       <div class="subtitle">Активная поездка</div>
       <div class="info small-text">
@@ -482,7 +479,7 @@
       <div id="driver-bookings-list"></div>
     </div>
 
-    <!-- История поездок водителя -->
+    <!-- Водитель: история поездок -->
     <div class="card hidden" id="driver-history">
       <div class="subtitle">Мои поездки</div>
       <button class="secondary-btn" id="btn-load-driver-trips">Обновить список</button>
@@ -491,35 +488,37 @@
       </div>
     </div>
 
-    <!-- Запланированные поездки пассажиров для водителя -->
-    <div class="card hidden" id="driver-passenger-plans">
-      <div class="subtitle">Запланированные поездки пассажиров</div>
-      <div class="info small-text">
-        Здесь показываются запросы пассажиров. Нажмите «Забрать пассажира», чтобы ему пришло сообщение
-        «Вас заберёт водитель».
-      </div>
-      <div class="info" id="driver-passenger-plans-list">
-        Запросы пассажиров ещё не загружены.
-      </div>
-      <button class="secondary-btn" id="btn-reload-driver-passenger-plans" style="margin-top:6px;">
-        Обновить список запросов
-      </button>
+  <!-- Водитель: запланированные поездки пассажиров -->
+<div class="card hidden" id="driver-passenger-plans">
+  <div class="subtitle">Запланированные поездки пассажиров</div>
+  <div class="info small-text">
+    Здесь показываются запросы пассажиров. Нажмите «Забрать пассажира», чтобы ему пришло сообщение
+    «Вас заберёт водитель».
+  </div>
+  <div style="margin-top:8px;">
+    <div class="info" id="driver-passenger-plans-list">
+      Запросы пассажиров ещё не загружены.
     </div>
+    <button class="secondary-btn" id="btn-reload-driver-passenger-plans" style="margin-top:6px;">
+      Обновить список запросов
+    </button>
+  </div>
+</div>
 
-    <!-- Пассажир: список поездок с фильтрами -->
+    <!-- Пассажир: список поездок -->
     <div class="card hidden" id="passenger-section">
       <div class="subtitle">Доступные поездки</div>
       <div class="info small-text">
-        Список поездок с ещё свободными местами.
-      </div>
+  Список поездок с ещё свободными местами.
+</div>
 
-      <div class="filter-toggle-row">
-        <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">
-          Фильтры ▼
-        </button>
-      </div>
+<div class="filter-toggle-row">
+  <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">
+    Фильтры ▼
+  </button>
+</div>
 
-      <div class="filters hidden" id="passenger-filters">
+<div class="filters hidden" id="passenger-filters">
         <div class="field">
           <label>Откуда</label>
           <select id="filter-from">
@@ -559,7 +558,8 @@
         Поездки ещё не загружены.
       </div>
     </div>
-        <!-- Пассажир: активные бронирования -->
+
+    <!-- Пассажир: мои активные поездки -->
     <div class="card hidden" id="passenger-active">
       <div class="subtitle">Мои активные бронирования</div>
       <button class="secondary-btn" id="btn-load-passenger-active">Показать активные поездки</button>
@@ -594,7 +594,7 @@
       <button class="secondary-btn" id="btn-create-passenger-plan">Создать план поездки</button>
       <div class="info" id="passenger-plan-message"></div>
 
-      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0;" />
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
 
       <div class="subtitle">Мои запланированные поездки</div>
       <div class="info small-text">
@@ -619,7 +619,7 @@
           id="driver-payment-details-copy"
           rows="3"
           readonly
-          style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);font-size:13px;background:rgba(255,255,255,0.1);color:#e2e8f0;"
+          style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid #d1d5db;font-size:13px;"
         ></textarea>
         <button class="secondary-btn" id="btn-copy-payment-details" type="button">
           Скопировать реквизиты
@@ -646,7 +646,7 @@
         <textarea
           id="admin-payment-details"
           rows="3"
-          style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,0.2);font-size:13px;background:rgba(255,255,255,0.1);color:#e2e8f0;"
+          style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid #d1d5db;font-size:13px;"
         ></textarea>
       </div>
 
@@ -655,7 +655,7 @@
         <button class="primary-btn" id="btn-enable-pay">Включить оплату для водителей</button>
       </div>
 
-      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0;" />
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
 
       <div class="subtitle">Общая статистика</div>
       <button class="secondary-btn" id="btn-load-stats">Загрузить статистику</button>
@@ -663,7 +663,7 @@
         Статистика ещё не загружена.
       </div>
 
-      <hr style="border:none;border-top:1px solid rgba(255,255,255,0.15);margin:12px 0;" />
+      <hr style="border:none;border-top:1px solid #e5e7eb;margin:12px 0;" />
 
       <div class="subtitle">Водители за день</div>
       <div class="field">
@@ -675,8 +675,9 @@
         Список водителей ещё не загружен.
       </div>
     </div>
-  </div> <!-- конец .container -->
-    <script>
+  </div>
+
+  <script>
     const tg = window.Telegram ? window.Telegram.WebApp : null;
     const ADMIN_ID = 504348666;
 
@@ -684,6 +685,7 @@
     let activeTripId = null;
 
     const userInfoDiv = document.getElementById('user-info');
+    userInfoDiv.innerHTML += `<br/>URL: ${window.location.href}`;
     const btnDriver = document.getElementById('btn-driver');
     const btnPassenger = document.getElementById('btn-passenger');
     const roleInfo = document.getElementById('role-info');
@@ -745,7 +747,7 @@
     const passengerPlanMessage = document.getElementById('passenger-plan-message');
     const passengerPlansList = document.getElementById('passenger-plans-list');
 
-    // Фильтры пассажира
+    // === Новые элементы для фильтров пассажира ===
     const filterFrom = document.getElementById('filter-from');
     const filterTo = document.getElementById('filter-to');
     const filterDay = document.getElementById('filter-day');
@@ -755,57 +757,1632 @@
     const passengerFilters = document.getElementById('passenger-filters');
     const btnTogglePassengerFilters = document.getElementById('btn-toggle-passenger-filters');
 
-    // Запланированные пассажиры для водителя
+    // Подсветка кнопок роли
+    const roleButtons = document.querySelectorAll('#btn-driver, #btn-passenger');
+
+    // Планы пассажиров для водителя
     const driverPassengerPlansCard = document.getElementById('driver-passenger-plans');
+    const driverPassengerPlansHeader = document.getElementById('driver-passenger-plans-header');
+    const driverPassengerPlansArrow = document.getElementById('driver-passenger-plans-arrow');
+    const driverPassengerPlansContent = document.getElementById('driver-passenger-plans-content');
     const driverPassengerPlansList = document.getElementById('driver-passenger-plans-list');
     const btnReloadDriverPassengerPlans = document.getElementById('btn-reload-driver-passenger-plans');
 
-    // Весь твой оригинальный JS-код сохранён полностью (ничего не обрезано)
-    // ... (весь код из твоего сообщения, начиная от function isStillActiveByDeparture и до конца)
+    function isStillActiveByDeparture(departureTimeStr) {
+      if (!departureTimeStr) return true;
+      const ts = Date.parse(departureTimeStr);
+      if (!Number.isFinite(ts)) return true;
+      const now = Date.now();
+      const cutoff = now - 10 * 60 * 1000;
+      return ts >= cutoff;
+    }
+    function isPlanStillActive(desiredTimeStr) {
+      if (!desiredTimeStr) return true;
+      const ts = Date.parse(desiredTimeStr);
+      if (!Number.isFinite(ts)) return true;
+      const now = Date.now();
+      const cutoff = now - 20 * 60 * 1000;
+      return ts >= cutoff;
+    }
 
-    // Здесь весь твой код, который ты прислал — от функций formatName, formatDateReadable и до самого конца с initAdminDriverBlockButtons()
+    function formatName(first, last, username) {
+      const full = `${first || ''} ${last || ''}`.trim();
+      const u = username ? ` @${username}` : '';
+      return (full || 'без имени') + u;
+    }
+    function formatDateReadable(str) {
+      if (!str) return str;
 
-    // (Я не повторяю его здесь, чтобы не удлинять сообщение, но в реальном файле он должен быть полностью)
+      const d = new Date(str);
+      if (isNaN(d.getTime())) return str;
 
-    // В конце добавляем только скрипт снега
-    const canvas = document.getElementById('snow-canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    window.addEventListener('resize', () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const day = d.getDate();
+      const month = d.getMonth();
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+
+      const MONTHS = [
+        "января", "февраля", "марта", "апреля", "мая", "июня",
+        "июля", "августа", "сентября", "октября", "ноября", "декабря"
+      ];
+
+      return `${day} ${MONTHS[month]}, ${hours}:${minutes}`;
+    }
+
+        // ---------- Tabs + auto-refresh ----------
+    const driverTabsBar = document.getElementById('driver-tabs-bar');
+    const passengerTabsBar = document.getElementById('passenger-tabs-bar');
+
+    let currentRole = null;
+    let driverAutoTimer = null;
+    let passengerAutoTimer = null;
+
+    function setActiveTabUI(bar, tab) {
+      if (!bar) return;
+      bar.querySelectorAll('.tab-btn').forEach((b) => {
+        b.classList.toggle('active', b.dataset.tab === tab);
+      });
+    }
+
+    function hideAllRoleSections() {
+      driverSection.classList.add('hidden');
+      driverActive.classList.add('hidden');
+      driverHistory.classList.add('hidden');
+      driverPassengerPlansCard.classList.add('hidden');
+      driverPaymentBlock.classList.add('hidden');
+
+      passengerSection.classList.add('hidden');
+      passengerActiveSection.classList.add('hidden');
+      passengerPlansSection.classList.add('hidden');
+    }
+
+    function showDriverTab(tab) {
+      hideAllRoleSections();
+
+      driverTabsBar.classList.remove('hidden');
+      passengerTabsBar.classList.add('hidden');
+      currentRole = 'driver';
+      setActiveTabUI(driverTabsBar, tab);
+
+      driverPaymentBlock.classList.remove('hidden');
+
+      if (tab === 'create') driverSection.classList.remove('hidden');
+      if (tab === 'active') driverActive.classList.remove('hidden');
+      if (tab === 'history') driverHistory.classList.remove('hidden');
+      if (tab === 'plans') driverPassengerPlansCard.classList.remove('hidden');
+
+      if (tab === 'create') loadDriverProfile();
+      if (tab === 'active') loadDriverActiveTrip();
+      if (tab === 'history') loadDriverTrips();
+      if (tab === 'plans') loadDriverPassengerPlans();
+      loadDriverPaymentInfo();
+
+      startDriverAutoRefresh();
+    }
+
+    function showPassengerTab(tab) {
+      hideAllRoleSections();
+
+      passengerTabsBar.classList.remove('hidden');
+      driverTabsBar.classList.add('hidden');
+      currentRole = 'passenger';
+      setActiveTabUI(passengerTabsBar, tab);
+
+      if (tab === 'trips') passengerSection.classList.remove('hidden');
+      if (tab === 'bookings') passengerActiveSection.classList.remove('hidden');
+      if (tab === 'plan') passengerPlansSection.classList.remove('hidden');
+
+      if (tab === 'trips') loadTrips();
+      if (tab === 'bookings') loadPassengerActiveBookings();
+      if (tab === 'plan') loadPassengerPlans();
+
+      startPassengerAutoRefresh();
+    }
+
+    function stopAutoRefresh() {
+      if (driverAutoTimer) clearInterval(driverAutoTimer);
+      if (passengerAutoTimer) clearInterval(passengerAutoTimer);
+      driverAutoTimer = null;
+      passengerAutoTimer = null;
+    }
+
+    function startDriverAutoRefresh() {
+      stopAutoRefresh();
+      driverAutoTimer = setInterval(() => {
+        if (currentRole !== 'driver') return;
+        loadDriverActiveTrip();
+        loadDriverPassengerPlans();
+      }, 45000);
+    }
+
+    function startPassengerAutoRefresh() {
+      stopAutoRefresh();
+      passengerAutoTimer = setInterval(() => {
+        if (currentRole !== 'passenger') return;
+        loadTrips();
+      }, 45000);
+    }
+
+    // клики по табам
+    driverTabsBar?.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => showDriverTab(btn.dataset.tab));
+    });
+    passengerTabsBar?.querySelectorAll('.tab-btn').forEach((btn) => {
+      btn.addEventListener('click', () => showPassengerTab(btn.dataset.tab));
     });
 
-    const flakes = [];
-    for (let i = 0; i < 100; i++) {
-      flakes.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        r: Math.random() * 3 + 1,
-        speed: Math.random() * 1 + 0.5,
-        drift: Math.random() * 0.6 - 0.3,
-        opacity: Math.random() * 0.4 + 0.6
+    document.getElementById('btn-refresh-trips')?.addEventListener('click', () => loadTrips());
+
+    // Инициализация из Telegram
+    if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user) {
+      tg.expand();
+      currentTelegramUser = tg.initDataUnsafe.user;
+
+      userInfoDiv.textContent =
+        `Вы вошли как: ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''} (@${currentTelegramUser.username || 'без username'})`;
+
+      fetch('/api/init-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: currentTelegramUser }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            console.error('Ошибка init-user:', data.error);
+          }
+          if (currentTelegramUser && String(currentTelegramUser.id) === String(ADMIN_ID)) {
+            adminSection.classList.remove('hidden');
+            loadAdminSettings();
+          } else {
+            adminSection.classList.add('hidden');
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка init-user:', err);
+        });
+    } else {
+      userInfoDiv.textContent =
+        'Это мини-приложение работает только внутри Telegram. Откройте его через бота.';
+    }
+
+    // Переключение ролей
+    btnDriver.addEventListener('click', () => {
+      if (!currentTelegramUser) {
+        roleInfo.textContent =
+          'Откройте мини-приложение через Telegram, чтобы использовать режим водителя.';
+        return;
+      }
+      roleInfo.textContent =
+        'Режим водителя: создавайте поездки,ищите пассажиров';
+
+      roleButtons.forEach(b => b.classList.remove('active-role'));
+      btnDriver.classList.add('active-role');
+
+      showDriverTab('create');
+      startDriverAutoRefresh();
+    });
+
+    btnPassenger.addEventListener('click', () => {
+      if (!currentTelegramUser) {
+        roleInfo.textContent =
+          'Откройте мини-приложение через Telegram, чтобы просматривать поездки.';
+        return;
+      }
+      roleInfo.textContent =
+        'Режим пассажира: ищите водителя,планируйте свои поездки';
+
+      roleButtons.forEach(b => b.classList.remove('active-role'));
+      btnPassenger.classList.add('active-role');
+
+      showPassengerTab('trips');
+      startPassengerAutoRefresh();
+    });
+
+    // Водитель: профиль машины
+    function loadDriverProfile() {
+      if (!currentTelegramUser) return;
+
+      fetch(`/api/driver/profile?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverCarMessage.textContent = 'Ошибка загрузки профиля: ' + data.error;
+            return;
+          }
+          const p = data.profile || {};
+          document.getElementById('car-make').value = p.car_make || '';
+          document.getElementById('car-color').value = p.car_color || '';
+          document.getElementById('car-plate').value = p.car_plate || '';
+          if (p.car_make || p.car_color || p.car_plate) {
+            driverCarMessage.textContent = 'Данные машины загружены.';
+          } else {
+            driverCarMessage.textContent =
+              'Укажите данные машины, чтобы пассажирам было легче вас узнать.';
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/driver/profile (GET):', err);
+          driverCarMessage.textContent = 'Ошибка при загрузке профиля.';
+        });
+    }
+
+    document.getElementById('btn-save-car').addEventListener('click', () => {
+      if (!currentTelegramUser) {
+        driverCarMessage.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+      const carMake = document.getElementById('car-make').value.trim();
+      const carColor = document.getElementById('car-color').value.trim();
+      const carPlate = document.getElementById('car-plate').value.trim();
+
+      fetch('/api/driver/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          car_make: carMake,
+          car_color: carColor,
+          car_plate: carPlate,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverCarMessage.textContent = 'Ошибка: ' + data.error;
+          } else {
+            driverCarMessage.textContent = 'Профиль машины сохранён.';
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/driver/profile (POST):', err);
+          driverCarMessage.textContent = 'Ошибка при сохранении профиля.';
+        });
+    });
+
+    // Водитель: создание поездки
+    document.getElementById('btn-create-trip').addEventListener('click', () => {
+      if (!currentTelegramUser) {
+        driverMessage.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      const fromCity = document.getElementById('from-city').value.trim();
+      const toCity = document.getElementById('to-city').value.trim();
+      const departureTime = document.getElementById('departure-time').value;
+      const seatsTotal = document.getElementById('seats-total').value;
+      const pricePerSeat = document.getElementById('price-per-seat').value;
+      const note = document.getElementById('trip-note').value.trim();
+
+      if (!fromCity || !toCity || !departureTime || !seatsTotal || !pricePerSeat) {
+        driverMessage.textContent = 'Заполните обязательные поля.';
+        return;
+      }
+
+      driverMessage.textContent = 'Создание поездки...';
+
+      fetch('/api/trips', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          from_city: fromCity,
+          to_city: toCity,
+          departure_time: departureTime,
+          seats_total: seatsTotal,
+          price_per_seat: pricePerSeat,
+          note,
+        }),
+      })
+        .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok || data.error) {
+            driverMessage.textContent =
+              'Ошибка: ' + (data.error || 'не удалось создать поездку');
+          } else {
+            driverMessage.textContent = 'Поездка создана.';
+            document.getElementById('from-city').value = '';
+            document.getElementById('to-city').value = '';
+            document.getElementById('departure-time').value = '';
+            document.getElementById('seats-total').value = '3';
+            document.getElementById('price-per-seat').value = '';
+            document.getElementById('trip-note').value = '';
+            loadDriverTrips();
+            loadDriverActiveTrip();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/trips (POST):', err);
+          driverMessage.textContent = 'Внутренняя ошибка сервера.';
+        });
+    });
+
+    // Водитель: история поездок
+    btnLoadDriverTrips.addEventListener('click', loadDriverTrips);
+
+    function loadDriverTrips() {
+      if (!currentTelegramUser) {
+        driverTripsList.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      driverTripsList.textContent = 'Загрузка поездок...';
+
+      fetch(`/api/driver/trips?telegram_id=${encodeURIComponent(String(currentTelegramUser.id))}`)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverTripsList.textContent = 'Ошибка: ' + data.error;
+          } else {
+            renderDriverTrips(data.trips || []);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/driver/trips:', err);
+          driverTripsList.textContent = 'Произошла ошибка при загрузке списка.';
+        });
+    }
+
+    function renderDriverTrips(trips) {
+      if (!trips || trips.length === 0) {
+        driverTripsList.textContent = 'Поездок пока нет.';
+        return;
+      }
+
+      driverTripsList.innerHTML = '';
+      trips.forEach((t) => {
+        const div = document.createElement('div');
+        div.className = 'trip-card';
+
+        const header = document.createElement('div');
+        header.className = 'trip-header';
+
+        const routeSpan = document.createElement('div');
+        routeSpan.className = 'trip-route';
+        routeSpan.textContent = `${t.from_city} → ${t.to_city}`;
+
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'small-text';
+        statusSpan.textContent = t.departure_time;
+
+        header.appendChild(routeSpan);
+        header.appendChild(statusSpan);
+
+        const meta = document.createElement('div');
+        meta.className = 'trip-meta';
+        meta.innerHTML =
+          `Мест всего: ${t.seats_total}, свободно: ${t.seats_available}<br/>` +
+          `Цена за место: ${t.price_per_seat} ₽` +
+          (t.note ? `<br/>Комментарий: ${t.note}` : '');
+
+        const footer = document.createElement('div');
+        footer.style.marginTop = '4px';
+        footer.style.display = 'flex';
+        footer.style.gap = '6px';
+
+        const btnShowPassengers = document.createElement('button');
+        btnShowPassengers.className = 'secondary-btn';
+        btnShowPassengers.textContent = 'Пассажиры';
+        btnShowPassengers.addEventListener('click', () => {
+          loadTripBookingsForDriver(t.id);
+        });
+
+        const btnDelete = document.createElement('button');
+        btnDelete.className = 'danger-btn';
+        btnDelete.textContent = 'Удалить';
+        btnDelete.addEventListener('click', () => {
+          deleteDriverTrip(t.id);
+        });
+
+        footer.appendChild(btnShowPassengers);
+        footer.appendChild(btnDelete);
+
+        div.appendChild(header);
+        div.appendChild(meta);
+        div.appendChild(footer);
+
+        driverTripsList.appendChild(div);
       });
     }
 
-    function animateSnow() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      flakes.forEach(f => {
-        ctx.fillStyle = `rgba(255,255,255,${f.opacity})`;
-        ctx.beginPath();
-        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
-        ctx.fill();
-        f.y += f.speed;
-        f.x += f.drift;
-        if (f.y > canvas.height) {
-          f.y = -10;
-          f.x = Math.random() * canvas.width;
-        }
-      });
-      requestAnimationFrame(animateSnow);
+    function deleteDriverTrip(tripId) {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+      if (!confirm('Отменить эту поездку? По ней не должно быть бронирований.')) return;
+
+      fetch('/api/driver/delete-trip', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          trip_id: tripId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Поездка отменена.');
+            loadDriverTrips();
+            loadDriverActiveTrip();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка удаления поездки:', err);
+          alert('Произошла ошибка при удалении поездки.');
+        });
     }
-    animateSnow();
+
+    function loadTripBookingsForDriver(tripId) {
+      if (!currentTelegramUser) return;
+
+      fetch(
+        `/api/driver/trip-bookings?telegram_id=${encodeURIComponent(
+          String(currentTelegramUser.id)
+        )}&trip_id=${encodeURIComponent(String(tripId))}`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverBookingsTitle.textContent = 'Ошибка: ' + data.error;
+            driverBookingsList.innerHTML = '';
+          } else {
+            driverBookingsTitle.textContent = 'Брони по выбранной поездке:';
+            renderDriverTripBookings(data.bookings || []);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/driver/trip-bookings:', err);
+          driverBookingsTitle.textContent =
+            'Произошла ошибка при загрузке списка бронирований.';
+          driverBookingsList.innerHTML = '';
+        });
+    }
+
+    function renderDriverTripBookings(bookings) {
+      if (!bookings || bookings.length === 0) {
+        driverBookingsList.textContent = 'По этой поездке пока нет бронирований.';
+        return;
+      }
+
+      driverBookingsList.innerHTML = '';
+      bookings.forEach((b) => {
+        const div = document.createElement('div');
+        div.className = 'booking-card';
+
+        const header = document.createElement('div');
+        header.className = 'booking-header';
+
+        const nameSpan = document.createElement('div');
+        nameSpan.textContent = formatName(
+          b.passenger_first_name,
+          b.passenger_last_name,
+          b.passenger_username
+        );
+
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'booking-status';
+        statusSpan.textContent =
+          b.status === 'no_show'
+            ? 'не приехал'
+            : b.status === 'cancelled'
+            ? 'отменено'
+            : 'забронировано';
+
+        header.appendChild(nameSpan);
+        header.appendChild(statusSpan);
+
+        const meta = document.createElement('div');
+        meta.className = 'booking-meta';
+        meta.innerHTML =
+          `Мест: ${b.seats_booked}<br/>` +
+          `Сумма: ${b.amount_total} ₽ (водителю: ${b.driver_amount} ₽, сервис: ${b.app_fee} ₽)<br/>` +
+          `Неявок у пассажира: ${b.passenger_no_show_count || 0}`;
+
+        div.appendChild(header);
+        div.appendChild(meta);
+
+        if (b.status === 'booked') {
+          const btnNoShow = document.createElement('button');
+          btnNoShow.className = 'danger-btn';
+          btnNoShow.textContent = 'Отметить как не приехал';
+          btnNoShow.addEventListener('click', () => {
+            markNoShow(b.id);
+          });
+          div.appendChild(btnNoShow);
+        }
+
+        driverBookingsList.appendChild(div);
+      });
+    }
+
+    function markNoShow(bookingId) {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+      if (!confirm('Отметить пассажира как не приехавшего?')) return;
+
+      fetch('/api/bookings/no-show', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          booking_id: bookingId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Пассажир отмечен как не приехавший.');
+            loadDriverTrips();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка no-show:', err);
+          alert('Произошла ошибка при обновлении статуса.');
+        });
+    }
+
+    // Водитель: активная поездка
+    btnLoadActiveTrip.addEventListener('click', loadDriverActiveTrip);
+    btnActivePassengers.addEventListener('click', () => {
+      if (activeTripId) {
+        loadTripBookingsForDriver(activeTripId);
+      } else {
+        alert('Активная поездка не найдена.');
+      }
+    });
+    btnCancelActiveTrip.addEventListener('click', () => {
+      if (!activeTripId) {
+        alert('Нет активной поездки.');
+        return;
+      }
+      deleteDriverTrip(activeTripId);
+    });
+
+    function loadDriverActiveTrip() {
+      if (!currentTelegramUser) {
+        driverActiveInfo.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      driverActiveInfo.textContent = 'Загрузка активной поездки...';
+
+      fetch(
+        `/api/driver/active-trip?telegram_id=${encodeURIComponent(
+          String(currentTelegramUser.id)
+        )}`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          const t = data.trip;
+          if (!t) {
+            driverActiveInfo.textContent = 'Активной поездки сейчас нет.';
+            activeTripId = null;
+            driverBookingsTitle.textContent = '';
+            driverBookingsList.innerHTML = '';
+            return;
+          }
+
+          activeTripId = t.id;
+          driverActiveInfo.innerHTML =
+            `${t.from_city} → ${t.to_city}<br/>` +
+            `Выезд: ${t.departure_time}<br/>` +
+            `Мест всего: ${t.seats_total}, свободно: ${t.seats_available}`;
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/driver/active-trip:', err);
+          driverActiveInfo.textContent =
+            'Произошла ошибка при загрузке активной поездки.';
+        });
+    }
+
+    // Пассажир: список поездок
+    function loadTrips() {
+      tripsList.textContent = 'Загрузка поездок...';
+
+      let url = '/api/trips';
+      const params = new URLSearchParams();
+
+      if (currentRole === 'passenger') {
+        if (filterFrom.value) params.append('from', filterFrom.value);
+        if (filterTo.value) params.append('to', filterTo.value);
+        if (filterDay.value !== 'any') params.append('day', filterDay.value);
+        if (filterSort.value) params.append('sort', filterSort.value);
+      }
+
+      if (params.toString()) {
+        url += '?' + params.toString();
+      }
+
+      fetch(url)
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            tripsList.textContent = 'Ошибка: ' + data.error;
+          } else {
+            renderTrips(data.trips || []);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/trips:', err);
+          tripsList.textContent = 'Произошла ошибка при загрузке списка поездок.';
+        });
+    }
+
+    function renderTrips(trips) {
+      if (!trips || trips.length === 0) {
+        tripsList.textContent = 'Поездок с доступными местами сейчас нет.';
+        return;
+      }
+
+      tripsList.innerHTML = '';
+      trips.forEach((t) => {
+        const div = document.createElement('div');
+        div.className = 'trip-card';
+
+        const header = document.createElement('div');
+        header.className = 'trip-header';
+
+        const routeSpan = document.createElement('div');
+        routeSpan.className = 'trip-route';
+        routeSpan.textContent = `${t.from_city} → ${t.to_city}`;
+
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'small-text';
+        dateSpan.textContent = t.departure_time;
+
+        header.appendChild(routeSpan);
+        header.appendChild(dateSpan);
+
+        const meta = document.createElement('div');
+        meta.className = 'trip-meta';
+        meta.innerHTML =
+          `Водитель: ${formatName(t.first_name, t.last_name, t.username)}<br/>` +
+          `Мест всего: ${t.seats_total}, свободно: ${t.seats_available}<br/>` +
+          `Цена за место: ${t.price_per_seat} ₽` +
+          (t.note ? `<br/>Комментарий: ${t.note}` : '');
+
+        const fieldSeats = document.createElement('div');
+        fieldSeats.className = 'field';
+        const label = document.createElement('label');
+        label.textContent = 'Сколько мест забронировать';
+        const input = document.createElement('input');
+        input.type = 'number';
+        input.min = 1;
+        input.max = t.seats_available;
+        input.value = 1;
+        fieldSeats.appendChild(label);
+        fieldSeats.appendChild(input);
+
+        const btnBook = document.createElement('button');
+        btnBook.className = 'primary-btn';
+        btnBook.textContent = 'Забронировать';
+        btnBook.addEventListener('click', () => {
+          const seats = Number(input.value || 0);
+          if (!currentTelegramUser) {
+            alert('Откройте мини-приложение через Telegram.');
+            return;
+          }
+          if (!Number.isFinite(seats) || seats <= 0) {
+            alert('Укажите корректное количество мест.');
+            return;
+          }
+          if (seats > t.seats_available) {
+            alert('Недостаточно свободных мест.');
+            return;
+          }
+          createBooking(t.id, seats);
+        });
+
+        div.appendChild(header);
+        div.appendChild(meta);
+        div.appendChild(fieldSeats);
+        div.appendChild(btnBook);
+
+        tripsList.appendChild(div);
+      });
+    }
+
+    function createBooking(tripId, seats) {
+      fetch('/api/bookings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          trip_id: tripId,
+          seats,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Бронь создана. Проверьте раздел "Мои активные бронирования".');
+            loadTrips();
+            loadPassengerActiveBookings();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/bookings:', err);
+          alert('Произошла ошибка при создании брони.');
+        });
+    }
+
+    // Пассажир: активные брони
+    btnLoadPassengerActive.addEventListener('click', loadPassengerActiveBookings);
+
+    function loadPassengerActiveBookings() {
+      if (!currentTelegramUser) {
+        passengerActiveList.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      passengerActiveList.textContent = 'Загрузка активных бронирований...';
+
+      fetch(
+        `/api/passenger/active-bookings?telegram_id=${encodeURIComponent(
+          String(currentTelegramUser.id)
+        )}`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            passengerActiveList.textContent = 'Ошибка: ' + data.error;
+          } else {
+            renderPassengerActiveBookings(data.bookings || []);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/passenger/active-bookings:', err);
+          passengerActiveList.textContent =
+            'Произошла ошибка при загрузке списка бронирований.';
+        });
+    }
+
+    function renderPassengerActiveBookings(bookings) {
+      const activeBookings = (bookings || []).filter((b) =>
+        isStillActiveByDeparture(b.departure_time)
+      );
+
+      if (!activeBookings || activeBookings.length === 0) {
+        passengerActiveList.textContent = 'Активных бронирований сейчас нет.';
+        return;
+      }
+
+      passengerActiveList.innerHTML = '';
+
+      activeBookings.forEach((b) => {
+        const div = document.createElement('div');
+        div.className = 'booking-card';
+
+        const header = document.createElement('div');
+        header.className = 'booking-header';
+
+        const routeSpan = document.createElement('div');
+        routeSpan.textContent = `${b.from_city} → ${b.to_city}`;
+
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'booking-status';
+        statusSpan.textContent = 'забронировано';
+
+        header.appendChild(routeSpan);
+        header.appendChild(statusSpan);
+
+        const meta = document.createElement('div');
+        meta.className = 'booking-meta';
+
+        const driverName = formatName(
+          b.driver_first_name,
+          b.driver_last_name,
+          b.driver_username
+        );
+
+        meta.innerHTML =
+          `Водитель: ${driverName}<br/>` +
+          `Выезд: ${b.departure_time}<br/>` +
+          `Мест забронировано: ${b.seats_booked}`;
+
+        const btnCancel = document.createElement('button');
+        btnCancel.className = 'danger-btn';
+        btnCancel.textContent = 'Отменить бронь';
+        btnCancel.addEventListener('click', () => {
+          cancelPassengerBooking(b.id);
+        });
+
+        div.appendChild(header);
+        div.appendChild(meta);
+        div.appendChild(btnCancel);
+
+        passengerActiveList.appendChild(div);
+      });
+    }
+
+    function cancelPassengerBooking(bookingId) {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+
+      if (!confirm('Отменить эту бронь?')) return;
+
+      fetch('/api/bookings/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          booking_id: bookingId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Бронь отменена.');
+            loadPassengerActiveBookings();
+            loadTrips();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка отмены брони:', err);
+          alert('Произошла ошибка при отмене брони.');
+        });
+    }
+
+    // Пассажир: планы поездок
+    if (btnCreatePassengerPlan) {
+      btnCreatePassengerPlan.addEventListener('click', () => {
+        if (!currentTelegramUser) {
+          passengerPlanMessage.textContent = 'Откройте мини-приложение через Telegram.';
+          return;
+        }
+
+        const fromCity = planFromCityInput.value.trim();
+        const toCity = planToCityInput.value.trim();
+        const desiredTime = planDesiredTimeInput.value;
+        const seatsNeeded = planSeatsNeededInput.value;
+        const note = planNoteInput.value.trim();
+
+        if (!fromCity || !toCity || !desiredTime || !seatsNeeded) {
+          passengerPlanMessage.textContent = 'Заполните обязательные поля.';
+          return;
+        }
+
+        passengerPlanMessage.textContent = 'Создание плана поездки...';
+
+        fetch('/api/passenger/plans', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            telegram_id: String(currentTelegramUser.id),
+            from_city: fromCity,
+            to_city: toCity,
+            desired_time: desiredTime,
+            seats_needed: seatsNeeded,
+            note,
+          }),
+        })
+          .then((res) => res.json())
+          .then((data) => {
+            if (data.error) {
+              passengerPlanMessage.textContent = 'Ошибка: ' + data.error;
+            } else {
+              passengerPlanMessage.textContent =
+                'План поездки создан. Водители увидят его в своём списке.';
+              planFromCityInput.value = '';
+              planToCityInput.value = '';
+              planDesiredTimeInput.value = '';
+              planSeatsNeededInput.value = '1';
+              planNoteInput.value = '';
+              loadPassengerPlans();
+            }
+          })
+          .catch((err) => {
+            console.error('Ошибка /api/passenger/plans (POST):', err);
+            passengerPlanMessage.textContent = 'Внутренняя ошибка сервера.';
+          });
+      });
+    }
+
+    function loadPassengerPlans() {
+      if (!currentTelegramUser) {
+        passengerPlansList.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      passengerPlansList.textContent = 'Загрузка запланированных поездок...';
+
+      fetch(
+        `/api/passenger/plans?telegram_id=${encodeURIComponent(
+          String(currentTelegramUser.id)
+        )}`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            passengerPlansList.textContent = 'Ошибка: ' + data.error;
+          } else {
+            renderPassengerPlans(data.plans || []);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/passenger/plans (GET):', err);
+          passengerPlansList.textContent =
+            'Произошла ошибка при загрузке списка запланированных поездок.';
+        });
+    }
+
+    function renderPassengerPlans(plans) {
+      const filtered = (plans || []).filter((p) => {
+        if (p.status !== 'active') {
+          return true;
+        }
+        return isPlanStillActive(p.desired_time);
+      });
+
+      if (!filtered || filtered.length === 0) {
+        passengerPlansList.textContent = 'У вас пока нет запланированных поездок.';
+        return;
+      }
+
+      passengerPlansList.innerHTML = '';
+      filtered.forEach((p) => {
+        const div = document.createElement('div');
+        div.className = 'plan-card';
+
+        const header = document.createElement('div');
+        header.className = 'trip-header';
+
+        const routeSpan = document.createElement('div');
+        routeSpan.className = 'trip-route';
+        routeSpan.textContent = `${p.from_city} → ${p.to_city}`;
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'small-text';
+        timeSpan.textContent = formatDateReadable(p.desired_time);
+
+        header.appendChild(routeSpan);
+        header.appendChild(timeSpan);
+
+        const meta = document.createElement('div');
+        meta.className = 'trip-meta';
+
+        let statusText = '';
+        if (p.status === 'active') statusText = 'Активен';
+        else if (p.status === 'taken') statusText = 'Вас заберёт водитель';
+        else if (p.status === 'cancelled') statusText = 'Отменён';
+        else if (p.status === 'expired') statusText = 'Истёк';
+        else statusText = p.status || 'неизвестно';
+
+        let driverInfo = '';
+        if (p.status === 'taken' && p.driver_username) {
+          driverInfo =
+            '<br/>Водитель: ' +
+            formatName(p.driver_first_name, p.driver_last_name, p.driver_username);
+        }
+
+        meta.innerHTML =
+          `Нужно мест: ${p.seats_needed}` +
+          (p.note ? `<br/>Комментарий: ${p.note}` : '') +
+          `<br/>Время планируемого выезда: ${formatDateReadable(p.desired_time)}` +
+          `<br/><span class="tag">Статус: ${statusText}</span>` +
+          driverInfo;
+
+        div.appendChild(header);
+        div.appendChild(meta);
+
+        if (p.status === 'active') {
+          const btnCancel = document.createElement('button');
+          btnCancel.className = 'danger-btn';
+          btnCancel.textContent = 'Отменить план';
+          btnCancel.addEventListener('click', () => {
+            cancelPassengerPlan(p.id);
+          });
+          div.appendChild(btnCancel);
+        }
+
+        passengerPlansList.appendChild(div);
+      });
+    }
+
+    function cancelPassengerPlan(planId) {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+      if (!confirm('Отменить эту запланированную поездку?')) return;
+
+      fetch('/api/passenger/plans/cancel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          plan_id: planId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Запланированная поездка отменена.');
+            loadPassengerPlans();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/passenger/plans/cancel:', err);
+          alert('Произошла ошибка при отмене запланированной поездки.');
+        });
+    }
+
+      if (btnReloadDriverPassengerPlans) {
+      btnReloadDriverPassengerPlans.addEventListener('click', () => {
+        loadDriverPassengerPlans();
+      });
+    }
+
+    function loadDriverPassengerPlans() {
+      if (!currentTelegramUser) {
+        driverPassengerPlansList.textContent = 'Откройте мини-приложение через Telegram.';
+        return;
+      }
+
+      driverPassengerPlansList.textContent = 'Загрузка запросов пассажиров...';
+
+      fetch(
+        `/api/driver/passenger-plans?telegram_id=${encodeURIComponent(
+          String(currentTelegramUser.id)
+        )}`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverPassengerPlansList.textContent = 'Ошибка: ' + data.error;
+          } else {
+            renderDriverPassengerPlans(data.plans || []);
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/driver/passenger-plans:', err);
+          driverPassengerPlansList.textContent =
+            'Произошла ошибка при загрузке запросов пассажиров.';
+        });
+    }
+
+    function renderDriverPassengerPlans(plans) {
+      const activePlans = (plans || []).filter((p) => isPlanStillActive(p.desired_time));
+
+      if (!activePlans || activePlans.length === 0) {
+        driverPassengerPlansList.textContent = 'Запросов пассажиров сейчас нет.';
+        return;
+      }
+
+      driverPassengerPlansList.innerHTML = '';
+
+      activePlans.forEach((p) => {
+        const div = document.createElement('div');
+        div.className = 'plan-card';
+
+        const header = document.createElement('div');
+        header.className = 'trip-header';
+
+        const routeSpan = document.createElement('div');
+        routeSpan.className = 'trip-route';
+        routeSpan.textContent = `${p.from_city} → ${p.to_city}`;
+
+        const timeSpan = document.createElement('span');
+        timeSpan.className = 'small-text';
+        timeSpan.textContent = formatDateReadable(p.desired_time);
+
+        header.appendChild(routeSpan);
+        header.appendChild(timeSpan);
+
+        const meta = document.createElement('div');
+        meta.className = 'trip-meta';
+
+        const passengerName = formatName(
+          p.passenger_first_name,
+          p.passenger_last_name,
+          p.passenger_username
+        );
+
+        meta.innerHTML =
+          `Пассажир: ${passengerName}<br/>` +
+          `Нужно мест: ${p.seats_needed}<br/>` +
+          `Неявок у пассажира: ${p.passenger_no_show_count || 0}` +
+          (p.note ? `<br/>Комментарий: ${p.note}` : '') +
+          `<br/>Время планируемого выезда: ${formatDateReadable(p.desired_time)}`;
+
+        const btnTake = document.createElement('button');
+        btnTake.className = 'primary-btn';
+        btnTake.textContent = 'Забрать пассажира';
+        btnTake.addEventListener('click', () => {
+          takePassengerPlan(p.id);
+        });
+
+        div.appendChild(header);
+        div.appendChild(meta);
+        div.appendChild(btnTake);
+
+        driverPassengerPlansList.appendChild(div);
+      });
+    }
+
+    function takePassengerPlan(planId) {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+
+      if (
+        !confirm(
+          'Вы хотите забрать этого пассажира? Ему придёт сообщение «Вас заберёт водитель».'
+        )
+      ) {
+        return;
+      }
+
+      fetch('/api/driver/passenger-plans/take', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          plan_id: planId,
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Вы взяли эту запланированную поездку. Пассажиру отправлено уведомление.');
+            loadDriverPassengerPlans();
+            loadPassengerPlans();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/driver/passenger-plans/take:', err);
+          alert('Произошла ошибка при выборе запланированной поездки.');
+        });
+    }
+
+    // Водитель: блок оплаты
+    function loadDriverPaymentInfo() {
+      if (!currentTelegramUser) {
+        driverPaymentBlock.classList.add('hidden');
+        return;
+      }
+
+      fetch(
+        `/api/driver/daily-stats?telegram_id=${encodeURIComponent(
+          String(currentTelegramUser.id)
+        )}`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            driverPaymentBlock.classList.add('hidden');
+            return;
+          }
+
+          const settings = data.settings || {};
+          const stats = data.stats || {};
+          const hasProof = !!data.has_proof_today;
+          const isBlocked = data.is_blocked || 0;
+
+          if (!settings.monetization_enabled) {
+            driverPaymentBlock.classList.add('hidden');
+          } else {
+            driverPaymentBlock.classList.remove('hidden');
+          }
+
+          const trips = stats.trips_count || 0;
+          const bookings = stats.bookings_count || 0;
+          const seats = stats.seats_count || 0;
+          const fee = stats.app_fee_total || 0;
+
+          const lines = [];
+
+          lines.push('Сервис стал немного платным для водителей.');
+          lines.push('Комиссия помогает поддерживать и развивать "попутчики".');
+          lines.push('');
+          lines.push('За сегодня:');
+          lines.push(`• Поездок с бронями: ${trips}`);
+          lines.push(`• Бронирований: ${bookings}`);
+          lines.push(`• Мест: ${seats}`);
+          lines.push(`• Комиссия сервиса: ${fee.toFixed(2)} ₽`);
+
+          if (fee > 0 && !hasProof) {
+            lines.push('');
+            lines.push(
+              'После оплаты комиссии и прикрепления чека вы сможете создавать новые поездки.'
+            );
+          } else if (hasProof) {
+            lines.push('');
+            lines.push('Чек за сегодня уже прикреплён. Спасибо, вы можете продолжать работать.');
+          } else if (fee === 0) {
+            lines.push('');
+            lines.push('Сегодня пока нет комиссий — чек можно не прикреплять.');
+          }
+
+          if (isBlocked) {
+            lines.push('');
+            lines.push('Внимание: ваш профиль заблокирован администратором.');
+            lines.push('Новые поездки пока нельзя создавать.');
+          }
+
+          driverPaymentInfo.innerHTML = lines.join('<br/>');
+
+          const details = settings.payment_details || '';
+          if (details) {
+            driverPaymentRequisites.innerHTML =
+              'Реквизиты для оплаты:<br/>' + details.replace(/\n/g, '<br/>');
+
+            driverPaymentDetailsCopy.value = details;
+            driverPaymentCopyBlock.classList.remove('hidden');
+          } else {
+            driverPaymentRequisites.textContent =
+              'Реквизиты для оплаты ещё не настроены администратором.';
+            driverPaymentDetailsCopy.value = '';
+            driverPaymentCopyBlock.classList.add('hidden');
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки дневной статистики водителя:', err);
+          driverPaymentInfo.textContent = 'Не удалось загрузить данные по комиссии за сегодня.';
+        });
+    }
+
+    btnUploadPayment.addEventListener('click', () => {
+      if (!currentTelegramUser) {
+        alert('Откройте мини-приложение через Telegram.');
+        return;
+      }
+      if (!driverPaymentFile.files || !driverPaymentFile.files[0]) {
+        alert('Выберите файл чека для загрузки.');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('telegram_id', String(currentTelegramUser.id));
+      formData.append('file', driverPaymentFile.files[0]);
+
+      fetch('/api/driver/payment-proof', {
+        method: 'POST',
+        body: formData,
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            alert('Ошибка: ' + data.error);
+          } else {
+            alert('Чек загружен. Спасибо!');
+            driverPaymentFile.value = '';
+            loadDriverPaymentInfo();
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка загрузки чека:', err);
+          alert('Произошла ошибка при загрузке файла.');
+        });
+    });
+
+    btnCopyPaymentDetails.addEventListener('click', () => {
+      const text = driverPaymentDetailsCopy.value || '';
+      if (!text) {
+        alert('Нет реквизитов для копирования.');
+        return;
+      }
+
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard
+          .writeText(text)
+          .then(() => {
+            alert('Реквизиты скопированы в буфер обмена.');
+          })
+          .catch(() => {
+            driverPaymentDetailsCopy.select();
+            document.execCommand('copy');
+            alert('Реквизиты скопированы.');
+          });
+      } else {
+        driverPaymentDetailsCopy.select();
+        document.execCommand('copy');
+        alert('Реквизиты скопированы.');
+      }
+    });
+
+    function setPassengerFiltersOpen(open, persist = true) {
+  if (!passengerFilters || !btnTogglePassengerFilters) return;
+
+  passengerFilters.classList.toggle('hidden', !open);
+  btnTogglePassengerFilters.textContent = open ? 'Скрыть фильтры ▲' : 'Фильтры ▼';
+
+  if (persist) {
+    try {
+      localStorage.setItem('passengerFiltersOpen', open ? '1' : '0');
+    } catch (e) {}
+  }
+}
+
+// init + toggle
+if (btnTogglePassengerFilters && passengerFilters) {
+  let open = false;
+  try {
+    open = localStorage.getItem('passengerFiltersOpen') === '1';
+  } catch (e) {}
+  // по умолчанию будет закрыт, если ничего не сохранено
+  setPassengerFiltersOpen(open, false);
+
+  btnTogglePassengerFilters.addEventListener('click', () => {
+    const willOpen = passengerFilters.classList.contains('hidden');
+    setPassengerFiltersOpen(willOpen);
+  });
+}
+
+    // === Обработчики фильтров пассажира ===
+    if (btnApplyFilters) {
+  btnApplyFilters.addEventListener('click', () => {
+    loadTrips();
+    setPassengerFiltersOpen(false);
+  });
+}
+
+if (btnResetFilters) {
+  btnResetFilters.addEventListener('click', () => {
+    filterFrom.value = '';
+    filterTo.value = '';
+    filterDay.value = 'any';
+    filterSort.value = 'time_asc';
+    loadTrips();
+    setPassengerFiltersOpen(false);
+  });
+}
+
+    // Админ-панель
+    function loadAdminSettings() {
+      if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) {
+        return;
+      }
+
+      adminSettingsInfo.textContent = 'Загрузка настроек...';
+
+      fetch(
+        `/api/admin/settings?telegram_id=${encodeURIComponent(
+          String(currentTelegramUser.id)
+        )}`
+      )
+        .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok || data.error) {
+            adminSettingsInfo.textContent = 'Ошибка: ' + (data.error || 'нет доступа');
+            return;
+          }
+
+          const s = data.settings || {};
+          const enabled = !!s.monetization_enabled;
+          adminSettingsInfo.textContent =
+            'Платный режим для водителей сейчас: ' + (enabled ? 'ВКЛЮЧЕН' : 'ВЫКЛЮЧЕН');
+          adminPaymentDetails.value = s.payment_details || '';
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/admin/settings (GET):', err);
+          adminSettingsInfo.textContent = 'Произошла ошибка при загрузке настроек.';
+        });
+    }
+
+    btnEnablePay.addEventListener('click', () => {
+      if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) return;
+
+      fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          monetization_enabled: true,
+          payment_details: adminPaymentDetails.value || '',
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            adminSettingsInfo.textContent = 'Ошибка: ' + data.error;
+          } else {
+            adminSettingsInfo.textContent = 'Платный режим включён.';
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/admin/settings (POST enable):', err);
+          adminSettingsInfo.textContent = 'Ошибка при сохранении настроек.';
+        });
+    });
+
+    btnDisablePay.addEventListener('click', () => {
+      if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) return;
+
+      fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          telegram_id: String(currentTelegramUser.id),
+          monetization_enabled: false,
+          payment_details: adminPaymentDetails.value || '',
+        }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.error) {
+            adminSettingsInfo.textContent = 'Ошибка: ' + data.error;
+          } else {
+            adminSettingsInfo.textContent = 'Платный режим выключен.';
+          }
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/admin/settings (POST disable):', err);
+          adminSettingsInfo.textContent = 'Ошибка при сохранении настроек.';
+        });
+    });
+
+    btnLoadStats.addEventListener('click', () => {
+      if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) {
+        adminStatsInfo.textContent = 'Нет доступа.';
+        return;
+      }
+
+      adminStatsInfo.textContent = 'Загрузка статистики...';
+
+      fetch(
+        `/api/admin/stats?telegram_id=${encodeURIComponent(
+          String(currentTelegramUser.id)
+        )}`
+      )
+        .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok || data.error) {
+            adminStatsInfo.textContent = 'Ошибка: ' + (data.error || 'нет доступа');
+            return;
+          }
+
+          const s = data.stats || {};
+          const trips = s.trips_count || 0;
+          const bookings = s.bookings_count || 0;
+          const seats = s.seats_booked_total || 0;
+          const total = s.total_turnover || 0;
+          const fee = s.total_app_fee || 0;
+          const driverAmount = s.total_driver_amount || 0;
+
+          adminStatsInfo.innerHTML =
+            `Поездок с бронями: ${trips}<br/>` +
+            `Бронирований: ${bookings}<br/>` +
+            `Мест забронировано: ${seats}<br/>` +
+            `Оборот: ${total.toFixed(2)} ₽<br/>` +
+            `Комиссия сервиса: ${fee.toFixed(2)} ₽<br/>` +
+            `Сумма водителям: ${driverAmount.toFixed(2)} ₽`;
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/admin/stats:', err);
+          adminStatsInfo.textContent = 'Произошла ошибка при загрузке статистики.';
+        });
+    });
+
+    btnLoadDailyDrivers.addEventListener('click', () => {
+      if (!currentTelegramUser || String(currentTelegramUser.id) !== String(ADMIN_ID)) {
+        adminDailyDrivers.textContent = 'Нет доступа.';
+        return;
+      }
+
+      adminDailyDrivers.textContent = 'Загрузка списка водителей...';
+
+      const dateVal = adminDriversDate.value;
+
+      let url = `/api/admin/daily-drivers?telegram_id=${encodeURIComponent(
+        String(currentTelegramUser.id)
+      )}`;
+      if (dateVal) {
+        url += `&date=${encodeURIComponent(dateVal)}`;
+      }
+
+      fetch(url)
+        .then((res) => res.json().then((data) => ({ ok: res.ok, data })))
+        .then(({ ok, data }) => {
+          if (!ok || data.error) {
+            adminDailyDrivers.textContent = 'Ошибка: ' + (data.error || 'нет доступа');
+            return;
+          }
+
+          const list = data.drivers || [];
+          if (!list.length) {
+            adminDailyDrivers.textContent =
+              'За выбранный день пока нет поездок с бронями.';
+            return;
+          }
+
+          let html = '';
+          list.forEach((d) => {
+            const name =
+              `${d.first_name || ''} ${d.last_name || ''}`.trim() || 'без имени';
+            const username = d.username ? `@${d.username}` : '';
+            const fee = d.app_fee_total || 0;
+            const statusText = d.is_blocked ? 'ЗАБЛОКИРОВАН' : 'Активен';
+
+            let proofText = 'чек не прикреплялся';
+            if (d.last_proof_file) {
+              const urlFile = `/uploads/${encodeURIComponent(d.last_proof_file)}`;
+              proofText = `последний чек: <a href="${urlFile}" target="_blank">${d.last_proof_original_name || 'файл'}</a>`;
+            }
+
+            const btnLabel = d.is_blocked ? 'Разблокировать' : 'Заблокировать';
+            const action = d.is_blocked ? 'unblock' : 'block';
+
+            html +=
+              `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid #e5e7eb;">` +
+              `<strong>${name}</strong> ${username}<br/>` +
+              `Поездок с бронями: ${d.trips_count || 0}, броней: ${d.bookings_count || 0}, мест: ${d.seats_count || 0}<br/>` +
+              `Комиссия за день: ${fee.toFixed(2)} ₽<br/>` +
+              `Статус: ${statusText}<br/>` +
+              `${proofText}<br/>` +
+              `<button class="danger-btn admin-block-btn" data-driver-tg="${d.telegram_id}" data-action="${action}">${btnLabel}</button>` +
+              `</div>`;
+          });
+
+          adminDailyDrivers.innerHTML = html;
+          initAdminDriverBlockButtons();
+        })
+        .catch((err) => {
+          console.error('Ошибка /api/admin/daily-drivers:', err);
+          adminDailyDrivers.textContent =
+            'Произошла ошибка при загрузке списка водителей.';
+        });
+    });
+
+    function initAdminDriverBlockButtons() {
+      const buttons = document.querySelectorAll('.admin-block-btn');
+      buttons.forEach((btn) => {
+        btn.addEventListener('click', () => {
+          const driverTg = btn.getAttribute('data-driver-tg');
+          const action = btn.getAttribute('data-action');
+          if (!driverTg || !action) return;
+
+          const block = action === 'block';
+          const confirmText = block
+            ? 'Заблокировать этого водителя? Он не сможет создавать новые поездки.'
+            : 'Разблокировать этого водителя?';
+
+          if (!confirm(confirmText)) return;
+
+          fetch('/api/admin/block-driver', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              telegram_id: String(currentTelegramUser.id),
+              driver_telegram_id: driverTg,
+              block,
+            }),
+          })
+            .then((res) => res.json())
+            .then((data) => {
+              if (data.error) {
+                alert('Ошибка: ' + data.error);
+              } else {
+                alert('Статус водителя обновлён.');
+                btnLoadDailyDrivers.click();
+              }
+            })
+            .catch((err) => {
+              console.error('Ошибка /api/admin/block-driver:', err);
+              alert('Произошла ошибка при обновлении статуса водителя.');
+            });
+        });
+      });
+    }
   </script>
 </body>
 </html>
