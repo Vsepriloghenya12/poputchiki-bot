@@ -1385,6 +1385,39 @@
         });
     }
 
+    // Заполнение фильтров городами из текущих поездок
+function fillCitiesFromTrips() {
+  const fromSet = new Set();
+  const toSet = new Set();
+
+  document.querySelectorAll('.trip-card').forEach(card => {
+    const routeText = card.querySelector('.trip-route')?.textContent || '';
+    const parts = routeText.split(' → ');
+    if (parts.length === 2) {
+      fromSet.add(parts[0].trim());
+      toSet.add(parts[1].trim());
+    }
+  });
+
+  const cities = Array.from(new Set([...fromSet, ...toSet])).sort();
+
+  const fromSelect = document.getElementById('filter-from');
+  const toSelect = document.getElementById('filter-to');
+
+  // Очищаем старые опции (кроме "Любой")
+  fromSelect.innerHTML = '<option value="">Любой</option>';
+  toSelect.innerHTML = '<option value="">Любой</option>';
+
+  cities.forEach(city => {
+    const optionFrom = document.createElement('option');
+    optionFrom.value = city;
+    optionFrom.textContent = city;
+    fromSelect.appendChild(optionFrom);
+
+    const optionTo = optionFrom.cloneNode(true);
+    toSelect.appendChild(optionTo);
+  });
+}
     function loadTrips() {
       tripsList.textContent = 'Загрузка поездок...';
 
