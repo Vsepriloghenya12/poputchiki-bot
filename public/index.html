@@ -361,6 +361,40 @@
       0%, 100% { opacity: 0.8; transform: scale(1); }
       50% { opacity: 1; transform: scale(1.05); }
     }
+    /* Красивое toast-уведомление */
+.toast {
+  position: fixed;
+  bottom: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(220, 38, 38, 0.95);
+  backdrop-filter: blur(12px);
+  color: white;
+  padding: 16px 24px;
+  border-radius: 16px;
+  box-shadow: 0 8px 32px rgba(220, 38, 38, 0.4);
+  font-size: 16px;
+  font-weight: 600;
+  z-index: 1000;
+  opacity: 0;
+  transition: opacity 0.4s ease, transform 0.4s ease;
+  pointer-events: none;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 90%;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-10px);
+}
+
+.toast::before {
+  content: "🎄✨";
+  font-size: 24px;
+}
   </style>
 </head>
 <body>
@@ -1093,7 +1127,9 @@
             document.getElementById('trip-note').value = '';
             loadDriverTrips();
             loadDriverActiveTrip();
+            showToast('Поездка успешно создана! 🎉');
           }
+          
         })
         .catch((err) => {
           console.error('Ошибка /api/trips (POST):', err);
@@ -1550,6 +1586,26 @@ function fillCitiesFromTrips() {
           alert('Произошла ошибка при создании брони.');
         });
     }
+    function showToast(message, duration = 4000) {
+  // Удаляем старый toast, если есть
+  const oldToast = document.querySelector('.toast');
+  if (oldToast) oldToast.remove();
+
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+
+  document.body.appendChild(toast);
+
+  // Показываем
+  setTimeout(() => toast.classList.add('show'), 100);
+
+  // Скрываем и удаляем
+  setTimeout(() => {
+    toast.classList.remove('show');
+    setTimeout(() => toast.remove(), 400);
+  }, duration);
+}
 
     btnLoadPassengerActive.addEventListener('click', loadPassengerActiveBookings);
 
