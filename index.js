@@ -125,6 +125,7 @@ function dbAll(sql, params = []) {
 // ---------------- ТАБЛИЦА ЗАПЛАНИРОВАННЫХ ПОЕЗДОК ПАССАЖИРОВ ----------------
 
 db.serialize(() => {
+  // 1) Таблица
   db.run(
     `
     CREATE TABLE IF NOT EXISTS passenger_plans (
@@ -146,22 +147,26 @@ db.serialize(() => {
       FOREIGN KEY (passenger_id) REFERENCES users(id),
       FOREIGN KEY (driver_id) REFERENCES users(id)
     )
-
-// Миграции колонок (если таблица уже существовала)
-[
-  "ALTER TABLE passenger_plans ADD COLUMN price_per_seat REAL NOT NULL DEFAULT 0",
-  "ALTER TABLE passenger_plans ADD COLUMN amount_total REAL NOT NULL DEFAULT 0",
-  "ALTER TABLE passenger_plans ADD COLUMN driver_amount REAL NOT NULL DEFAULT 0",
-  "ALTER TABLE passenger_plans ADD COLUMN app_fee REAL NOT NULL DEFAULT 0",
-].forEach((sql) => {
-  db.run(sql, (err) => {
-    // игнорируем ошибки "duplicate column name" и подобные
-  });
-});
-
   `
   );
 
+  // 2) Миграции колонок (если таблица уже существовала)
+  [
+    "ALTER TABLE passenger_plans ADD COLUMN price_per_seat REAL NOT NULL DEFAULT 0",
+    "ALTER TABLE passenger_plans ADD COLUMN amount_total REAL NOT NULL DEFAULT 0",
+    "ALTER TABLE passenger_plans ADD COLUMN driver_amount REAL NOT NULL DEFAULT 0",
+    "ALTER TABLE passenger_plans ADD COLUMN app_fee REAL NOT NULL DEFAULT 0",
+  ].forEach((sql) => {
+    db.run(sql, (err) => {
+      // игнорируем ошибки "duplicate column name" и подобные
+      if (!err) return;
+      const msg = String(err.message || "");
+      if (msg.includes("duplicate column name") || msg.includes("already exists")) return;
+      console.warn("Миграция passenger_plans не применена:", msg);
+    });
+  });
+
+  // 3) Индекс
   db.run(
     `
     CREATE INDEX IF NOT EXISTS idx_passenger_plans_status_time
