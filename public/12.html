@@ -632,10 +632,6 @@
         <input id="plan-seats-needed" type="number" min="1" max="8" value="1" />
       </div>
       <div class="field">
-        <label for="plan-price-per-seat">Цена за место (₽)</label>
-        <input id="plan-price-per-seat" type="number" min="0" step="1" value="0" />
-      </div>
-      <div class="field">
         <label for="plan-note">Комментарий (опционально)</label>
         <input id="plan-note" type="text" placeholder="Например: подойдёт выезд с 8 до 10 утра" />
       </div>
@@ -782,7 +778,6 @@
     const planToCityInput = document.getElementById('plan-to-city');
     const planDesiredTimeInput = document.getElementById('plan-desired-time');
     const planSeatsNeededInput = document.getElementById('plan-seats-needed');
-    const planPricePerSeatInput = document.getElementById('plan-price-per-seat');
     const planNoteInput = document.getElementById('plan-note');
     const btnCreatePassengerPlan = document.getElementById('btn-create-passenger-plan');
     const passengerPlanMessage = document.getElementById('passenger-plan-message');
@@ -1743,19 +1738,12 @@ function fillCitiesFromTrips() {
         const toCity = planToCityInput.value.trim();
         const desiredTime = planDesiredTimeInput.value;
         const seatsNeeded = planSeatsNeededInput.value;
-        const pricePerSeat = planPricePerSeatInput ? planPricePerSeatInput.value : '0';
         const note = planNoteInput.value.trim();
 
-        if (!fromCity || !toCity || !desiredTime || !seatsNeeded || pricePerSeat === '' || pricePerSeat === null || pricePerSeat === undefined) {
+        if (!fromCity || !toCity || !desiredTime || !seatsNeeded) {
           passengerPlanMessage.textContent = 'Заполните обязательные поля.';
           return;
         }
-
-const priceNum = Number(pricePerSeat);
-if (!Number.isFinite(priceNum) || priceNum < 0) {
-  passengerPlanMessage.textContent = 'Укажите корректную цену за место.';
-  return;
-}
 
         passengerPlanMessage.textContent = 'Создание плана поездки...';
 
@@ -1768,7 +1756,6 @@ if (!Number.isFinite(priceNum) || priceNum < 0) {
             to_city: toCity,
             desired_time: desiredTime,
             seats_needed: seatsNeeded,
-            price_per_seat: priceNum,
             note,
           }),
         })
@@ -1783,7 +1770,6 @@ if (!Number.isFinite(priceNum) || priceNum < 0) {
               planToCityInput.value = '';
               planDesiredTimeInput.value = '';
               planSeatsNeededInput.value = '1';
-              if (planPricePerSeatInput) planPricePerSeatInput.value = '0';
               planNoteInput.value = '';
               loadPassengerPlans();
             }
@@ -1874,8 +1860,6 @@ if (!Number.isFinite(priceNum) || priceNum < 0) {
 
         meta.innerHTML =
           `Нужно мест: ${p.seats_needed}` +
-          `<br/>Цена за место: ${Number(p.price_per_seat || 0).toFixed(2)} ₽` +
-          `<br/>Итого: ${Number(p.amount_total || 0).toFixed(2)} ₽` +
           (p.note ? `<br/>Комментарий: ${p.note}` : '') +
           `<br/>Время планируемого выезда: ${formatDateReadable(p.desired_time)}` +
           `<br/><span class="tag">Статус: ${statusText}</span>` +
@@ -2002,8 +1986,6 @@ if (!Number.isFinite(priceNum) || priceNum < 0) {
         meta.innerHTML =
           `Пассажир: ${passengerName}<br/>` +
           `Нужно мест: ${p.seats_needed}<br/>` +
-          `Цена за место: ${Number(p.price_per_seat || 0).toFixed(2)} ₽<br/>` +
-          `Итого: ${Number(p.amount_total || 0).toFixed(2)} ₽<br/>` +
           `Неявок у пассажира: ${p.passenger_no_show_count || 0}` +
           (p.note ? `<br/>Комментарий: ${p.note}` : '') +
           `<br/>Время планируемого выезда: ${formatDateReadable(p.desired_time)}`;
@@ -2094,8 +2076,6 @@ if (!Number.isFinite(priceNum) || priceNum < 0) {
           const bookings = stats.bookings_count || 0;
           const seats = stats.seats_count || 0;
           const fee = stats.app_fee_total || 0;
-          const turnover = stats.turnover_total || 0;
-          const earned = stats.driver_amount_total || 0;
 
           const lines = [];
 
@@ -2103,12 +2083,10 @@ if (!Number.isFinite(priceNum) || priceNum < 0) {
           lines.push('Комиссия помогает поддерживать и развивать "попутчики".');
           lines.push('');
           lines.push('За сегодня:');
-          lines.push(`• Поездок (бронь/план): ${trips}`);
+          lines.push(`• Поездок с бронями: ${trips}`);
           lines.push(`• Бронирований: ${bookings}`);
           lines.push(`• Мест: ${seats}`);
           lines.push(`• Комиссия сервиса: ${fee.toFixed(2)} ₽`);
-          lines.push(`• Оборот: ${Number(turnover).toFixed(2)} ₽`);
-          lines.push(`• Заработал водитель: ${Number(earned).toFixed(2)} ₽`);
 
           if (fee > 0 && !hasProof) {
             lines.push('');
@@ -2431,9 +2409,8 @@ if (!Number.isFinite(priceNum) || priceNum < 0) {
             html +=
               `<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid rgba(255,255,255,0.15);">` +
               `<strong>${name}</strong> ${username}<br/>` +
-              `Поездок (бронь/план): ${d.trips_count || 0}, броней: ${d.bookings_count || 0}, мест: ${d.seats_count || 0}<br/>` +
+              `Поездок с бронями: ${d.trips_count || 0}, броней: ${d.bookings_count || 0}, мест: ${d.seats_count || 0}<br/>` +
               `Комиссия за день: ${fee.toFixed(2)} ₽<br/>` +
-              `Заработал водитель: ${(Number(d.driver_amount_total || 0)).toFixed(2)} ₽ (оборот: ${(Number(d.turnover_total || 0)).toFixed(2)} ₽)<br/>` +
               `Статус: ${statusText}<br/>` +
               `${proofText}<br/>` +
               `<button class="danger-btn admin-block-btn" data-driver-tg="${d.telegram_id}" data-action="${action}">${btnLabel}</button>` +

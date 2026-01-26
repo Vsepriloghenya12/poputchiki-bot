@@ -6,13 +6,8 @@ const sqlite3 = require('sqlite3').verbose();
 const DB_PATH = process.env.SQLITE_PATH || path.join(__dirname, 'app.sqlite');
 
 // Процент комиссии сервиса (по умолчанию 10%)
-// Можно задать через APP_FEE_PERCENT (или SERVICE_FEE_PCT для совместимости), например 0.05 = 5%
-const APP_FEE_PERCENT_RAW =
-  process.env.APP_FEE_PERCENT ?? process.env.SERVICE_FEE_PCT ?? '0.10';
-const APP_FEE_PERCENT_PARSED = Number(APP_FEE_PERCENT_RAW);
-const APP_FEE_PERCENT = Number.isFinite(APP_FEE_PERCENT_PARSED)
-  ? Math.max(0, Math.min(1, APP_FEE_PERCENT_PARSED))
-  : 0.10;
+// Можно задать через APP_FEE_PERCENT в окружении, например 0.05 = 5%
+const APP_FEE_PERCENT = Number(process.env.APP_FEE_PERCENT || '0.10');
 
 const db = new sqlite3.Database(DB_PATH);
 
@@ -793,14 +788,12 @@ async function updateAppSettings({ monetizationEnabled, paymentDetails }) {
 // ---------------- СТАТИСТИКА ДЛЯ ВОДИТЕЛЯ (ПО ДНЮ) ----------------
 
 async function getDriverDailyStats(driverId) {
-  // 1) Статистика по обычным бронированиям
-  const bookingStats = await getAsync(
+  const stats = await getAsync(
     `
       SELECT
         SUM(CASE WHEN b.status = 'booked' THEN 1 ELSE 0 END) AS bookings_count,
         COUNT(DISTINCT CASE WHEN b.status = 'booked' THEN b.trip_id END) AS trips_count,
         COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.seats_booked ELSE 0 END), 0) AS seats_count,
-        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.amount_total ELSE 0 END), 0) AS turnover_total,
         COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.app_fee ELSE 0 END), 0) AS app_fee_total,
         COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.driver_amount ELSE 0 END), 0) AS driver_amount_total
       FROM bookings b
@@ -811,54 +804,12 @@ async function getDriverDailyStats(driverId) {
     [Number(driverId)]
   );
 
-  // 2) Плюсуем планы пассажиров, которые водитель «забрал»
-  let planTripsCount = 0;
-  let planSeatsCount = 0;
-  let planTurnoverTotal = 0;
-  let planAppFeeTotal = 0;
-  let planDriverAmountTotal = 0;
-
-  try {
-    const planStats = await getAsync(
-      `
-        SELECT
-          COUNT(*) AS plans_count,
-          COALESCE(SUM(seats_needed), 0) AS seats_count,
-          COALESCE(SUM(amount_total), 0) AS turnover_total,
-          COALESCE(SUM(app_fee), 0) AS app_fee_total,
-          COALESCE(SUM(driver_amount), 0) AS driver_amount_total
-        FROM passenger_plans
-        WHERE status = 'taken'
-          AND driver_id = ?
-          AND date(taken_at, 'localtime') = date('now','localtime')
-      `,
-      [Number(driverId)]
-    );
-
-    planTripsCount = planStats?.plans_count ? Number(planStats.plans_count) : 0;
-    planSeatsCount = planStats?.seats_count ? Number(planStats.seats_count) : 0;
-    planTurnoverTotal = planStats?.turnover_total ? Number(planStats.turnover_total) : 0;
-    planAppFeeTotal = planStats?.app_fee_total ? Number(planStats.app_fee_total) : 0;
-    planDriverAmountTotal = planStats?.driver_amount_total
-      ? Number(planStats.driver_amount_total)
-      : 0;
-  } catch (err) {
-    // если таблицы/колонок ещё нет — считаем 0 (чтобы приложение не падало)
-    const msg = String(err?.message || '');
-    if (!msg.includes('no such table: passenger_plans') && !msg.includes('no such column')) {
-      throw err;
-    }
-  }
-
   return {
-    // «взятый план» считаем поездкой и тоже добавляем в статистику
-    trips_count: (bookingStats?.trips_count || 0) + planTripsCount,
-    bookings_count: (bookingStats?.bookings_count || 0) + planTripsCount,
-    seats_count: (bookingStats?.seats_count || 0) + planSeatsCount,
-
-    turnover_total: (bookingStats?.turnover_total || 0) + planTurnoverTotal,
-    app_fee_total: (bookingStats?.app_fee_total || 0) + planAppFeeTotal,
-    driver_amount_total: (bookingStats?.driver_amount_total || 0) + planDriverAmountTotal,
+    trips_count: stats.trips_count || 0,
+    bookings_count: stats.bookings_count || 0,
+    seats_count: stats.seats_count || 0,
+    app_fee_total: stats.app_fee_total || 0,
+    driver_amount_total: stats.driver_amount_total || 0,
   };
 }
 
@@ -895,8 +846,7 @@ async function saveDriverPaymentProof(driverId, originalName, storedName) {
 // ---------------- АДМИН-СТАТИСТИКА ----------------
 
 async function getAdminStats() {
-  // 1) Обычные бронирования
-  const bookingStats = await getAsync(
+  const stats = await getAsync(
     `
       SELECT
         COUNT(DISTINCT CASE WHEN b.status = 'booked' THEN b.trip_id END) AS trips_count,
@@ -910,48 +860,13 @@ async function getAdminStats() {
     `
   );
 
-  // 2) Планы пассажиров, которые были «забраны» водителями
-  let planTripsCount = 0;
-  let planSeatsCount = 0;
-  let planTurnoverTotal = 0;
-  let planAppFeeTotal = 0;
-  let planDriverAmountTotal = 0;
-
-  try {
-    const planStats = await getAsync(
-      `
-        SELECT
-          COUNT(*) AS plans_count,
-          COALESCE(SUM(seats_needed), 0) AS seats_count,
-          COALESCE(SUM(amount_total), 0) AS turnover_total,
-          COALESCE(SUM(app_fee), 0) AS app_fee_total,
-          COALESCE(SUM(driver_amount), 0) AS driver_amount_total
-        FROM passenger_plans
-        WHERE status = 'taken'
-      `
-    );
-
-    planTripsCount = planStats?.plans_count ? Number(planStats.plans_count) : 0;
-    planSeatsCount = planStats?.seats_count ? Number(planStats.seats_count) : 0;
-    planTurnoverTotal = planStats?.turnover_total ? Number(planStats.turnover_total) : 0;
-    planAppFeeTotal = planStats?.app_fee_total ? Number(planStats.app_fee_total) : 0;
-    planDriverAmountTotal = planStats?.driver_amount_total
-      ? Number(planStats.driver_amount_total)
-      : 0;
-  } catch (err) {
-    const msg = String(err?.message || '');
-    if (!msg.includes('no such table: passenger_plans') && !msg.includes('no such column')) {
-      throw err;
-    }
-  }
-
   return {
-    trips_count: (bookingStats?.trips_count || 0) + planTripsCount,
-    bookings_count: (bookingStats?.bookings_count || 0) + planTripsCount,
-    seats_booked_total: (bookingStats?.seats_booked_total || 0) + planSeatsCount,
-    total_turnover: (bookingStats?.total_turnover || 0) + planTurnoverTotal,
-    total_app_fee: (bookingStats?.total_app_fee || 0) + planAppFeeTotal,
-    total_driver_amount: (bookingStats?.total_driver_amount || 0) + planDriverAmountTotal,
+    trips_count: stats.trips_count || 0,
+    bookings_count: stats.bookings_count || 0,
+    seats_booked_total: stats.seats_booked_total || 0,
+    total_turnover: stats.total_turnover || 0,
+    total_app_fee: stats.total_app_fee || 0,
+    total_driver_amount: stats.total_driver_amount || 0,
   };
 }
 
@@ -960,114 +875,35 @@ async function getAdminDailyDrivers(targetDate) {
   const useCustomDate = !!targetDate;
   const dateParam = targetDate || null;
 
-  const whereBookingsDate = useCustomDate
+  const whereDate = useCustomDate
     ? `date(b.created_at, 'localtime') = date(?, 'localtime')`
     : `date(b.created_at, 'localtime') = date('now','localtime')`;
 
-  const wherePlansDate = useCustomDate
-    ? `date(p.taken_at, 'localtime') = date(?, 'localtime')`
-    : `date(p.taken_at, 'localtime') = date('now','localtime')`;
+  const params = [];
+  if (useCustomDate) params.push(dateParam);
 
-  let rows = [];
-  try {
-    const paramsAgg = [];
-    if (useCustomDate) paramsAgg.push(dateParam, dateParam);
-
-    rows = await allAsync(
-      `
-        WITH
-        bookingsAgg AS (
-          SELECT
-            t.driver_id AS driver_id,
-            COUNT(DISTINCT CASE WHEN b.status = 'booked' THEN t.id END) AS trips_from_bookings,
-            SUM(CASE WHEN b.status = 'booked' THEN 1 ELSE 0 END) AS bookings_count,
-            COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.seats_booked ELSE 0 END), 0) AS seats_count,
-            COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.amount_total ELSE 0 END), 0) AS turnover_total,
-            COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.app_fee ELSE 0 END), 0) AS app_fee_total,
-            COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.driver_amount ELSE 0 END), 0) AS driver_amount_total
-          FROM bookings b
-          JOIN trips t ON t.id = b.trip_id
-          WHERE ${whereBookingsDate}
-          GROUP BY t.driver_id
-        ),
-        plansAgg AS (
-          SELECT
-            p.driver_id AS driver_id,
-            COUNT(*) AS trips_from_plans,
-            COUNT(*) AS plan_bookings_count,
-            COALESCE(SUM(p.seats_needed), 0) AS plan_seats_count,
-            COALESCE(SUM(p.amount_total), 0) AS plan_turnover_total,
-            COALESCE(SUM(p.app_fee), 0) AS plan_app_fee_total,
-            COALESCE(SUM(p.driver_amount), 0) AS plan_driver_amount_total
-          FROM passenger_plans p
-          WHERE p.status = 'taken'
-            AND p.driver_id IS NOT NULL
-            AND ${wherePlansDate}
-          GROUP BY p.driver_id
-        ),
-        driverIds AS (
-          SELECT driver_id FROM bookingsAgg
-          UNION
-          SELECT driver_id FROM plansAgg
-        )
-        SELECT
-          d.id AS driver_id,
-          d.telegram_id,
-          d.first_name,
-          d.last_name,
-          d.username,
-          d.is_blocked,
-
-          (COALESCE(b.trips_from_bookings, 0) + COALESCE(p.trips_from_plans, 0)) AS trips_count,
-          (COALESCE(b.bookings_count, 0) + COALESCE(p.plan_bookings_count, 0)) AS bookings_count,
-          (COALESCE(b.seats_count, 0) + COALESCE(p.plan_seats_count, 0)) AS seats_count,
-
-          (COALESCE(b.turnover_total, 0) + COALESCE(p.plan_turnover_total, 0)) AS turnover_total,
-          (COALESCE(b.app_fee_total, 0) + COALESCE(p.plan_app_fee_total, 0)) AS app_fee_total,
-          (COALESCE(b.driver_amount_total, 0) + COALESCE(p.plan_driver_amount_total, 0)) AS driver_amount_total
-        FROM driverIds ids
-        JOIN users d ON d.id = ids.driver_id
-        LEFT JOIN bookingsAgg b ON b.driver_id = d.id
-        LEFT JOIN plansAgg p ON p.driver_id = d.id
-        ORDER BY app_fee_total DESC, bookings_count DESC
-      `,
-      paramsAgg
-    );
-  } catch (err) {
-    const msg = String(err?.message || '');
-    if (!msg.includes('no such table: passenger_plans') && !msg.includes('no such column')) {
-      throw err;
-    }
-
-    // Fallback: только bookings (как было)
-    const params = [];
-    if (useCustomDate) params.push(dateParam);
-
-    rows = await allAsync(
-      `
-        SELECT
-          d.id AS driver_id,
-          d.telegram_id,
-          d.first_name,
-          d.last_name,
-          d.username,
-          d.is_blocked,
-          COUNT(DISTINCT CASE WHEN b.status = 'booked' THEN t.id END) AS trips_count,
-          SUM(CASE WHEN b.status = 'booked' THEN 1 ELSE 0 END) AS bookings_count,
-          COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.seats_booked ELSE 0 END), 0) AS seats_count,
-          COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.amount_total ELSE 0 END), 0) AS turnover_total,
-          COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.app_fee ELSE 0 END), 0) AS app_fee_total,
-          COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.driver_amount ELSE 0 END), 0) AS driver_amount_total
-        FROM bookings b
-        JOIN trips t ON t.id = b.trip_id
-        JOIN users d ON d.id = t.driver_id
-        WHERE ${whereBookingsDate}
-        GROUP BY d.id, d.telegram_id, d.first_name, d.last_name, d.username, d.is_blocked
-        ORDER BY app_fee_total DESC, bookings_count DESC
-      `,
-      params
-    );
-  }
+  const rows = await allAsync(
+    `
+      SELECT
+        d.id AS driver_id,
+        d.telegram_id,
+        d.first_name,
+        d.last_name,
+        d.username,
+        d.is_blocked,
+        COUNT(DISTINCT CASE WHEN b.status = 'booked' THEN t.id END) AS trips_count,
+        SUM(CASE WHEN b.status = 'booked' THEN 1 ELSE 0 END) AS bookings_count,
+        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.seats_booked ELSE 0 END), 0) AS seats_count,
+        COALESCE(SUM(CASE WHEN b.status = 'booked' THEN b.app_fee ELSE 0 END), 0) AS app_fee_total
+      FROM bookings b
+      JOIN trips t ON t.id = b.trip_id
+      JOIN users d ON d.id = t.driver_id
+      WHERE ${whereDate}
+      GROUP BY d.id, d.telegram_id, d.first_name, d.last_name, d.username, d.is_blocked
+      ORDER BY app_fee_total DESC, bookings_count DESC
+    `,
+    params
+  );
 
   const result = [];
 
@@ -1105,15 +941,10 @@ async function getAdminDailyDrivers(targetDate) {
       first_name: row.first_name,
       last_name: row.last_name,
       username: row.username,
-
       trips_count: row.trips_count || 0,
       bookings_count: row.bookings_count || 0,
       seats_count: row.seats_count || 0,
-
-      turnover_total: row.turnover_total || 0,
       app_fee_total: row.app_fee_total || 0,
-      driver_amount_total: row.driver_amount_total || 0,
-
       is_blocked: row.is_blocked || 0,
       last_proof_original_name: proof ? proof.file_original_name : null,
       last_proof_file: proof ? proof.file_stored_name : null,
@@ -1122,7 +953,6 @@ async function getAdminDailyDrivers(targetDate) {
 
   return result;
 }
-
 
 // ---------------- ЭКСПОРТ ----------------
 
