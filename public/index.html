@@ -741,16 +741,18 @@ window.fetch = (url, options = {}) => {
 };
 
 function apiFetch(url, options = {}) {
-  return fetch(url, options);
-}
-) {
-  const opts = { ...options };
-  opts.headers = { ...(opts.headers || {}) };
+  // Явный helper: добавляем initData, даже если запрос не попал под window.fetch override
+  const opts = { ...(options || {}) };
+  const headers = { ...((opts.headers) || {}) };
+
   if (tg && tg.initData) {
-    opts.headers['x-telegram-init-data'] = tg.initData;
+    headers['x-telegram-init-data'] = tg.initData;
   }
-  return fetch(url, opts);
+
+  opts.headers = headers;
+  return __nativeFetch(url, opts);
 }
+
 
 function shareText(text) {
   const u =
