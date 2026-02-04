@@ -286,8 +286,18 @@ button:active {
 
     .tab-btn {
   flex: 1 1 0;
-  min-width: 120px;
+  min-width: 96px;
+  padding: 9px 10px;
+  min-height: 38px;
+  font-size: 13px;
+  border-radius: 14px;
 }
+
+.tabs-bar .tab-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
 
     .filters {
       display: grid;
@@ -713,7 +723,27 @@ const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
+// ВАЖНО: некоторые запросы в коде используют fetch() напрямую.
+// Чтобы не ловить "Нет initData", мы подмешиваем initData в ЛЮБОЙ fetch к /api/*.
+const __nativeFetch = window.fetch.bind(window);
+window.fetch = (url, options = {}) => {
+  const opts = { ...(options || {}) };
+  const headers = { ...((opts.headers) || {}) };
+
+  // Добавляем initData только если запрос идёт на наш API
+  const u = typeof url === 'string' ? url : (url && url.url) ? url.url : '';
+  if (u && u.includes('/api/') && tg && tg.initData) {
+    headers['x-telegram-init-data'] = tg.initData;
+  }
+
+  opts.headers = headers;
+  return __nativeFetch(url, opts);
+};
+
 function apiFetch(url, options = {}) {
+  return fetch(url, options);
+}
+) {
   const opts = { ...options };
   opts.headers = { ...(opts.headers || {}) };
   if (tg && tg.initData) {

@@ -146,11 +146,17 @@ function validateTelegramInitData(initData, botToken, maxAgeSec) {
 
 // Мидлварь: если initData валидный — перетираем возможную подмену telegram_id в запросах.
 app.use('/api', (req, res, next) => {
+  if (req.method === 'OPTIONS') return next();
+
   const initData =
     req.headers['x-telegram-init-data'] ||
     req.headers['x-telegram-initdata'] ||
-    (req.body && req.body.initData) ||
-    (req.query && req.query.initData);
+    req.headers['x-telegram-webapp-init-data'] ||
+    req.headers['telegram-webapp-init-data'] ||
+    req.headers['x-telegram-web-app-init-data'] ||
+    req.headers['telegram-web-app-init-data'] ||
+    (req.body && (req.body.initData || req.body.init_data)) ||
+    (req.query && (req.query.initData || req.query.init_data));
 
   if (!initData) {
     if (!REQUIRE_INIT_DATA) return next();
