@@ -39,6 +39,13 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:3000';
 const PORT = process.env.PORT || 3000;
 const ADMIN_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID || '504348666';
+const APP_FEE_PERCENT_RAW =
+  process.env.APP_FEE_PERCENT ?? process.env.SERVICE_FEE_PCT ?? '0.10';
+const APP_FEE_PERCENT_PARSED = Number(APP_FEE_PERCENT_RAW);
+const APP_FEE_PERCENT = Number.isFinite(APP_FEE_PERCENT_PARSED)
+  ? Math.max(0, Math.min(1, APP_FEE_PERCENT_PARSED))
+  : 0.10;
+
 
 if (!BOT_TOKEN) {
   console.error('Ошибка: не задан BOT_TOKEN в .env или переменных окружения');
@@ -118,6 +125,7 @@ function dbAll(sql, params = []) {
 // ---------------- ТАБЛИЦА ЗАПЛАНИРОВАННЫХ ПОЕЗДОК ПАССАЖИРОВ ----------------
 
 db.serialize(() => {
+  // 1) Таблица
   db.run(
     `
     CREATE TABLE IF NOT EXISTS passenger_plans (
@@ -127,6 +135,10 @@ db.serialize(() => {
       to_city TEXT NOT NULL,
       desired_time TEXT NOT NULL,
       seats_needed INTEGER NOT NULL,
+      price_per_seat REAL NOT NULL DEFAULT 0,
+      amount_total REAL NOT NULL DEFAULT 0,
+      driver_amount REAL NOT NULL DEFAULT 0,
+      app_fee REAL NOT NULL DEFAULT 0,
       note TEXT,
       status TEXT NOT NULL DEFAULT 'active', -- active / taken / cancelled / expired
       driver_id INTEGER,
@@ -138,6 +150,23 @@ db.serialize(() => {
   `
   );
 
+  // 2) Миграции колонок (если таблица уже существовала)
+  [
+    "ALTER TABLE passenger_plans ADD COLUMN price_per_seat REAL NOT NULL DEFAULT 0",
+    "ALTER TABLE passenger_plans ADD COLUMN amount_total REAL NOT NULL DEFAULT 0",
+    "ALTER TABLE passenger_plans ADD COLUMN driver_amount REAL NOT NULL DEFAULT 0",
+    "ALTER TABLE passenger_plans ADD COLUMN app_fee REAL NOT NULL DEFAULT 0",
+  ].forEach((sql) => {
+    db.run(sql, (err) => {
+      // игнорируем ошибки "duplicate column name" и подобные
+      if (!err) return;
+      const msg = String(err.message || "");
+      if (msg.includes("duplicate column name") || msg.includes("already exists")) return;
+      console.warn("Миграция passenger_plans не применена:", msg);
+    });
+  });
+
+  // 3) Индекс
   db.run(
     `
     CREATE INDEX IF NOT EXISTS idx_passenger_plans_status_time
@@ -828,7 +857,15 @@ app.post('/api/bookings/no-show', async (req, res) => {
 // Создание плана поездки пассажиром
 app.post('/api/passenger/plans', async (req, res) => {
   try {
-    const { telegram_id, from_city, to_city, desired_time, seats_needed, note } = req.body;
+    const {
+      telegram_id,
+      from_city,
+      to_city,
+      desired_time,
+      seats_needed,
+      price_per_seat,
+      note,
+    } = req.body;
 
     if (!telegram_id) {
       return res.status(400).json({ error: 'Не указан telegram_id' });
@@ -850,6 +887,15 @@ app.post('/api/passenger/plans', async (req, res) => {
       return res.status(400).json({ error: 'Некорректное количество мест' });
     }
 
+    const priceNum = Number(price_per_seat);
+    if (!Number.isFinite(priceNum) || priceNum < 0) {
+      return res.status(400).json({ error: 'Некорректная цена за место' });
+    }
+
+    const amountTotal = priceNum * seatsNum;
+    const appFee = Math.round(amountTotal * APP_FEE_PERCENT);
+    const driverAmount = amountTotal - appFee;
+
     await dbRun(
       `
       INSERT INTO passenger_plans (
@@ -858,10 +904,14 @@ app.post('/api/passenger/plans', async (req, res) => {
         to_city,
         desired_time,
         seats_needed,
+        price_per_seat,
+        amount_total,
+        driver_amount,
+        app_fee,
         note,
         status,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, 'active', datetime('now','localtime'))
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', datetime('now','localtime'))
     `,
       [
         passenger.id,
@@ -869,6 +919,10 @@ app.post('/api/passenger/plans', async (req, res) => {
         to_city,
         desired_time,
         seatsNum,
+        priceNum,
+        amountTotal,
+        driverAmount,
+        appFee,
         note || null,
       ]
     );

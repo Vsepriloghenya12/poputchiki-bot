@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>попутчики • С Новым 2026 годом! 🎄</title>
+  <title>попутчики • горы и снег 🏔️❄️</title>
   <meta name="viewport" content="width=390, initial-scale=1, maximum-scale=1, user-scalable=no" />
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
@@ -14,7 +14,7 @@
 
     body {
       font-family: 'Manrope', sans-serif;
-      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      background: radial-gradient(1000px 700px at 50% -10%, rgba(148, 213, 255, 0.18), rgba(0,0,0,0) 55%), linear-gradient(180deg, #071426 0%, #0b1f33 45%, #0f2a44 100%);
       color: #e2e8f0;
       min-height: 100vh;
       position: relative;
@@ -61,7 +61,7 @@
       width: 36px;
       height: 36px;
       border-radius: 999px;
-      background: linear-gradient(135deg, #f704db, #10b981);
+      background: linear-gradient(135deg, #38bdf8, #2563eb);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -74,7 +74,7 @@
     .title {
       font-size: 20px;
       font-weight: 700;
-      background: linear-gradient(90deg, #fbbf24, #f59e0b, #dc2626);
+      background: linear-gradient(90deg, #e0f2fe, #93c5fd, #38bdf8);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
@@ -152,61 +152,61 @@
     }
 
     .role-buttons button {
-      flex: 1;
-      border-radius: 16px;
-      padding: 12px 0;
-      font-size: 15px;
-      font-weight: 700;
-      color: #ffffff;
-      border: none;
-      cursor: pointer;
-      transition: transform 0.1s ease, box-shadow 0.15s ease;
-    }
+  flex: 1;
+  min-height: 46px;
+}
 
-    #btn-driver {
-      background: linear-gradient(135deg, #2563eb, #1d4ed8);
-      box-shadow: 0 3px 8px rgba(37, 99, 235, 0.4);
-    }
-
-    #btn-passenger {
-      background: linear-gradient(135deg, #10b981, #059669);
-      box-shadow: 0 3px 8px rgba(16, 185, 129, 0.4);
-    }
-
-    .role-buttons button:active {
+.role-buttons button:active {
       transform: scale(0.97);
     }
 
     button {
-      border-radius: 999px;
-      border: none;
-      padding: 8px 12px;
-      font-size: 14px;
-      cursor: pointer;
-      transition: all 0.15s ease;
-    }
+  appearance: none;
+  border-radius: 16px;
+  border: 1px solid transparent;
+  padding: 10px 12px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 42px;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
 
-    button:active {
+button:active {
       transform: translateY(1px);
     }
 
     .primary-btn {
-      background: linear-gradient(90deg, #dc2626, #ef4444);
-      color: #ffffff;
-      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
-    }
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #ffffff;
+  box-shadow: 0 10px 26px rgba(2, 132, 199, 0.26);
+  border-color: rgba(147, 213, 255, 0.25);
+}
 
     .secondary-btn {
-      background: rgba(255, 255, 255, 0.1);
-      color: #e2e8f0;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-    }
+  background: rgba(255, 255, 255, 0.08);
+  color: #e5eefc;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.16);
+}
+
+.secondary-btn:hover {
+  background: rgba(255, 255, 255, 0.10);
+  border-color: rgba(147, 213, 255, 0.22);
+}
 
     .danger-btn {
-      background: #ef4444;
-      color: #ffffff;
-      box-shadow: 0 2px 6px rgba(239, 68, 68, 0.35);
-    }
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #ffffff;
+  box-shadow: 0 10px 22px rgba(239, 68, 68, 0.22);
+  border-color: rgba(255, 255, 255, 0.12);
+}
 
     .trip-card,
     .booking-card,
@@ -251,9 +251,9 @@
       padding: 2px 6px;
       border-radius: 999px;
       font-size: 11px;
-      border: 1px solid rgba(251, 191, 36, 0.3);
-      background: rgba(251, 191, 36, 0.1);
-      color: #fbbf24;
+      border: 1px solid rgba(147, 213, 255, 0.30);
+      background: rgba(56, 189, 248, 0.10);
+      color: #93c5fd;
       margin-right: 4px;
       margin-top: 2px;
     }
@@ -263,65 +263,64 @@
     }
 
     .tabs-bar {
-      display: flex;
-      gap: 8px;
-      padding: 10px;
-      background: rgba(255, 255, 255, 0.08);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 16px;
-      box-shadow: 0 6px 14px rgba(0, 0, 0, 0.2);
-      margin-bottom: 16px;
-      position: sticky;
-      top: 8px;
-      z-index: 50;
-      overflow-x: auto;
-      -webkit-overflow-scrolling: touch;
-      scrollbar-width: none;
-    }
+  display: flex;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  margin-bottom: 16px;
+  position: sticky;
+  top: 8px;
+  z-index: 50;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  backdrop-filter: blur(12px);
+}
 
     .tabs-bar::-webkit-scrollbar {
       display: none;
     }
 
     .tab-btn {
-      flex: 1 1 0;
-      min-width: 80px;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      border: 1px solid rgba(255, 255, 255, 0.2);
-      background: rgba(255, 255, 255, 0.05);
-      border-radius: 14px;
-      padding: 10px 6px;
-      font-weight: 700;
-      font-size: 11.5px;
-      line-height: 1.2;
-      color: #e2e8f0;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+  flex: 1 1 0;
+  min-width: 120px;
+  display: inline-flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 10px 12px;
+  font-weight: 800;
+  font-size: 13px;
+  line-height: 1.15;
+  color: #e5eefc;
+  cursor: pointer;
+  transition: transform 0.12s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  white-space: nowrap;
+}
 
-    .tab-btn svg {
-      width: 24px;
-      height: 24px;
-      fill: #94a3b8;
-      transition: fill 0.2s ease;
-    }
+.tab-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: rgba(229, 238, 252, 0.8);
+}
 
-    .tab-btn.active {
-      background: #dc2626;
-      color: #ffffff;
-      border-color: #dc2626;
-    }
+.tab-btn.active {
+  background: linear-gradient(135deg, #0284c7, #2563eb);
+  color: #ffffff;
+  border-color: rgba(147, 213, 255, 0.35);
+  box-shadow: 0 12px 26px rgba(2, 132, 199, 0.22);
+}
 
-    .tab-btn.active svg {
-      fill: #ffffff;
-    }
+.tab-btn.active svg {
+  fill: #ffffff;
+}
 
     .filters {
       display: grid;
@@ -345,45 +344,65 @@
     .filters .actions { grid-column: 1 / -1; display: flex; gap: 8px; }
 
     .active-role {
-      background: #111827 !important;
-      color: #ffffff !important;
-      box-shadow: 0 3px 8px rgba(17, 24, 39, 0.4);
-    }
+  background: linear-gradient(135deg, rgba(2, 132, 199, 0.95), rgba(37, 99, 235, 0.95)) !important;
+  color: #ffffff !important;
+  border-color: rgba(147, 213, 255, 0.35) !important;
+  box-shadow: 0 14px 30px rgba(2, 132, 199, 0.22) !important;
+}
 
-    .new-year-badge {
-      text-align: center;
-      font-size: 36px;
-      margin: 20px 0;
-      animation: sparkle 3s infinite;
-    }
+    .bg-mountains {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image:
+    radial-gradient(1200px 600px at 50% 0%, rgba(148, 213, 255, 0.18), rgba(0,0,0,0) 55%),
+    radial-gradient(900px 500px at 15% 10%, rgba(56, 189, 248, 0.12), rgba(0,0,0,0) 60%),
+    radial-gradient(900px 500px at 85% 12%, rgba(96, 165, 250, 0.10), rgba(0,0,0,0) 60%),
+    url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxNDQwIDkwMCc+PHBhdGggZD0nTTAgNjgwIEwyMDAgNTIwIEwzNjAgNjAwIEw1NDAgNDQwIEw3MDAgNTgwIEw4NDAgNDgwIEwxMDIwIDYyMCBMMTIwMCA0NjAgTDE0NDAgNjgwIEwxNDQwIDkwMCBMMCA5MDAnIGZpbGw9J3JnYmEoMjU1LDI1NSwyNTUsMC4wNiknLz48cGF0aCBkPSdNMCA3NDAgTDIyMCA2MDAgTDQzMCA3MjAgTDYwMCA1MTAgTDc3MCA3MTAgTDk0MCA1NjAgTDExMjAgNzMwIEwxMzAwIDU1MCBMMTQ0MCA3NDAgTDE0NDAgOTAwIEwwIDkwMCcgc3R5bGU9J2ZpbGw6cmdiYSgwLDAsMCwwLjI2KTsnLz48cGF0aCBkPSdNMjA4IDU0MCBMMjYwIDU4NCBMMzAwIDU1MCBMMzM4IDU4NSBMMzYwIDU2NSBMMzI2IDUyMCBMMjgwIDUyMCBaJyBmaWxsPSdyZ2JhKDI1NSwyNTUsMjU1LDAuMTQpJy8+PHBhdGggZD0nTTUyMCA0NjAgTDU3NCA1MTAgTDYxOCA0NzAgTDY2MCA1MTIgTDcwMCA0ODQgTDYzOCA0MTggTDU4OCA0MTggWicgZmlsbD0ncmdiYSgyNTUsMjU1LDI1NSwwLjE2KScvPjxwYXRoIGQ9JzExNjAgNDgwIEwxMjE4IDUzMiBMMTI2OCA0OTAgTDEzMTggNTM4IEwxMzYwIDUxMCBMMTMwMiA0NDAgTDEyNDUgNDQwIFonIGZpbGw9J3JnYmEoMjU1LDI1NSwyNTUsMC4xNiknLz48L3N2Zz4=");
+  background-position: center, center, center, bottom center;
+  background-size: cover, cover, cover, cover;
+  opacity: 0.9;
+}
 
-    @keyframes sparkle {
-      0%, 100% { opacity: 0.8; transform: scale(1); }
-      50% { opacity: 1; transform: scale(1.05); }
-    }
+.hero-badge {
+  text-align: center;
+  font-size: 34px;
+  margin: 18px 0 10px;
+  opacity: 0.92;
+  animation: floaty 6s ease-in-out infinite;
+  position: relative;
+  z-index: 2;
+  filter: drop-shadow(0 10px 30px rgba(0,0,0,0.25));
+}
+
+@keyframes floaty {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
     /* Красивое toast-уведомление */
 .toast {
   position: fixed;
   bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(220, 38, 38, 0.95);
-  backdrop-filter: blur(12px);
-  color: white;
-  padding: 16px 24px;
+  background: rgba(15, 23, 42, 0.92);
+  backdrop-filter: blur(14px);
+  color: #e5eefc;
+  padding: 14px 18px;
   border-radius: 16px;
-  box-shadow: 0 8px 32px rgba(220, 38, 38, 0.4);
-  font-size: 16px;
-  font-weight: 600;
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.30);
+  font-size: 15px;
+  font-weight: 700;
   z-index: 1000;
   opacity: 0;
-  transition: opacity 0.4s ease, transform 0.4s ease;
+  transition: opacity 0.35s ease, transform 0.35s ease;
   pointer-events: none;
-  border: 1px solid rgba(251, 191, 36, 0.3);
+  border: 1px solid rgba(147, 213, 255, 0.28);
   display: flex;
   align-items: center;
   gap: 12px;
-  max-width: 90%;
+  max-width: 92%;
 }
 
 .toast.show {
@@ -392,15 +411,16 @@
 }
 
 .toast::before {
-  content: "🎄✨";
+  content: "❄️";
   font-size: 24px;
 }
   </style>
 </head>
 <body>
+  <div class="bg-mountains" aria-hidden="true"></div>
   <canvas id="snow-canvas"></canvas>
 
-  <div class="new-year-badge">🎄❄️✨</div>
+  <div class="hero-badge" aria-hidden="true">🏔️❄️</div>
 
   <div class="container">
     <div class="card">
