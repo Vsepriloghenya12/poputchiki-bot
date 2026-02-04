@@ -197,8 +197,30 @@ app.use((req, res, next) => {
   }
   next();
 });
-app.use(express.static(path.join(__dirname, 'public')));
-app.use('/uploads', express.static(uploadDir));
+// ---------------- Статика (без кэша для HTML, чтобы Telegram не показывал старую версию) ----------------
+app.get('/', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+app.use(
+  express.static(path.join(__dirname, 'public'), {
+    etag: false,
+    lastModified: false,
+    setHeaders: (res, filePath) => {
+      // HTML — вообще без кэша, чтобы обновления сразу доходили до Telegram WebView
+      if (filePath.endsWith('.html')) {
+        res.setHeader('Cache-Control', 'no-store');
+        return;
+      }
+      // Остальное — мягкий no-cache
+      res.setHeader('Cache-Control', 'no-cache');
+    },
+  })
+);
+
+app.use('/uploads', express.static(uploadDir, { etag: false, lastModified: false }));
+
 
 // ---------------- ВСПОМОГАТЕЛЬНЫЕ ОБЁРТКИ ДЛЯ DB (для passenger_plans) ----------------
 

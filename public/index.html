@@ -80,7 +80,23 @@
       background-clip: text;
     }
 
-    .subtitle {
+    .build-tag{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:3px 8px;
+  border-radius:999px;
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:0.02em;
+  border:1px solid rgba(147,213,255,0.22);
+  background:rgba(56,189,248,0.10);
+  color:#93c5fd;
+  margin-left:8px;
+  -webkit-text-fill-color: initial;
+}
+
+.subtitle {
       font-size: 13px;
       font-weight: 700;
       text-transform: uppercase;
@@ -264,8 +280,8 @@ button:active {
 
     .tabs-bar {
   display: flex;
-  gap: 8px;
-  padding: 10px;
+  gap: 6px;
+  padding: 8px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
@@ -285,17 +301,18 @@ button:active {
     }
 
     .tab-btn {
-  flex: 1 1 0;
-  min-width: 96px;
-  padding: 9px 10px;
-  min-height: 38px;
-  font-size: 13px;
-  border-radius: 14px;
+  flex: 0 0 auto;
+  min-width: 0;
+  padding: 7px 10px;
+  min-height: 34px;
+  font-size: 12px;
+  border-radius: 12px;
+  white-space: nowrap;
 }
 
 .tabs-bar .tab-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
 }
 
 
@@ -403,7 +420,7 @@ button:active {
     <div class="card">
       <div class="title-row">
         <div class="logo">🚗</div>
-        <div class="title">попутчики</div>
+        <div class="title">попутчики</div><span class="build-tag">v4</span>
       </div>
       <div class="info" id="user-info">
         Загрузка...
