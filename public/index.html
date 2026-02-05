@@ -285,13 +285,18 @@ button:active {
     }
 
     .tab-btn {
-  flex: 1 1 0;
-  min-width: 0;
+  /*
+    Важно: делаем кнопки табов "по содержимому".
+    Раньше flex:1 сжимал их, и текст (Пассажиры/Активная/История) вылезал за рамки.
+    Теперь табы нормально выглядят, а при необходимости полоска скроллится по горизонтали.
+  */
+  flex: 0 0 auto;
   min-height: 40px;
-  padding: 8px 10px;
-  font-size: 13px;
+  padding: 8px 12px;
+  font-size: 12.5px;
   font-weight: 800;
   white-space: nowrap;
+  overflow: hidden;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -299,10 +304,16 @@ button:active {
 }
 
 .tab-btn svg {
-  width: 18px;
-  height: 18px;
+  width: 17px;
+  height: 17px;
   flex-shrink: 0;
   opacity: 0.9;
+}
+
+@media (max-width: 390px) {
+  .tabs-bar { padding: 9px; }
+  .tab-btn { padding: 7px 10px; font-size: 12px; }
+  .tab-btn svg { width: 16px; height: 16px; }
 }
 
 .filters {
