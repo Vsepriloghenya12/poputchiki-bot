@@ -74,6 +74,156 @@ function webAppOpenKeyboard(label = 'Открыть мини‑приложен�
 }
 const app = express();
 
+// ---------------- CHANNEL AUTOPOST (красивые посты в канал) ----------------
+const PUBLIC_CHANNEL = (process.env.PUBLIC_CHANNEL || '').trim();
+const AUTOPOST_ENABLED = process.env.AUTOPOST_ENABLED !== '0';
+const AUTOPOST_TRIPS = process.env.AUTOPOST_TRIPS !== '0';
+const AUTOPOST_PLANS = process.env.AUTOPOST_PLANS !== '0';
+const CHANNEL_BRAND =
+  (process.env.CHANNEL_BRAND || '🏔️ Попутчики Сочи–Адлер–Красная Поляна').trim();
+const CHANNEL_TAGS = (process.env.CHANNEL_TAGS || '').trim();
+
+const WEBAPP_CHANNEL_URL = (() => {
+  // чтобы Telegram реже кэшировал одинаковый URL
+  const base = WEBAPP_URL;
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}src=channel`;
+})();
+
+function escapeHtml(s = '') {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function compactText(s, max = 180) {
+  const t = String(s || '').trim();
+  if (!t) return '';
+  return t.length > max ? t.slice(0, max - 1) + '…' : t;
+}
+
+function formatDT(raw) {
+  // храним как строку — не парсим по таймзоне сервера
+  const s = String(raw || '').trim();
+  if (!s) return '—';
+  return escapeHtml(s.replace('T', ' '));
+}
+
+function formatMoney(val) {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return '0';
+  return String(Math.round(n));
+}
+
+function userDisplayHtml(user) {
+  const username = user?.username ? String(user.username).replace('@', '') : '';
+  const name =
+    [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim() ||
+    (username ? '@' + username : 'Пользователь');
+
+  if (username) {
+    return `<a href="https://t.me/${escapeHtml(username)}">${escapeHtml('@' + username)}</a>`;
+  }
+  return `<b>${escapeHtml(name)}</b>`;
+}
+
+function channelKeyboard(chatUsername) {
+  const row = [
+    {
+      text: 'Открыть в приложении',
+      web_app: { url: WEBAPP_CHANNEL_URL },
+    },
+  ];
+
+  if (chatUsername) {
+    const u = String(chatUsername).replace('@', '');
+    row.push({
+      text: 'Написать',
+      url: `https://t.me/${encodeURIComponent(u)}`,
+    });
+  }
+
+  return { reply_markup: { inline_keyboard: [row] } };
+}
+
+async function sendToChannelSafe(html, keyboardExtra) {
+  try {
+    if (!PUBLIC_CHANNEL || !AUTOPOST_ENABLED) return;
+
+    await bot.telegram.sendMessage(PUBLIC_CHANNEL, html, {
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+      ...(keyboardExtra || {}),
+    });
+  } catch (e) {
+    console.warn('CHANNEL AUTOPOST error:', e?.message || e);
+  }
+}
+
+function buildTripPostHtml(trip, driver) {
+  const from = escapeHtml(trip.from_city);
+  const to = escapeHtml(trip.to_city);
+  const time = formatDT(trip.departure_time);
+  const seats = escapeHtml(trip.seats_total);
+  const price = formatMoney(trip.price_per_seat);
+  const note = compactText(trip.note || '', 200);
+
+  let html = '';
+  html += `<b>${escapeHtml(CHANNEL_BRAND)}</b>\n`;
+  html += `<b>🚗 Поездка</b>\n`;
+  html += `<b>${from} → ${to}</b>\n`;
+  html += `────────────\n`;
+  html += `🕒 <b>${time}</b>\n`;
+  html += `💺 Мест: <b>${seats}</b>\n`;
+  html += `💰 Цена: <b>${price} ₽/место</b>\n`;
+  if (note) html += `📝 <i>${escapeHtml(note)}</i>\n`;
+  html += `────────────\n`;
+  html += `👤 Водитель: ${userDisplayHtml(driver)}\n`;
+  if (CHANNEL_TAGS) html += `\n${escapeHtml(CHANNEL_TAGS)}`;
+
+  return html;
+}
+
+function buildPlanPostHtml(plan, passenger) {
+  const from = escapeHtml(plan.from_city);
+  const to = escapeHtml(plan.to_city);
+  const time = formatDT(plan.desired_time);
+  const seats = escapeHtml(plan.seats_needed);
+  const price = formatMoney(plan.price_per_seat);
+  const note = compactText(plan.note || '', 200);
+
+  let html = '';
+  html += `<b>${escapeHtml(CHANNEL_BRAND)}</b>\n`;
+  html += `<b>🙋 Ищу попутку</b>\n`;
+  html += `<b>${from} → ${to}</b>\n`;
+  html += `────────────\n`;
+  html += `🕒 <b>${time}</b>\n`;
+  html += `💺 Нужно мест: <b>${seats}</b>\n`;
+  html += `💰 Цена: <b>${price} ₽/место</b>\n`;
+  if (note) html += `📝 <i>${escapeHtml(note)}</i>\n`;
+  html += `────────────\n`;
+  html += `👤 Пассажир: ${userDisplayHtml(passenger)}\n`;
+  if (CHANNEL_TAGS) html += `\n${escapeHtml(CHANNEL_TAGS)}`;
+
+  return html;
+}
+
+async function autopostTripToChannel(trip, driver) {
+  if (!AUTOPOST_TRIPS) return;
+  const html = buildTripPostHtml(trip, driver);
+  const kb = channelKeyboard(driver?.username);
+  await sendToChannelSafe(html, kb);
+}
+
+async function autopostPlanToChannel(plan, passenger) {
+  if (!AUTOPOST_PLANS) return;
+  const html = buildPlanPostHtml(plan, passenger);
+  const kb = channelKeyboard(passenger?.username);
+  await sendToChannelSafe(html, kb);
+}
+
 // Хранилище файлов чеков
 const uploadDir = process.env.UPLOADS_PATH
   ? process.env.UPLOADS_PATH
@@ -497,6 +647,8 @@ const trip = await createTrip({
     } catch (e) {
       console.warn('notify plans error:', e?.message || e);
     }
+    // Автопост в канал
+    autopostTripToChannel(trip, user).catch(() => {});
 
     return res.json({ trip });
   } catch (err) {
