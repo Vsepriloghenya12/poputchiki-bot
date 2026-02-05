@@ -80,23 +80,7 @@
       background-clip: text;
     }
 
-    .build-tag{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:3px 8px;
-  border-radius:999px;
-  font-size:11px;
-  font-weight:800;
-  letter-spacing:0.02em;
-  border:1px solid rgba(147,213,255,0.22);
-  background:rgba(56,189,248,0.10);
-  color:#93c5fd;
-  margin-left:8px;
-  -webkit-text-fill-color: initial;
-}
-
-.subtitle {
+    .subtitle {
       font-size: 13px;
       font-weight: 700;
       text-transform: uppercase;
@@ -280,8 +264,8 @@ button:active {
 
     .tabs-bar {
   display: flex;
-  gap: 6px;
-  padding: 8px;
+  gap: 8px;
+  padding: 10px;
   background: rgba(255, 255, 255, 0.06);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 18px;
@@ -302,21 +286,14 @@ button:active {
 
     .tab-btn {
   flex: 0 0 auto;
-  min-width: 0;
-  padding: 7px 10px;
-  min-height: 34px;
-  font-size: 12px;
-  border-radius: 12px;
+  min-width: 92px;
+  padding: 8px 10px;
+  min-height: 38px;
+  font-size: 13px;
+  border-radius: 14px;
   white-space: nowrap;
 }
-
-.tabs-bar .tab-btn svg {
-  width: 16px;
-  height: 16px;
-}
-
-
-    .filters {
+.filters {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
@@ -420,7 +397,7 @@ button:active {
     <div class="card">
       <div class="title-row">
         <div class="logo">🚗</div>
-        <div class="title">попутчики</div><span class="build-tag">v4</span>
+        <div class="title">попутчики</div>
       </div>
       <div class="info" id="user-info">
         Загрузка...
@@ -740,36 +717,14 @@ const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
 
-// ВАЖНО: некоторые запросы в коде используют fetch() напрямую.
-// Чтобы не ловить "Нет initData", мы подмешиваем initData в ЛЮБОЙ fetch к /api/*.
-const __nativeFetch = window.fetch.bind(window);
-window.fetch = (url, options = {}) => {
-  const opts = { ...(options || {}) };
-  const headers = { ...((opts.headers) || {}) };
-
-  // Добавляем initData только если запрос идёт на наш API
-  const u = typeof url === 'string' ? url : (url && url.url) ? url.url : '';
-  if (u && u.includes('/api/') && tg && tg.initData) {
-    headers['x-telegram-init-data'] = tg.initData;
-  }
-
-  opts.headers = headers;
-  return __nativeFetch(url, opts);
-};
-
 function apiFetch(url, options = {}) {
-  // Явный helper: добавляем initData, даже если запрос не попал под window.fetch override
-  const opts = { ...(options || {}) };
-  const headers = { ...((opts.headers) || {}) };
-
+  const opts = { ...options };
+  opts.headers = { ...(opts.headers || {}) };
   if (tg && tg.initData) {
-    headers['x-telegram-init-data'] = tg.initData;
+    opts.headers['x-telegram-init-data'] = tg.initData;
   }
-
-  opts.headers = headers;
-  return __nativeFetch(url, opts);
+  return fetch(url, opts);
 }
-
 
 function shareText(text) {
   const u =
