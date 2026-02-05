@@ -285,14 +285,26 @@ button:active {
     }
 
     .tab-btn {
-  flex: 0 0 auto;
-  min-width: 92px;
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
   padding: 8px 10px;
-  min-height: 38px;
   font-size: 13px;
-  border-radius: 14px;
+  font-weight: 800;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
 }
+
+.tab-btn svg {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  opacity: 0.9;
+}
+
 .filters {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -716,6 +728,25 @@ button:active {
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
+
+// --- ensure initData is sent for any /api request (even if someone uses fetch directly)
+const __nativeFetch = window.fetch.bind(window);
+window.fetch = (url, options = {}) => {
+  try {
+    const u = typeof url === 'string' ? url : (url && url.url) ? url.url : String(url);
+    const isApi = u.startsWith('/api') || u.includes('/api/');
+    if (!isApi) return __nativeFetch(url, options);
+
+    const opts = { ...(options || {}) };
+    opts.headers = { ...(opts.headers || {}) };
+    if (tg && tg.initData && !opts.headers['x-telegram-init-data']) {
+      opts.headers['x-telegram-init-data'] = tg.initData;
+    }
+    return __nativeFetch(url, opts);
+  } catch (e) {
+    return __nativeFetch(url, options);
+  }
+};
 
 function apiFetch(url, options = {}) {
   const opts = { ...options };

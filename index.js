@@ -74,168 +74,142 @@ function webAppOpenKeyboard(label = 'Открыть мини‑приложен�
 }
 
 
-// ---------------- ПУБЛИЧНЫЙ КАНАЛ: АВТОПОСТ ----------------
-// Включение/настройка через переменные окружения:
-// PUBLIC_CHANNEL=@your_channel (или -100...)
-// AUTOPOST_ENABLED=1 (по умолчанию включено, если указан канал)
-// AUTOPOST_MODE=both|trip|plan (по умолчанию both)
-// AUTOPOST_PIN=0/1 (по умолчанию 0)
+// ---------------- CHANNEL AUTOPOST (красивые посты в публичный канал) ----------------
+const PUBLIC_CHANNEL = (process.env.PUBLIC_CHANNEL || '').trim(); // пример: @sochi_adler_polana
+const AUTOPOST_ENABLED = process.env.AUTOPOST_ENABLED !== '0';
+const AUTOPOST_TRIPS = process.env.AUTOPOST_TRIPS !== '0';
+const AUTOPOST_PLANS = process.env.AUTOPOST_PLANS !== '0';
+const CHANNEL_BRAND = (process.env.CHANNEL_BRAND || '🏔️ Попутчики Сочи–Адлер–Красная Поляна').trim();
+const CHANNEL_TAGS = (process.env.CHANNEL_TAGS || '').trim();
 
-const PUBLIC_CHANNEL = String(process.env.PUBLIC_CHANNEL || '').trim();
-const AUTOPOST_ENABLED = String(process.env.AUTOPOST_ENABLED || '1') !== '0';
-const AUTOPOST_MODE = String(process.env.AUTOPOST_MODE || 'both').toLowerCase();
-const AUTOPOST_PIN = String(process.env.AUTOPOST_PIN || '0') === '1';
+const WEBAPP_CHANNEL_URL = (() => {
+  const base = WEBAPP_URL;
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}src=channel`;
+})();
 
-function requireMiniAppAction(req, res) {
-  // Даже если REQUIRE_INIT_DATA=0 (режим дебага), бронирование/взятие плана — только из Telegram Mini App
-  if (!req.telegramId) {
-    res.status(401).json({
-      error: 'Действие доступно только из Telegram Mini App. Откройте приложение через кнопку /start.'
-    });
-    return false;
-  }
-  return true;
-}
-
-function escHtml(s) {
-  return String(s || '')
+function escapeHtml(s = '') {
+  return String(s)
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 }
 
-function buildWebAppUrl(extraParams = {}) {
-  const baseUrl = WEBAPP_URL || '';
-  const url = new URL(baseUrl);
-  // cache-bust
-  url.searchParams.set('v', String(Date.now()));
-  Object.entries(extraParams).forEach(([k, v]) => {
-    if (v === undefined || v === null) return;
-    url.searchParams.set(String(k), String(v));
-  });
-  return url.toString();
+function compactText(s, max = 180) {
+  const t = String(s || '').trim();
+  if (!t) return '';
+  return t.length > max ? t.slice(0, max - 1) + '…' : t;
 }
 
-async function sendToChannelSafe(htmlText, keyboard) {
-  if (!PUBLIC_CHANNEL) return;
-  if (!AUTOPOST_ENABLED) return;
-  try {
-    const msg = await bot.telegram.sendMessage(PUBLIC_CHANNEL, htmlText, {
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-      ...(keyboard || {}),
-    });
-    if (AUTOPOST_PIN && msg && msg.message_id) {
-      try {
-        await bot.telegram.pinChatMessage(PUBLIC_CHANNEL, msg.message_id, { disable_notification: true });
-      } catch (e) {
-        console.warn('pinChatMessage failed:', e?.message || e);
-      }
-    }
-  } catch (e) {
-    console.warn('AUTOPOST failed:', e?.message || e);
+function formatDT(raw) {
+  const s = String(raw || '').trim();
+  if (!s) return '—';
+  return escapeHtml(s.replace('T', ' '));
+}
+
+function formatMoney(val) {
+  const n = Number(val);
+  if (!Number.isFinite(n)) return '0';
+  return String(Math.round(n));
+}
+
+function userDisplayHtml(user) {
+  const username = user && user.username ? String(user.username).replace('@', '') : '';
+  const name =
+    [user && user.first_name, user && user.last_name].filter(Boolean).join(' ').trim() ||
+    (username ? '@' + username : 'Пользователь');
+
+  if (username) {
+    return `<a href="https://t.me/${escapeHtml(username)}">${escapeHtml('@' + username)}</a>`;
   }
+  return `<b>${escapeHtml(name)}</b>`;
 }
 
-function channelKeyboard(row2 = null) {
-  const openBtn = { text: 'Открыть в приложении', web_app: { url: buildWebAppUrl({ src: 'channel' }) } };
-  const row = [openBtn];
-  if (row2) row.push(row2);
+function channelKeyboard(authorUsername) {
+  const row = [
+    { text: 'Открыть в приложении', web_app: { url: WEBAPP_CHANNEL_URL } },
+  ];
+
+  if (authorUsername) {
+    const u = String(authorUsername).replace('@', '');
+    row.push({ text: 'Написать', url: `https://t.me/${encodeURIComponent(u)}` });
+  }
+
   return { reply_markup: { inline_keyboard: [row] } };
 }
 
-function makeUserLink(username, telegramId) {
-  const u = String(username || '').replace('@', '').trim();
-  if (u) return `<a href="https://t.me/${escHtml(u)}">@${escHtml(u)}</a>`;
-  if (telegramId) return `tg://user?id=${escHtml(telegramId)}`;
-  return '';
+async function sendToChannelSafe(html, keyboardExtra) {
+  try {
+    if (!PUBLIC_CHANNEL || !AUTOPOST_ENABLED) return;
+    await bot.telegram.sendMessage(PUBLIC_CHANNEL, html, {
+      parse_mode: 'HTML',
+      disable_web_page_preview: true,
+      ...(keyboardExtra || {}),
+    });
+  } catch (e) {
+    console.warn('CHANNEL AUTOPOST error:', e?.message || e);
+  }
 }
 
-function formatMoney(n) {
-  const x = Number(n || 0);
-  if (!Number.isFinite(x)) return '0';
-  return String(Math.round(x));
+function buildTripPostHtml(trip, driver) {
+  const from = escapeHtml(trip.from_city);
+  const to = escapeHtml(trip.to_city);
+  const time = formatDT(trip.departure_time);
+  const seats = escapeHtml(trip.seats_total);
+  const price = formatMoney(trip.price_per_seat);
+  const note = compactText(trip.note || '', 220);
+
+  let html = '';
+  html += `<b>${escapeHtml(CHANNEL_BRAND)}</b>\n`;
+  html += `<b>🚗 Поездка</b>\n`;
+  html += `<b>${from} → ${to}</b>\n`;
+  html += `────────────\n`;
+  html += `🕒 <b>${time}</b>\n`;
+  html += `💺 Мест: <b>${seats}</b>\n`;
+  html += `💰 Цена: <b>${price} ₽/место</b>\n`;
+  if (note) html += `📝 <i>${escapeHtml(note)}</i>\n`;
+  html += `────────────\n`;
+  html += `👤 Водитель: ${userDisplayHtml(driver)}\n`;
+  if (CHANNEL_TAGS) html += `\n${escapeHtml(CHANNEL_TAGS)}`;
+  return html;
 }
 
-async function autopostTripToChannel(trip, driverUser) {
-  if (!PUBLIC_CHANNEL) return;
-  if (!(AUTOPOST_MODE === 'both' || AUTOPOST_MODE === 'trip')) return;
+function buildPlanPostHtml(plan, passenger) {
+  const from = escapeHtml(plan.from_city);
+  const to = escapeHtml(plan.to_city);
+  const time = formatDT(plan.desired_time);
+  const seats = escapeHtml(plan.seats_needed);
+  const price = formatMoney(plan.price_per_seat);
+  const note = compactText(plan.note || '', 220);
 
-  const from = escHtml(trip?.from_city);
-  const to = escHtml(trip?.to_city);
-  const time = escHtml(trip?.departure_time);
-  const seats = escHtml(trip?.seats_total);
-  const price = escHtml(trip?.price_per_seat);
-  const note = trip?.note ? escHtml(trip.note) : '';
-
-  const driverName = escHtml([driverUser?.first_name, driverUser?.last_name].filter(Boolean).join(' ').trim() || 'Водитель');
-  const driverUsername = driverUser?.username ? String(driverUser.username) : '';
-
-  const chatBtn = driverUsername
-    ? { text: 'Чат с водителем', url: `https://t.me/${String(driverUsername).replace('@','')}` }
-    : null;
-
-  const html =
-    `<b>🚗 Поездка</b>
-` +
-    `<b>${from} → ${to}</b>
-` +
-    `🕒 <b>${time}</b>
-` +
-    `💺 Мест: <b>${seats}</b>
-` +
-    `💰 Цена: <b>${price} ₽/место</b>
-` +
-    (note ? `📝 <i>${note}</i>
-` : '') +
-    `
-👤 ${driverName}` + (driverUsername ? ` (${makeUserLink(driverUsername)})` : '') +
-    `
-
-<b>Бронь — только через мини‑приложение</b> 👇`;
-
-  await sendToChannelSafe(html, channelKeyboard(chatBtn));
+  let html = '';
+  html += `<b>${escapeHtml(CHANNEL_BRAND)}</b>\n`;
+  html += `<b>🙋 Ищу попутку</b>\n`;
+  html += `<b>${from} → ${to}</b>\n`;
+  html += `────────────\n`;
+  html += `🕒 <b>${time}</b>\n`;
+  html += `💺 Нужно мест: <b>${seats}</b>\n`;
+  html += `💰 Цена: <b>${price} ₽/место</b>\n`;
+  if (note) html += `📝 <i>${escapeHtml(note)}</i>\n`;
+  html += `────────────\n`;
+  html += `👤 Пассажир: ${userDisplayHtml(passenger)}\n`;
+  if (CHANNEL_TAGS) html += `\n${escapeHtml(CHANNEL_TAGS)}`;
+  return html;
 }
 
-async function autopostPlanToChannel(plan, passengerUser) {
-  if (!PUBLIC_CHANNEL) return;
-  if (!(AUTOPOST_MODE === 'both' || AUTOPOST_MODE === 'plan')) return;
+async function autopostTripToChannel(trip, driver) {
+  if (!AUTOPOST_TRIPS) return;
+  const html = buildTripPostHtml(trip, driver);
+  const kb = channelKeyboard(driver && driver.username);
+  await sendToChannelSafe(html, kb);
+}
 
-  const from = escHtml(plan?.from_city);
-  const to = escHtml(plan?.to_city);
-  const time = escHtml(plan?.desired_time);
-  const seats = escHtml(plan?.seats_needed);
-  const price = escHtml(plan?.price_per_seat);
-  const note = plan?.note ? escHtml(plan.note) : '';
-
-  const passengerName = escHtml([passengerUser?.first_name, passengerUser?.last_name].filter(Boolean).join(' ').trim() || 'Пассажир');
-  const passengerUsername = passengerUser?.username ? String(passengerUser.username) : '';
-
-  const chatBtn = passengerUsername
-    ? { text: 'Чат с пассажиром', url: `https://t.me/${String(passengerUsername).replace('@','')}` }
-    : null;
-
-  const html =
-    `<b>🧍 Запрос пассажира</b>
-` +
-    `<b>${from} → ${to}</b>
-` +
-    `🕒 <b>${time}</b>
-` +
-    `💺 Нужно мест: <b>${seats}</b>
-` +
-    `💰 Готов платить: <b>${price} ₽/место</b>
-` +
-    (note ? `📝 <i>${note}</i>
-` : '') +
-    `
-👤 ${passengerName}` + (passengerUsername ? ` (${makeUserLink(passengerUsername)})` : '') +
-    `
-
-<b>Забрать пассажира — только через мини‑приложение</b> 👇`;
-
-  await sendToChannelSafe(html, channelKeyboard(chatBtn));
+async function autopostPlanToChannel(plan, passenger) {
+  if (!AUTOPOST_PLANS) return;
+  const html = buildPlanPostHtml(plan, passenger);
+  const kb = channelKeyboard(passenger && passenger.username);
+  await sendToChannelSafe(html, kb);
 }
 
 const app = express();
@@ -337,7 +311,7 @@ app.use('/api', (req, res, next) => {
     if (!req.body.user && req.path === '/init-user') req.body.user = v.user;
   }
   if (req.query && typeof req.query === 'object') {
-    req.query.telegram_id = req.telegramId;
+    if (!req.query.telegram_id) req.query.telegram_id = req.telegramId;
   }
 
   next();
@@ -609,8 +583,8 @@ const trip = await createTrip({
       note,
     });
 
-    // Автопост в публичный канал (ошибка постинга не должна ломать создание)
-    autopostTripToChannel(trip, user);
+    // Автопост в публичный канал (не влияет на создание поездки)
+    autopostTripToChannel(trip, user).catch(() => {});
 
     // Нотификация пассажирам: новый водитель под их план
     try {
@@ -970,6 +944,38 @@ app.post(
         req.file.filename
       );
 
+  
+    // notify passenger that driver took the plan
+    try {
+      const passengerRow = await dbGet(
+        `SELECT u.telegram_id AS passenger_telegram_id, u.username AS passenger_username
+         FROM passenger_plans p
+         JOIN users u ON u.id = p.passenger_id
+         WHERE p.id = ?`,
+        [Number(plan_id)]
+      );
+      const driverRow = await dbGet(
+        `SELECT username, first_name, last_name FROM users WHERE id = ?`,
+        [driver.id]
+      );
+
+      const driverName =
+        (driverRow?.username ? '@' + driverRow.username : null) ||
+        [driverRow?.first_name, driverRow?.last_name].filter(Boolean).join(' ') ||
+        'водитель';
+
+      const msg =
+        `✅ Ваш план поездки взят водителем\n` +
+        `${plan.from_city} → ${plan.to_city}\n` +
+        `Время: ${plan.desired_time}\n` +
+        `Водитель: ${driverName}\n\n` +
+        `Откройте мини‑приложение, чтобы посмотреть детали и подтвердить поездку после завершения.`;
+
+      await sendMessageSafe(passengerRow?.passenger_telegram_id, msg, webAppOpenKeyboard());
+    } catch (e) {
+      console.warn('notify passenger error:', e?.message || e);
+    }
+
     return res.json({ success: true });
     } catch (err) {
       console.error('Ошибка /api/driver/payment-proof:', err);
@@ -983,7 +989,6 @@ app.post(
 // Создание брони
 app.post('/api/bookings', async (req, res) => {
   try {
-    if (!requireMiniAppAction(req, res)) return;
     const { telegram_id, trip_id, seats } = req.body;
 
     if (!telegram_id || !trip_id || !seats) {
@@ -1026,7 +1031,11 @@ app.post('/api/bookings', async (req, res) => {
         `Комиссия сервиса: ${booking.app_fee || 0} ₽\n\n` +
         'Свяжитесь с пассажиром в Telegram для подтверждения деталей.';
 
-      sendMessageSafe(tripFull.driver_telegram_id, textForDriver, webAppOpenKeyboard());
+      bot.telegram
+        .sendMessage(tripFull.driver_telegram_id, textForDriver)
+        .catch((err) =>
+          console.error('Ошибка отправки уведомления водителю:', err)
+        );
     }
 
     // Уведомление пассажиру
@@ -1057,7 +1066,11 @@ app.post('/api/bookings', async (req, res) => {
         (carText ? carText + '\n\n' : '\n') +
         'Свяжитесь с водителем в Telegram для уточнения деталей.';
 
-      sendMessageSafe(bookingPassenger.telegram_id, textForPassenger, webAppOpenKeyboard());
+      bot.telegram
+        .sendMessage(bookingPassenger.telegram_id, textForPassenger)
+        .catch((err) =>
+          console.error('Ошибка отправки уведомления пассажиру:', err)
+        );
     }
 
     return res.json({ booking, trip });
@@ -1204,6 +1217,38 @@ app.post('/api/bookings/no-show', async (req, res) => {
     const bookingIdNum = Number(booking_id);
     await markBookingNoShow({ bookingId: bookingIdNum, driverId: driver.id });
 
+
+    // notify passenger that driver took the plan
+    try {
+      const passengerRow = await dbGet(
+        `SELECT u.telegram_id AS passenger_telegram_id, u.username AS passenger_username
+         FROM passenger_plans p
+         JOIN users u ON u.id = p.passenger_id
+         WHERE p.id = ?`,
+        [Number(plan_id)]
+      );
+      const driverRow = await dbGet(
+        `SELECT username, first_name, last_name FROM users WHERE id = ?`,
+        [driver.id]
+      );
+
+      const driverName =
+        (driverRow?.username ? '@' + driverRow.username : null) ||
+        [driverRow?.first_name, driverRow?.last_name].filter(Boolean).join(' ') ||
+        'водитель';
+
+      const msg =
+        `✅ Ваш план поездки взят водителем\n` +
+        `${plan.from_city} → ${plan.to_city}\n` +
+        `Время: ${plan.desired_time}\n` +
+        `Водитель: ${driverName}\n\n` +
+        `Откройте мини‑приложение, чтобы посмотреть детали и подтвердить поездку после завершения.`;
+
+      await sendMessageSafe(passengerRow?.passenger_telegram_id, msg, webAppOpenKeyboard());
+    } catch (e) {
+      console.warn('notify passenger error:', e?.message || e);
+    }
+
     return res.json({ success: true });
   } catch (err) {
     console.error('Ошибка /api/bookings/no-show:', err);
@@ -1310,9 +1355,6 @@ app.post('/api/passenger/plans', async (req, res) => {
     `
     );
 
-    // Автопост в публичный канал (ошибка постинга не должна ломать создание)
-    autopostPlanToChannel(plan, passenger);
-
     // Нотификация водителям: новый план пассажира под их поездку
     try {
       const rawTrips = await dbAll(
@@ -1358,6 +1400,10 @@ app.post('/api/passenger/plans', async (req, res) => {
     } catch (e) {
       console.warn('notify drivers error:', e?.message || e);
     }
+
+    
+    // Автопост в публичный канал (не влияет на создание плана)
+    autopostPlanToChannel(plan, passenger).catch(() => {});
 
     return res.json({ plan });
 
@@ -1464,6 +1510,38 @@ app.post('/api/passenger/plans/cancel', async (req, res) => {
       [plan.id]
     );
 
+
+    // notify passenger that driver took the plan
+    try {
+      const passengerRow = await dbGet(
+        `SELECT u.telegram_id AS passenger_telegram_id, u.username AS passenger_username
+         FROM passenger_plans p
+         JOIN users u ON u.id = p.passenger_id
+         WHERE p.id = ?`,
+        [Number(plan_id)]
+      );
+      const driverRow = await dbGet(
+        `SELECT username, first_name, last_name FROM users WHERE id = ?`,
+        [driver.id]
+      );
+
+      const driverName =
+        (driverRow?.username ? '@' + driverRow.username : null) ||
+        [driverRow?.first_name, driverRow?.last_name].filter(Boolean).join(' ') ||
+        'водитель';
+
+      const msg =
+        `✅ Ваш план поездки взят водителем\n` +
+        `${plan.from_city} → ${plan.to_city}\n` +
+        `Время: ${plan.desired_time}\n` +
+        `Водитель: ${driverName}\n\n` +
+        `Откройте мини‑приложение, чтобы посмотреть детали и подтвердить поездку после завершения.`;
+
+      await sendMessageSafe(passengerRow?.passenger_telegram_id, msg, webAppOpenKeyboard());
+    } catch (e) {
+      console.warn('notify passenger error:', e?.message || e);
+    }
+
     return res.json({ success: true });
   } catch (err) {
     console.error('Ошибка /api/passenger/plans/cancel:', err);
@@ -1521,7 +1599,6 @@ app.get('/api/driver/passenger-plans', async (req, res) => {
 // Выбор плана водителем («вас заберёт водитель»)
 app.post('/api/driver/passenger-plans/take', async (req, res) => {
   try {
-    if (!requireMiniAppAction(req, res)) return;
     const { telegram_id, plan_id } = req.body;
 
     if (!telegram_id || !plan_id) {
@@ -1634,7 +1711,11 @@ app.post('/api/driver/passenger-plans/take', async (req, res) => {
         (carText ? carText + '\n\n' : '\n') +
         'Откройте мини-приложение "попутчики", чтобы договориться о деталях.';
 
-      sendMessageSafe(full.passenger_telegram_id, textForPassenger, webAppOpenKeyboard());
+      bot.telegram
+        .sendMessage(full.passenger_telegram_id, textForPassenger)
+        .catch((err) =>
+          console.error('Ошибка отправки уведомления пассажиру о плане:', err)
+        );
     }
 
     // Можно дополнительно уведомить водителя, что план успешно взят
@@ -1650,10 +1731,46 @@ app.post('/api/driver/passenger-plans/take', async (req, res) => {
           `Пассажир: ${passengerName || 'без имени'} ${passengerUsername}\n\n` +
           'Свяжитесь с пассажиром в Telegram для уточнения деталей.';
 
-        sendMessageSafe(full.driver_telegram_id, textForDriver, webAppOpenKeyboard());
+        bot.telegram
+          .sendMessage(full.driver_telegram_id, textForDriver)
+          .catch((err) =>
+            console.error('Ошибка отправки уведомления водителю о плане:', err)
+          );
       }
     } catch (err) {
       console.error('Ошибка уведомления водителя о взятом плане:', err);
+    }
+
+
+    // notify passenger that driver took the plan
+    try {
+      const passengerRow = await dbGet(
+        `SELECT u.telegram_id AS passenger_telegram_id, u.username AS passenger_username
+         FROM passenger_plans p
+         JOIN users u ON u.id = p.passenger_id
+         WHERE p.id = ?`,
+        [Number(plan_id)]
+      );
+      const driverRow = await dbGet(
+        `SELECT username, first_name, last_name FROM users WHERE id = ?`,
+        [driver.id]
+      );
+
+      const driverName =
+        (driverRow?.username ? '@' + driverRow.username : null) ||
+        [driverRow?.first_name, driverRow?.last_name].filter(Boolean).join(' ') ||
+        'водитель';
+
+      const msg =
+        `✅ Ваш план поездки взят водителем\n` +
+        `${plan.from_city} → ${plan.to_city}\n` +
+        `Время: ${plan.desired_time}\n` +
+        `Водитель: ${driverName}\n\n` +
+        `Откройте мини‑приложение, чтобы посмотреть детали и подтвердить поездку после завершения.`;
+
+      await sendMessageSafe(passengerRow?.passenger_telegram_id, msg, webAppOpenKeyboard());
+    } catch (e) {
+      console.warn('notify passenger error:', e?.message || e);
     }
 
     return res.json({ success: true });
@@ -1873,6 +1990,38 @@ app.post('/api/rides/review', async (req, res) => {
       [r, r, toUserId]
     );
 
+
+    // notify passenger that driver took the plan
+    try {
+      const passengerRow = await dbGet(
+        `SELECT u.telegram_id AS passenger_telegram_id, u.username AS passenger_username
+         FROM passenger_plans p
+         JOIN users u ON u.id = p.passenger_id
+         WHERE p.id = ?`,
+        [Number(plan_id)]
+      );
+      const driverRow = await dbGet(
+        `SELECT username, first_name, last_name FROM users WHERE id = ?`,
+        [driver.id]
+      );
+
+      const driverName =
+        (driverRow?.username ? '@' + driverRow.username : null) ||
+        [driverRow?.first_name, driverRow?.last_name].filter(Boolean).join(' ') ||
+        'водитель';
+
+      const msg =
+        `✅ Ваш план поездки взят водителем\n` +
+        `${plan.from_city} → ${plan.to_city}\n` +
+        `Время: ${plan.desired_time}\n` +
+        `Водитель: ${driverName}\n\n` +
+        `Откройте мини‑приложение, чтобы посмотреть детали и подтвердить поездку после завершения.`;
+
+      await sendMessageSafe(passengerRow?.passenger_telegram_id, msg, webAppOpenKeyboard());
+    } catch (e) {
+      console.warn('notify passenger error:', e?.message || e);
+    }
+
     return res.json({ success: true });
   } catch (err) {
     console.error('Ошибка /api/rides/review:', err);
@@ -1985,6 +2134,38 @@ app.post('/api/admin/block-driver', async (req, res) => {
     }
 
     await setUserBlockedByTelegramId(driver_telegram_id, !!block);
+
+
+    // notify passenger that driver took the plan
+    try {
+      const passengerRow = await dbGet(
+        `SELECT u.telegram_id AS passenger_telegram_id, u.username AS passenger_username
+         FROM passenger_plans p
+         JOIN users u ON u.id = p.passenger_id
+         WHERE p.id = ?`,
+        [Number(plan_id)]
+      );
+      const driverRow = await dbGet(
+        `SELECT username, first_name, last_name FROM users WHERE id = ?`,
+        [driver.id]
+      );
+
+      const driverName =
+        (driverRow?.username ? '@' + driverRow.username : null) ||
+        [driverRow?.first_name, driverRow?.last_name].filter(Boolean).join(' ') ||
+        'водитель';
+
+      const msg =
+        `✅ Ваш план поездки взят водителем\n` +
+        `${plan.from_city} → ${plan.to_city}\n` +
+        `Время: ${plan.desired_time}\n` +
+        `Водитель: ${driverName}\n\n` +
+        `Откройте мини‑приложение, чтобы посмотреть детали и подтвердить поездку после завершения.`;
+
+      await sendMessageSafe(passengerRow?.passenger_telegram_id, msg, webAppOpenKeyboard());
+    } catch (e) {
+      console.warn('notify passenger error:', e?.message || e);
+    }
 
     return res.json({ success: true });
   } catch (err) {
