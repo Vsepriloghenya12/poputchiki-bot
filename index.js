@@ -65,10 +65,10 @@ async function sendMessageSafe(telegramId, text, extra = undefined) {
 }
 
 function webAppOpenKeyboard(label = 'Открыть мини‑приложение') {
-  // У Telegram бывает разное поведение. Даем обычную URL-кнопку.
+  // Важно: именно web_app (Mini App), а не url. Тогда Telegram передаёт initData.
   return {
     reply_markup: {
-      inline_keyboard: [[{ text: label, url: WEBAPP_URL }]],
+      inline_keyboard: [[{ text: label, web_app: { url: WEBAPP_URL } }]],
     },
   };
 }
@@ -146,17 +146,9 @@ function validateTelegramInitData(initData, botToken, maxAgeSec) {
 
 // Мидлварь: если initData валидный — перетираем возможную подмену telegram_id в запросах.
 app.use('/api', (req, res, next) => {
-  if (req.method === 'OPTIONS') return next();
-
   const initData =
     req.headers['x-telegram-init-data'] ||
-    req.headers['x-telegram-initdata'] ||
-    req.headers['x-telegram-webapp-init-data'] ||
-    req.headers['telegram-webapp-init-data'] ||
-    req.headers['x-telegram-web-app-init-data'] ||
-    req.headers['telegram-web-app-init-data'] ||
-    (req.body && (req.body.initData || req.body.init_data)) ||
-    (req.query && (req.query.initData || req.query.init_data));
+    req.headers['x-telegram-initdata'];
 
   if (!initData) {
     if (!REQUIRE_INIT_DATA) return next();
@@ -183,6 +175,19 @@ app.use('/api', (req, res, next) => {
   next();
 });
 
+// Действия, которые должны работать ТОЛЬКО из Telegram Mini App.
+function requireMiniAppAuth(req, res) {
+  if (!req.telegramId) {
+    res.status(401).json({
+      error:
+        'Это действие доступно только через мини‑приложение Telegram. Откройте Mini App через кнопку у бота.',
+    });
+    return null;
+  }
+  return String(req.telegramId);
+}
+
+
 
 app.use((req, res, next) => {
   // Telegram WebView может агрессивно кэшировать HTML/JS/CSS
@@ -197,30 +202,8 @@ app.use((req, res, next) => {
   }
   next();
 });
-// ---------------- Статика (без кэша для HTML, чтобы Telegram не показывал старую версию) ----------------
-app.get('/', (req, res) => {
-  res.setHeader('Cache-Control', 'no-store');
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
-
-app.use(
-  express.static(path.join(__dirname, 'public'), {
-    etag: false,
-    lastModified: false,
-    setHeaders: (res, filePath) => {
-      // HTML — вообще без кэша, чтобы обновления сразу доходили до Telegram WebView
-      if (filePath.endsWith('.html')) {
-        res.setHeader('Cache-Control', 'no-store');
-        return;
-      }
-      // Остальное — мягкий no-cache
-      res.setHeader('Cache-Control', 'no-cache');
-    },
-  })
-);
-
-app.use('/uploads', express.static(uploadDir, { etag: false, lastModified: false }));
-
+app.use(express.static(path.join(__dirname, 'public')));
+app.use('/uploads', express.static(uploadDir));
 
 // ---------------- ВСПОМОГАТЕЛЬНЫЕ ОБЁРТКИ ДЛЯ DB (для passenger_plans) ----------------
 
@@ -600,7 +583,7 @@ app.post('/api/driver/delete-trip', async (req, res) => {
       return res.status(400).json({ error: 'Не указаны telegram_id или trip_id' });
     }
 
-    const driver = await getUserByTelegramId(telegram_id);
+    const driver = await getUserByTelegramId(driverTelegramId);
     if (!driver) {
       return res.status(400).json({ error: 'Водитель не найден' });
     }
@@ -639,7 +622,7 @@ app.get('/api/driver/trips', async (req, res) => {
       return res.status(400).json({ error: 'Не указан telegram_id' });
     }
 
-    const driver = await getUserByTelegramId(telegram_id);
+    const driver = await getUserByTelegramId(driverTelegramId);
     if (!driver) {
       return res.status(400).json({ error: 'Водитель не найден' });
     }
@@ -660,7 +643,7 @@ app.get('/api/driver/active-trip', async (req, res) => {
       return res.status(400).json({ error: 'Не указан telegram_id' });
     }
 
-    const driver = await getUserByTelegramId(telegram_id);
+    const driver = await getUserByTelegramId(driverTelegramId);
     if (!driver) {
       return res.status(400).json({ error: 'Водитель не найден' });
     }
@@ -698,7 +681,7 @@ app.get('/api/driver/trip-bookings', async (req, res) => {
       return res.status(400).json({ error: 'Не указаны telegram_id или trip_id' });
     }
 
-    const driver = await getUserByTelegramId(telegram_id);
+    const driver = await getUserByTelegramId(driverTelegramId);
     if (!driver) {
       return res.status(400).json({ error: 'Водитель не найден' });
     }
@@ -830,37 +813,6 @@ app.post(
       );
 
   
-    // notify passenger that driver took the plan
-    try {
-      const passengerRow = await dbGet(
-        `SELECT u.telegram_id AS passenger_telegram_id, u.username AS passenger_username
-         FROM passenger_plans p
-         JOIN users u ON u.id = p.passenger_id
-         WHERE p.id = ?`,
-        [Number(plan_id)]
-      );
-      const driverRow = await dbGet(
-        `SELECT username, first_name, last_name FROM users WHERE id = ?`,
-        [driver.id]
-      );
-
-      const driverName =
-        (driverRow?.username ? '@' + driverRow.username : null) ||
-        [driverRow?.first_name, driverRow?.last_name].filter(Boolean).join(' ') ||
-        'водитель';
-
-      const msg =
-        `✅ Ваш план поездки взят водителем\n` +
-        `${plan.from_city} → ${plan.to_city}\n` +
-        `Время: ${plan.desired_time}\n` +
-        `Водитель: ${driverName}\n\n` +
-        `Откройте мини‑приложение, чтобы посмотреть детали и подтвердить поездку после завершения.`;
-
-      await sendMessageSafe(passengerRow?.passenger_telegram_id, msg, webAppOpenKeyboard());
-    } catch (e) {
-      console.warn('notify passenger error:', e?.message || e);
-    }
-
     return res.json({ success: true });
     } catch (err) {
       console.error('Ошибка /api/driver/payment-proof:', err);
@@ -873,14 +825,16 @@ app.post(
 
 // Создание брони
 app.post('/api/bookings', async (req, res) => {
-  try {
-    const { telegram_id, trip_id, seats } = req.body;
+  try {    const passengerTelegramId = requireMiniAppAuth(req, res);
+    if (!passengerTelegramId) return;
 
-    if (!telegram_id || !trip_id || !seats) {
+    const { trip_id, seats } = req.body;
+
+    if (!trip_id || !seats) {
       return res.status(400).json({ error: 'Не все данные для бронирования переданы' });
     }
 
-    const passenger = await getUserByTelegramId(telegram_id);
+    const passenger = await getUserByTelegramId(passengerTelegramId);
     if (!passenger) {
       return res
         .status(400)
@@ -892,7 +846,7 @@ app.post('/api/bookings', async (req, res) => {
 
     const { booking, trip, passenger: bookingPassenger } = await createBooking({
       tripId: tripIdNum,
-      passengerTelegramId: telegram_id,
+      passengerTelegramId: passengerTelegramId,
       seatsBooked: seatsNum,
     });
 
@@ -981,16 +935,18 @@ app.post('/api/bookings', async (req, res) => {
 
 // Отмена бронирования пассажиром
 app.post('/api/bookings/cancel', async (req, res) => {
-  try {
-    const { telegram_id, booking_id } = req.body;
+  try {    const passengerTelegramId = requireMiniAppAuth(req, res);
+    if (!passengerTelegramId) return;
 
-    if (!telegram_id || !booking_id) {
+    const { booking_id } = req.body;
+
+    if (!booking_id) {
       return res
         .status(400)
-        .json({ error: 'Не указаны telegram_id или booking_id' });
+        .json({ error: 'Не указан booking_id' });
     }
 
-    const passenger = await getUserByTelegramId(telegram_id);
+    const passenger = await getUserByTelegramId(passengerTelegramId);
     if (!passenger) {
       return res.status(400).json({ error: 'Пассажир не найден' });
     }
@@ -1085,16 +1041,18 @@ app.get('/api/passenger/active-bookings', async (req, res) => {
 
 // Отметка "не приехал"
 app.post('/api/bookings/no-show', async (req, res) => {
-  try {
-    const { telegram_id, booking_id } = req.body;
+  try {    const driverTelegramId = requireMiniAppAuth(req, res);
+    if (!driverTelegramId) return;
 
-    if (!telegram_id || !booking_id) {
+    const { booking_id } = req.body;
+
+    if (!booking_id) {
       return res
         .status(400)
-        .json({ error: 'Не указаны telegram_id или booking_id' });
+        .json({ error: 'Не указан booking_id' });
     }
 
-    const driver = await getUserByTelegramId(telegram_id);
+    const driver = await getUserByTelegramId(driverTelegramId);
     if (!driver) {
       return res.status(400).json({ error: 'Водитель не найден' });
     }
@@ -1102,37 +1060,6 @@ app.post('/api/bookings/no-show', async (req, res) => {
     const bookingIdNum = Number(booking_id);
     await markBookingNoShow({ bookingId: bookingIdNum, driverId: driver.id });
 
-
-    // notify passenger that driver took the plan
-    try {
-      const passengerRow = await dbGet(
-        `SELECT u.telegram_id AS passenger_telegram_id, u.username AS passenger_username
-         FROM passenger_plans p
-         JOIN users u ON u.id = p.passenger_id
-         WHERE p.id = ?`,
-        [Number(plan_id)]
-      );
-      const driverRow = await dbGet(
-        `SELECT username, first_name, last_name FROM users WHERE id = ?`,
-        [driver.id]
-      );
-
-      const driverName =
-        (driverRow?.username ? '@' + driverRow.username : null) ||
-        [driverRow?.first_name, driverRow?.last_name].filter(Boolean).join(' ') ||
-        'водитель';
-
-      const msg =
-        `✅ Ваш план поездки взят водителем\n` +
-        `${plan.from_city} → ${plan.to_city}\n` +
-        `Время: ${plan.desired_time}\n` +
-        `Водитель: ${driverName}\n\n` +
-        `Откройте мини‑приложение, чтобы посмотреть детали и подтвердить поездку после завершения.`;
-
-      await sendMessageSafe(passengerRow?.passenger_telegram_id, msg, webAppOpenKeyboard());
-    } catch (e) {
-      console.warn('notify passenger error:', e?.message || e);
-    }
 
     return res.json({ success: true });
   } catch (err) {
@@ -1337,10 +1264,12 @@ app.get('/api/passenger/plans', async (req, res) => {
 
 // Отмена плана пассажиром
 app.post('/api/passenger/plans/cancel', async (req, res) => {
-  try {
-    const { telegram_id, plan_id } = req.body;
+  try {    const driverTelegramId = requireMiniAppAuth(req, res);
+    if (!driverTelegramId) return;
 
-    if (!telegram_id || !plan_id) {
+    const { plan_id } = req.body;
+
+    if (!plan_id) {
       return res
         .status(400)
         .json({ error: 'Не указаны telegram_id или plan_id' });
@@ -1480,15 +1409,18 @@ app.get('/api/driver/passenger-plans', async (req, res) => {
 // Выбор плана водителем («вас заберёт водитель»)
 app.post('/api/driver/passenger-plans/take', async (req, res) => {
   try {
-    const { telegram_id, plan_id } = req.body;
+    const driverTelegramId = requireMiniAppAuth(req, res);
+    if (!driverTelegramId) return;
 
-    if (!telegram_id || !plan_id) {
+    const { plan_id } = req.body;
+
+    if (!plan_id) {
       return res
         .status(400)
-         .json({ error: 'Не указаны telegram_id или plan_id' });
+         .json({ error: 'Не указан plan_id' });
     }
 
-    const driver = await getUserByTelegramId(telegram_id);
+    const driver = await getUserByTelegramId(driverTelegramId);
     if (!driver) {
       return res.status(400).json({ error: 'Водитель не найден' });
     }
