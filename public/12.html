@@ -14,7 +14,7 @@
 
     body {
       font-family: 'Manrope', sans-serif;
-      background: radial-gradient(1000px 700px at 50% -10%, rgba(148, 213, 255, 0.18), rgba(0,0,0,0) 55%), linear-gradient(180deg, #071426 0%, #0b1f33 45%, #0f2a44 100%);
+      background: radial-gradient(1000px 700px at 50% -10%, rgba(224, 230, 233, 0.18), rgba(0,0,0,0) 55%), linear-gradient(180deg, #071426 0%, #0b1f33 45%, #0f2a44 100%);
       color: #e2e8f0;
       min-height: 100vh;
       position: relative;
@@ -45,7 +45,7 @@
       padding: 14px 14px 16px 14px;
       margin-bottom: 14px;
       box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(233, 227, 227, 0.1);
     }
 
     .title-row {
@@ -122,7 +122,7 @@
       padding: 7px 9px;
       font-size: 15px;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 243, 243, 0.1);
       color: #e2e8f0;
     }
 
@@ -262,44 +262,44 @@ button:active {
       display: none !important;
     }
 
-        /* --- Tabs (водитель/пассажир) --- */
     .tabs-bar {
-      display: flex;
-      gap: 8px;
-      margin: 6px 0 14px;
-      padding: 0;
-      background: transparent;
-      border: none;
-      box-shadow: none;
-      position: static; /* убрали "бар"/sticky */
-      overflow: visible; /* без горизонтального скролла */
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(245, 241, 241, 0.12);
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  margin-bottom: 16px;
+  position: sticky;
+  top: 8px;
+  z-index: 50;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  backdrop-filter: blur(12px);
+}
+
+    .tabs-bar::-webkit-scrollbar {
+      display: none;
     }
 
     .tab-btn {
-      flex: 1 1 0;
-      min-width: 0 !important;
-      min-height: 38px !important;
-      padding: 9px 8px !important;
-      font-size: 12.5px !important;
-      font-weight: 800 !important;
-      border-radius: 16px !important;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
+  flex: 0 0 auto;
+  min-width: unset;
+  white-space: nowrap;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  min-height: 40px;
+  border-radius: 14px;
+}
 
-    /* Убираем иконки внутри табов — они "раздувают" кнопки */
-    .tab-btn svg { display: none !important; }
-
-    /* На самых узких экранах чуть уменьшим шрифт */
-    @media (max-width: 390px) {
-      .tab-btn { font-size: 12px !important; padding: 9px 6px !important; }
-      #driver-tabs-bar .tab-btn { font-size: 11.6px !important; }
-    }
-
-    /* Гарантируем, что табы не смешиваются */
-    body.role-driver #passenger-tabs-bar { display: none !important; }
-    body.role-passenger #driver-tabs-bar { display: none !important; }
+.tab-btn svg {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
 
     .filters {
       display: grid;
@@ -312,20 +312,7 @@ button:active {
       border-radius: 14px;
     }
 
-    .trips-toolbar{
-      display:flex;
-      gap:8px;
-      margin-top:10px;
-      margin-bottom:8px;
-    }
-    .trips-toolbar button{
-      flex:1;
-      min-height:38px !important;
-      padding: 9px 8px !important;
-      font-weight: 800;
-    }
-
-    .filter-toggle-row{
+    .filter-toggle-row {
       display: flex;
       justify-content: flex-end;
       margin-top: 8px;
@@ -406,7 +393,27 @@ button:active {
   content: "❄️";
   font-size: 24px;
 }
-  </style>
+  
+  .focus-highlight {
+    outline: 2px solid rgba(255,255,255,0.35);
+    box-shadow: 0 0 0 6px rgba(255,255,255,0.08), 0 18px 40px rgba(0,0,0,0.35);
+    transform: translateY(-1px);
+  }
+  /* Подсказки в полях */
+input::placeholder,
+textarea::placeholder{
+  color: var(--ph) !important;
+  opacity: 1 !important;
+}
+
+/* Telegram/WebView (на всякий) */
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder{
+  color: var(--ph) !important;
+  opacity: 1 !important;
+}
+
+</style>
 </head>
 <body>
   <div class="bg-mountains" aria-hidden="true"></div>
@@ -575,9 +582,10 @@ button:active {
         Список поездок с ещё свободными местами.
       </div>
 
-      <div class="trips-toolbar">
-        <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">Фильтры ▼</button>
-        <button class="secondary-btn" id="btn-refresh-trips" type="button">Обновить</button>
+      <div class="filter-toggle-row">
+        <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">
+          Фильтры ▼
+        </button>
       </div>
 
       <div class="filters hidden" id="passenger-filters">
@@ -613,6 +621,8 @@ button:active {
           <button class="secondary-btn" id="btn-reset-filters" type="button">Сброс</button>
         </div>
       </div>
+
+      <button class="secondary-btn" id="btn-refresh-trips" type="button">Обновить</button>
 
       <div id="trips-list" class="info">
         Поездки ещё не загружены.
@@ -731,9 +741,14 @@ button:active {
 
   <script>
     
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
+
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+}
+
+const rawFetch = window.fetch.bind(window);
 
 function apiFetch(url, options = {}) {
   const opts = { ...options };
@@ -741,13 +756,50 @@ function apiFetch(url, options = {}) {
   if (tg && tg.initData) {
     opts.headers['x-telegram-init-data'] = tg.initData;
   }
-  return fetch(url, opts);
+  return rawFetch(url, opts);
 }
 
-function shareText(text) {
+// Чтобы не переписывать весь код: любые fetch('/api/...') автоматически получают initData
+window.fetch = (url, options = {}) => {
+  try {
+    if (typeof url === 'string' && url.startsWith('/api/')) {
+      return apiFetch(url, options);
+    }
+  } catch (_) {}
+  return rawFetch(url, options);
+};
+
+let APP_CONFIG = null;
+
+async function loadAppConfig() {
+  try {
+    const res = await apiFetch('/api/app-config');
+    const data = await res.json();
+    APP_CONFIG = data || {};
+  } catch (_) {
+    APP_CONFIG = null;
+  }
+}
+
+// Загружаем конфиг (deeplink_prefix) с бэка
+loadAppConfig();
+
+function deeplinkFor(startParam) {
+  const sp = String(startParam || '').trim();
+  const prefix = APP_CONFIG && APP_CONFIG.deeplink_prefix ? String(APP_CONFIG.deeplink_prefix) : '';
+  if (prefix) {
+    return prefix + encodeURIComponent(sp);
+  }
+  const base = location.href.split('#')[0];
+  const sep = base.includes('?') ? '&' : '?';
+  return base + sep + 'startapp=' + encodeURIComponent(sp);
+}
+
+function shareText(text, urlOverride) {
+  const shareUrl = urlOverride || location.href;
   const u =
     'https://t.me/share/url?url=' +
-    encodeURIComponent(location.href) +
+    encodeURIComponent(shareUrl) +
     '&text=' +
     encodeURIComponent(text);
   if (tg && tg.openTelegramLink) tg.openTelegramLink(u);
@@ -766,6 +818,71 @@ function openChat(username, telegramId) {
     } catch (_) {}
   }
   alert('У пользователя нет username, чат открыть не удалось.');
+}
+
+
+
+function getStartParamRaw() {
+  const unsafe = tg && tg.initDataUnsafe ? tg.initDataUnsafe : {};
+  const sp = unsafe && (unsafe.start_param || unsafe.startParam);
+  if (sp) return String(sp);
+  try {
+    const params = new URL(location.href).searchParams;
+    return (
+      params.get('startapp') ||
+      params.get('tgWebAppStartParam') ||
+      params.get('start_param') ||
+      ''
+    );
+  } catch (_) {
+    return '';
+  }
+}
+
+let START_ACTION = null;
+let START_ACTION_APPLIED = false;
+
+function parseStartParam(sp) {
+  const s = String(sp || '').trim();
+  let m;
+  if ((m = s.match(/^trip_(\d+)$/i))) {
+    return { type: 'trip', id: Number(m[1]), role: 'passenger', tab: 'trips' };
+  }
+  if ((m = s.match(/^plan_(\d+)$/i))) {
+    return { type: 'plan', id: Number(m[1]), role: 'driver', tab: 'plans' };
+  }
+  return null;
+}
+
+function flashFocus(el) {
+  try {
+    el.classList.add('focus-highlight');
+    setTimeout(() => el.classList.remove('focus-highlight'), 4500);
+  } catch (_) {}
+}
+
+function maybeFocusStartAction() {
+  if (!START_ACTION || START_ACTION_APPLIED) return;
+
+  if (START_ACTION.type === 'trip') {
+    const el = document.querySelector(`[data-trip-id="${START_ACTION.id}"]`);
+    if (el) {
+      START_ACTION_APPLIED = true;
+      flashFocus(el);
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
+
+  if (START_ACTION.type === 'plan') {
+    const el = document.querySelector(`[data-plan-id="${START_ACTION.id}"]`);
+    if (el) {
+      START_ACTION_APPLIED = true;
+      flashFocus(el);
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
 }
 
 
@@ -855,7 +972,6 @@ const ADMIN_ID = 504348666;
     const roleButtons = document.querySelectorAll('#btn-driver, #btn-passenger');
 
     let currentRole = null;
-    document.body.classList.remove('role-driver','role-passenger');
     let driverAutoTimer = null;
     let passengerAutoTimer = null;
 
@@ -933,8 +1049,6 @@ const ADMIN_ID = 504348666;
       driverTabsBar.classList.remove('hidden');
       passengerTabsBar.classList.add('hidden');
       currentRole = 'driver';
-      document.body.classList.add('role-driver');
-      document.body.classList.remove('role-passenger');
       setActiveTabUI(driverTabsBar, tab);
 
       driverPaymentBlock.classList.remove('hidden');
@@ -959,8 +1073,6 @@ const ADMIN_ID = 504348666;
       passengerTabsBar.classList.remove('hidden');
       driverTabsBar.classList.add('hidden');
       currentRole = 'passenger';
-      document.body.classList.add('role-passenger');
-      document.body.classList.remove('role-driver');
       setActiveTabUI(passengerTabsBar, tab);
 
       if (tab === 'trips') passengerSection.classList.remove('hidden');
@@ -1042,6 +1154,25 @@ const ADMIN_ID = 504348666;
       btnPassenger.classList.add('active-role');
       showPassengerTab('trips');
     });
+
+    // Если Mini App открыли по deeplink из канала — сразу открываем нужную вкладку и подсвечиваем карточку
+    START_ACTION = parseStartParam(getStartParamRaw());
+    if (START_ACTION) {
+      if (START_ACTION.role === 'driver') {
+        roleInfo.textContent = 'Режим водителя: создавайте поездки, ищите пассажиров';
+        roleButtons.forEach(b => b.classList.remove('active-role'));
+        btnDriver.classList.add('active-role');
+        showDriverTab(START_ACTION.tab || 'plans');
+      } else {
+        roleInfo.textContent = 'Режим пассажира: ищите водителя, планируйте свои поездки';
+        roleButtons.forEach(b => b.classList.remove('active-role'));
+        btnPassenger.classList.add('active-role');
+        showPassengerTab(START_ACTION.tab || 'trips');
+      }
+    } else {
+      // Дефолт: показываем пассажиру список поездок
+      btnPassenger.click();
+    }
 
 
     if (btnInvite) {
@@ -1249,6 +1380,8 @@ const ADMIN_ID = 504348666;
       trips.forEach((t) => {
         const div = document.createElement('div');
         div.className = 'trip-card';
+        div.dataset.tripId = String(t.id);
+        div.dataset.tripId = String(t.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -1631,6 +1764,7 @@ function fillCitiesFromTrips() {
       trips.forEach((t) => {
         const div = document.createElement('div');
         div.className = 'trip-card';
+        div.dataset.tripId = String(t.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -1708,7 +1842,7 @@ function fillCitiesFromTrips() {
           shareText(`🚗 Поездка
 ${t.from_city} → ${t.to_city}
 Выезд: ${t.departure_time}
-Цена: ${t.price_per_seat} ₽/место`);
+Цена: ${t.price_per_seat} ₽/место`, deeplinkFor('trip_' + t.id));
         });
 
         actions.appendChild(btnBook);
@@ -1719,6 +1853,8 @@ ${t.from_city} → ${t.to_city}
 
         tripsList.appendChild(div);
       });
+
+      maybeFocusStartAction();
     }
 
     function createBooking(tripId, seats) {
@@ -2211,6 +2347,8 @@ function openRatingModal(opts) {
       filtered.forEach((p) => {
         const div = document.createElement('div');
         div.className = 'plan-card';
+        div.dataset.planId = String(p.id);
+        div.dataset.planId = String(p.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -2404,6 +2542,7 @@ function openRatingModal(opts) {
       activePlans.forEach((p) => {
         const div = document.createElement('div');
         div.className = 'plan-card';
+        div.dataset.planId = String(p.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -2463,6 +2602,8 @@ function openRatingModal(opts) {
 
         driverPassengerPlansList.appendChild(div);
       });
+
+      maybeFocusStartAction();
     }
 
     function takePassengerPlan(planId) {
