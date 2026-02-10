@@ -406,6 +406,23 @@ button:active {
   content: "❄️";
   font-size: 24px;
 }
+:root{
+  --ph: rgba(255,255,255,.55); /* ← меняй тут */
+}
+
+/* подсказки "Например: ..." */
+input::placeholder,
+textarea::placeholder{
+  color: var(--ph) !important;
+  opacity: 1 !important;
+}
+
+/* на всякий для Telegram/WebView */
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder{
+  color: var(--ph) !important;
+  opacity: 1 !important;
+}
   </style>
 </head>
 <body>
@@ -734,6 +751,26 @@ button:active {
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
+// Всегда подмешиваем initData в запросы на /api/*
+(() => {
+  const tg = window.Telegram?.WebApp;
+  const realFetch = window.fetch.bind(window);
+
+  window.fetch = (url, options = {}) => {
+    try {
+      const u = (typeof url === 'string') ? url : (url?.url || '');
+      const isApi = typeof u === 'string' && u.startsWith('/api/');
+
+      if (isApi && tg?.initData) {
+        const headers = new Headers(options.headers || {});
+        headers.set('x-telegram-init-data', tg.initData);
+        return realFetch(url, { ...options, headers });
+      }
+    } catch (_) {}
+
+    return realFetch(url, options);
+  };
+})();
 
 function apiFetch(url, options = {}) {
   const opts = { ...options };
