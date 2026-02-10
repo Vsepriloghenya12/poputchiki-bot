@@ -64,29 +64,54 @@ async function sendMessageSafe(telegramId, text, extra = undefined) {
   }
 }
 
-function webAppOpenKeyboard(label = 'Открыть мини‑приложение') {
-  // У Telegram бывает разное поведение. Даем обычную URL-кнопку.
+let BOT_USERNAME_RUNTIME = (process.env.BOT_USERNAME || '').replace('@', '').trim();
+const WEBAPP_SHORTNAME = (process.env.WEBAPP_SHORTNAME || '').trim();
+
+function withStartParamUrl(baseUrl, startParam) {
+  const sp = String(startParam || '').trim();
+  if (!sp) return baseUrl;
+  const sep = baseUrl.includes('?') ? '&' : '?';
+  return `${baseUrl}${sep}startapp=${encodeURIComponent(sp)}`;
+}
+
+function buildDeeplinkPrefix() {
+  const u = (BOT_USERNAME_RUNTIME || '').replace('@', '').trim();
+  // Prefer deep links that open the Mini App inside Telegram (so initData is always present)
+  if (u && WEBAPP_SHORTNAME) {
+    return `https://t.me/${u}/${WEBAPP_SHORTNAME}?startapp=`;
+  }
+  if (u) {
+    // Bot's main Mini App link format (doesn't require shortname)
+    return `https://t.me/${u}?startapp=`;
+  }
+  // Last resort (opens as a regular website, initData may be missing)
+  const base = WEBAPP_URL;
+  const sep = base.includes('?') ? '&' : '?';
+  return `${base}${sep}startapp=`;
+}
+
+
+function buildDeeplink(startParam) {
+  return buildDeeplinkPrefix() + encodeURIComponent(String(startParam || '').trim());
+}
+
+function webAppOpenKeyboard(label = 'Открыть мини‑приложение', startParam = '') {
+  // В личных сообщениях используем web_app (даёт initData). В URL добавляем startapp для удобного открытия конкретной карточки.
+  const url = withStartParamUrl(WEBAPP_URL, startParam);
   return {
     reply_markup: {
-      inline_keyboard: [[{ text: label, url: WEBAPP_URL }]],
+      inline_keyboard: [[{ text: label, web_app: { url } }]],
     },
   };
 }
-
 
 // ---------------- CHANNEL AUTOPOST (красивые посты в публичный канал) ----------------
 const PUBLIC_CHANNEL = (process.env.PUBLIC_CHANNEL || '').trim(); // пример: @sochi_adler_polana
 const AUTOPOST_ENABLED = process.env.AUTOPOST_ENABLED !== '0';
 const AUTOPOST_TRIPS = process.env.AUTOPOST_TRIPS !== '0';
 const AUTOPOST_PLANS = process.env.AUTOPOST_PLANS !== '0';
-const CHANNEL_BRAND = (process.env.CHANNEL_BRAND || '🏔️ Попутчики Сочи–Адлер–Красная Поляна').trim();
+const CHANNEL_BRAND = (process.env.CHANNEL_BRAND || '🏔️ Попутчики').trim();
 const CHANNEL_TAGS = (process.env.CHANNEL_TAGS || '').trim();
-
-const WEBAPP_CHANNEL_URL = (() => {
-  const base = WEBAPP_URL;
-  const sep = base.includes('?') ? '&' : '?';
-  return `${base}${sep}src=channel`;
-})();
 
 function escapeHtml(s = '') {
   return String(s)
@@ -96,7 +121,7 @@ function escapeHtml(s = '') {
     .replace(/"/g, '&quot;');
 }
 
-function compactText(s, max = 180) {
+function compactText(s, max = 220) {
   const t = String(s || '').trim();
   if (!t) return '';
   return t.length > max ? t.slice(0, max - 1) + '…' : t;
@@ -126,10 +151,8 @@ function userDisplayHtml(user) {
   return `<b>${escapeHtml(name)}</b>`;
 }
 
-function channelKeyboard(authorUsername) {
-  const row = [
-    { text: 'Открыть в приложении', web_app: { url: WEBAPP_CHANNEL_URL } },
-  ];
+function channelKeyboard(authorUsername, startParam) {
+  const row = [{ text: 'Открыть в приложении', url: buildDeeplink(startParam) }];
 
   if (authorUsername) {
     const u = String(authorUsername).replace('@', '');
@@ -148,7 +171,7 @@ async function sendToChannelSafe(html, keyboardExtra) {
       ...(keyboardExtra || {}),
     });
   } catch (e) {
-    console.warn('CHANNEL AUTOPOST error:', e?.message || e);
+    console.warn('CHANNELL AUTOPOST error:', e?.message || e);
   }
 }
 
@@ -158,20 +181,31 @@ function buildTripPostHtml(trip, driver) {
   const time = formatDT(trip.departure_time);
   const seats = escapeHtml(trip.seats_total);
   const price = formatMoney(trip.price_per_seat);
-  const note = compactText(trip.note || '', 220);
+  const note = compactText(trip.note || '', 240);
 
   let html = '';
-  html += `<b>${escapeHtml(CHANNEL_BRAND)}</b>\n`;
-  html += `<b>🚗 Поездка</b>\n`;
-  html += `<b>${from} → ${to}</b>\n`;
-  html += `────────────\n`;
-  html += `🕒 <b>${time}</b>\n`;
-  html += `💺 Мест: <b>${seats}</b>\n`;
-  html += `💰 Цена: <b>${price} ₽/место</b>\n`;
-  if (note) html += `📝 <i>${escapeHtml(note)}</i>\n`;
-  html += `────────────\n`;
-  html += `👤 Водитель: ${userDisplayHtml(driver)}\n`;
-  if (CHANNEL_TAGS) html += `\n${escapeHtml(CHANNEL_TAGS)}`;
+  html += `<b>${escapeHtml(CHANNEL_BRAND)}</b>
+`;
+  html += `<b>🚗 Поездка</b>
+`;
+  html += `<b>${from} → ${to}</b>
+`;
+  html += `────────────
+`;
+  html += `🕒 <b>${time}</b>
+`;
+  html += `💺 Мест: <b>${seats}</b>
+`;
+  html += `💰 Цена: <b>${price} ₽/место</b>
+`;
+  if (note) html += `📝 <i>${escapeHtml(note)}</i>
+`;
+  html += `────────────
+`;
+  html += `👤 Водитель: ${userDisplayHtml(driver)}
+`;
+  if (CHANNEL_TAGS) html += `
+${escapeHtml(CHANNEL_TAGS)}`;
   return html;
 }
 
@@ -181,34 +215,45 @@ function buildPlanPostHtml(plan, passenger) {
   const time = formatDT(plan.desired_time);
   const seats = escapeHtml(plan.seats_needed);
   const price = formatMoney(plan.price_per_seat);
-  const note = compactText(plan.note || '', 220);
+  const note = compactText(plan.note || '', 240);
 
   let html = '';
-  html += `<b>${escapeHtml(CHANNEL_BRAND)}</b>\n`;
-  html += `<b>🙋 Ищу попутку</b>\n`;
-  html += `<b>${from} → ${to}</b>\n`;
-  html += `────────────\n`;
-  html += `🕒 <b>${time}</b>\n`;
-  html += `💺 Нужно мест: <b>${seats}</b>\n`;
-  html += `💰 Цена: <b>${price} ₽/место</b>\n`;
-  if (note) html += `📝 <i>${escapeHtml(note)}</i>\n`;
-  html += `────────────\n`;
-  html += `👤 Пассажир: ${userDisplayHtml(passenger)}\n`;
-  if (CHANNEL_TAGS) html += `\n${escapeHtml(CHANNEL_TAGS)}`;
+  html += `<b>${escapeHtml(CHANNEL_BRAND)}</b>
+`;
+  html += `<b>🙋 Ищу попутку</b>
+`;
+  html += `<b>${from} → ${to}</b>
+`;
+  html += `────────────
+`;
+  html += `🕒 <b>${time}</b>
+`;
+  html += `💺 Нужно мест: <b>${seats}</b>
+`;
+  html += `💰 Готов(а): <b>${price} ₽/место</b>
+`;
+  if (note) html += `📝 <i>${escapeHtml(note)}</i>
+`;
+  html += `────────────
+`;
+  html += `👤 Пассажир: ${userDisplayHtml(passenger)}
+`;
+  if (CHANNEL_TAGS) html += `
+${escapeHtml(CHANNEL_TAGS)}`;
   return html;
 }
 
 async function autopostTripToChannel(trip, driver) {
-  if (!AUTOPOST_TRIPS) return;
+  if (!AUTOPOST_ENABLED || !AUTOPOST_TRIPS) return;
   const html = buildTripPostHtml(trip, driver);
-  const kb = channelKeyboard(driver && driver.username);
+  const kb = channelKeyboard(driver && driver.username, `trip_${trip.id}`);
   await sendToChannelSafe(html, kb);
 }
 
 async function autopostPlanToChannel(plan, passenger) {
-  if (!AUTOPOST_PLANS) return;
+  if (!AUTOPOST_ENABLED || !AUTOPOST_PLANS) return;
   const html = buildPlanPostHtml(plan, passenger);
-  const kb = channelKeyboard(passenger && passenger.username);
+  const kb = channelKeyboard(passenger && passenger.username, `plan_${plan.id}`);
   await sendToChannelSafe(html, kb);
 }
 
@@ -508,6 +553,15 @@ bot.on('text', (ctx) => {
   );
 });
 
+// Определяем username бота (для deeplink в канал), если не задан в ENV
+bot.telegram.getMe().then((me) => {
+  if (me && me.username) {
+    BOT_USERNAME_RUNTIME = String(me.username).replace('@', '').trim();
+  }
+}).catch((e) => {
+  console.warn('getMe error:', e?.message || e);
+});
+
 // ---------------- API: ОБЩЕЕ ----------------
 
 // Инициализация пользователя
@@ -525,6 +579,35 @@ app.post('/api/init-user', async (req, res) => {
   } catch (err) {
     console.error('Ошибка /api/init-user:', err);
     return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+
+// Конфиг приложения для фронта (deeplink и настройки автопоста)
+app.get('/api/app-config', async (req, res) => {
+  try {
+    // На всякий случай подтягиваем username бота перед отдачей deeplink_prefix
+    if (!BOT_USERNAME_RUNTIME) {
+      try {
+        const me = await bot.telegram.getMe();
+        if (me && me.username) {
+          BOT_USERNAME_RUNTIME = String(me.username).replace('@', '').trim();
+        }
+      } catch (_) {}
+    }
+
+    return res.json({
+      deeplink_prefix: buildDeeplinkPrefix(),
+      bot_username: (BOT_USERNAME_RUNTIME || null),
+      webapp_shortname: WEBAPP_SHORTNAME || null,
+      autopost: {
+        enabled: !!(PUBLIC_CHANNEL && AUTOPOST_ENABLED),
+        channel: PUBLIC_CHANNEL || null,
+        brand: CHANNEL_BRAND,
+      },
+    });
+  } catch (e) {
+    return res.json({ deeplink_prefix: buildDeeplinkPrefix() });
   }
 });
 
@@ -573,7 +656,7 @@ app.post('/api/trips', async (req, res) => {
       }
     }
 
-const trip = await createTrip({
+    const trip = await createTrip({
       driverId: user.id,
       fromCity: from_city,
       toCity: to_city,
@@ -583,8 +666,11 @@ const trip = await createTrip({
       note,
     });
 
-    // Автопост в публичный канал (не влияет на создание поездки)
-    autopostTripToChannel(trip, user).catch(() => {});
+    // Автопост в публичный канал (если включено)
+    autopostTripToChannel(trip, user).catch((e) =>
+      console.warn('autopostTripToChannel error:', e?.message || e)
+    );
+
 
     // Нотификация пассажирам: новый водитель под их план
     try {
@@ -1355,6 +1441,11 @@ app.post('/api/passenger/plans', async (req, res) => {
     `
     );
 
+    // Автопост в публичный канал (если включено)
+    autopostPlanToChannel(plan, passenger).catch((e) =>
+      console.warn('autopostPlanToChannel error:', e?.message || e)
+    );
+
     // Нотификация водителям: новый план пассажира под их поездку
     try {
       const rawTrips = await dbAll(
@@ -1400,10 +1491,6 @@ app.post('/api/passenger/plans', async (req, res) => {
     } catch (e) {
       console.warn('notify drivers error:', e?.message || e);
     }
-
-    
-    // Автопост в публичный канал (не влияет на создание плана)
-    autopostPlanToChannel(plan, passenger).catch(() => {});
 
     return res.json({ plan });
 

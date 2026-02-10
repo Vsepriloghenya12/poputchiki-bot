@@ -264,6 +264,7 @@ button:active {
 
     .tabs-bar {
   display: flex;
+  justify-content: flex-start;
   gap: 8px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.06);
@@ -285,38 +286,22 @@ button:active {
     }
 
     .tab-btn {
-  /*
-    Важно: делаем кнопки табов "по содержимому".
-    Раньше flex:1 сжимал их, и текст (Пассажиры/Активная/История) вылезал за рамки.
-    Теперь табы нормально выглядят, а при необходимости полоска скроллится по горизонтали.
-  */
   flex: 0 0 auto;
-  min-height: 40px;
-  padding: 8px 12px;
-  font-size: 12.5px;
-  font-weight: 800;
+  min-width: unset;
   white-space: nowrap;
-  overflow: hidden;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  min-height: 40px;
+  border-radius: 14px;
 }
 
 .tab-btn svg {
-  width: 17px;
-  height: 17px;
-  flex-shrink: 0;
-  opacity: 0.9;
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
 }
 
-@media (max-width: 390px) {
-  .tabs-bar { padding: 9px; }
-  .tab-btn { padding: 7px 10px; font-size: 12px; }
-  .tab-btn svg { width: 16px; height: 16px; }
-}
-
-.filters {
+    .filters {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
@@ -408,7 +393,14 @@ button:active {
   content: "❄️";
   font-size: 24px;
 }
-  </style>
+  
+  .focus-highlight {
+    outline: 2px solid rgba(255,255,255,0.35);
+    box-shadow: 0 0 0 6px rgba(255,255,255,0.08), 0 18px 40px rgba(0,0,0,0.35);
+    transform: translateY(-1px);
+  }
+
+</style>
 </head>
 <body>
   <div class="bg-mountains" aria-hidden="true"></div>
@@ -736,28 +728,14 @@ button:active {
 
   <script>
     
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
 
-// --- ensure initData is sent for any /api request (even if someone uses fetch directly)
-const __nativeFetch = window.fetch.bind(window);
-window.fetch = (url, options = {}) => {
-  try {
-    const u = typeof url === 'string' ? url : (url && url.url) ? url.url : String(url);
-    const isApi = u.startsWith('/api') || u.includes('/api/');
-    if (!isApi) return __nativeFetch(url, options);
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+}
 
-    const opts = { ...(options || {}) };
-    opts.headers = { ...(opts.headers || {}) };
-    if (tg && tg.initData && !opts.headers['x-telegram-init-data']) {
-      opts.headers['x-telegram-init-data'] = tg.initData;
-    }
-    return __nativeFetch(url, opts);
-  } catch (e) {
-    return __nativeFetch(url, options);
-  }
-};
+const rawFetch = window.fetch.bind(window);
 
 function apiFetch(url, options = {}) {
   const opts = { ...options };
@@ -765,13 +743,50 @@ function apiFetch(url, options = {}) {
   if (tg && tg.initData) {
     opts.headers['x-telegram-init-data'] = tg.initData;
   }
-  return fetch(url, opts);
+  return rawFetch(url, opts);
 }
 
-function shareText(text) {
+// Чтобы не переписывать весь код: любые fetch('/api/...') автоматически получают initData
+window.fetch = (url, options = {}) => {
+  try {
+    if (typeof url === 'string' && url.startsWith('/api/')) {
+      return apiFetch(url, options);
+    }
+  } catch (_) {}
+  return rawFetch(url, options);
+};
+
+let APP_CONFIG = null;
+
+async function loadAppConfig() {
+  try {
+    const res = await apiFetch('/api/app-config');
+    const data = await res.json();
+    APP_CONFIG = data || {};
+  } catch (_) {
+    APP_CONFIG = null;
+  }
+}
+
+// Загружаем конфиг (deeplink_prefix) с бэка
+loadAppConfig();
+
+function deeplinkFor(startParam) {
+  const sp = String(startParam || '').trim();
+  const prefix = APP_CONFIG && APP_CONFIG.deeplink_prefix ? String(APP_CONFIG.deeplink_prefix) : '';
+  if (prefix) {
+    return prefix + encodeURIComponent(sp);
+  }
+  const base = location.href.split('#')[0];
+  const sep = base.includes('?') ? '&' : '?';
+  return base + sep + 'startapp=' + encodeURIComponent(sp);
+}
+
+function shareText(text, urlOverride) {
+  const shareUrl = urlOverride || location.href;
   const u =
     'https://t.me/share/url?url=' +
-    encodeURIComponent(location.href) +
+    encodeURIComponent(shareUrl) +
     '&text=' +
     encodeURIComponent(text);
   if (tg && tg.openTelegramLink) tg.openTelegramLink(u);
@@ -790,6 +805,71 @@ function openChat(username, telegramId) {
     } catch (_) {}
   }
   alert('У пользователя нет username, чат открыть не удалось.');
+}
+
+
+
+function getStartParamRaw() {
+  const unsafe = tg && tg.initDataUnsafe ? tg.initDataUnsafe : {};
+  const sp = unsafe && (unsafe.start_param || unsafe.startParam);
+  if (sp) return String(sp);
+  try {
+    const params = new URL(location.href).searchParams;
+    return (
+      params.get('startapp') ||
+      params.get('tgWebAppStartParam') ||
+      params.get('start_param') ||
+      ''
+    );
+  } catch (_) {
+    return '';
+  }
+}
+
+let START_ACTION = null;
+let START_ACTION_APPLIED = false;
+
+function parseStartParam(sp) {
+  const s = String(sp || '').trim();
+  let m;
+  if ((m = s.match(/^trip_(\d+)$/i))) {
+    return { type: 'trip', id: Number(m[1]), role: 'passenger', tab: 'trips' };
+  }
+  if ((m = s.match(/^plan_(\d+)$/i))) {
+    return { type: 'plan', id: Number(m[1]), role: 'driver', tab: 'plans' };
+  }
+  return null;
+}
+
+function flashFocus(el) {
+  try {
+    el.classList.add('focus-highlight');
+    setTimeout(() => el.classList.remove('focus-highlight'), 4500);
+  } catch (_) {}
+}
+
+function maybeFocusStartAction() {
+  if (!START_ACTION || START_ACTION_APPLIED) return;
+
+  if (START_ACTION.type === 'trip') {
+    const el = document.querySelector(`[data-trip-id="${START_ACTION.id}"]`);
+    if (el) {
+      START_ACTION_APPLIED = true;
+      flashFocus(el);
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
+
+  if (START_ACTION.type === 'plan') {
+    const el = document.querySelector(`[data-plan-id="${START_ACTION.id}"]`);
+    if (el) {
+      START_ACTION_APPLIED = true;
+      flashFocus(el);
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
 }
 
 
@@ -1062,6 +1142,25 @@ const ADMIN_ID = 504348666;
       showPassengerTab('trips');
     });
 
+    // Если Mini App открыли по deeplink из канала — сразу открываем нужную вкладку и подсвечиваем карточку
+    START_ACTION = parseStartParam(getStartParamRaw());
+    if (START_ACTION) {
+      if (START_ACTION.role === 'driver') {
+        roleInfo.textContent = 'Режим водителя: создавайте поездки, ищите пассажиров';
+        roleButtons.forEach(b => b.classList.remove('active-role'));
+        btnDriver.classList.add('active-role');
+        showDriverTab(START_ACTION.tab || 'plans');
+      } else {
+        roleInfo.textContent = 'Режим пассажира: ищите водителя, планируйте свои поездки';
+        roleButtons.forEach(b => b.classList.remove('active-role'));
+        btnPassenger.classList.add('active-role');
+        showPassengerTab(START_ACTION.tab || 'trips');
+      }
+    } else {
+      // Дефолт: показываем пассажиру список поездок
+      btnPassenger.click();
+    }
+
 
     if (btnInvite) {
       btnInvite.addEventListener('click', () => {
@@ -1268,6 +1367,8 @@ const ADMIN_ID = 504348666;
       trips.forEach((t) => {
         const div = document.createElement('div');
         div.className = 'trip-card';
+        div.dataset.tripId = String(t.id);
+        div.dataset.tripId = String(t.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -1650,6 +1751,7 @@ function fillCitiesFromTrips() {
       trips.forEach((t) => {
         const div = document.createElement('div');
         div.className = 'trip-card';
+        div.dataset.tripId = String(t.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -1727,7 +1829,7 @@ function fillCitiesFromTrips() {
           shareText(`🚗 Поездка
 ${t.from_city} → ${t.to_city}
 Выезд: ${t.departure_time}
-Цена: ${t.price_per_seat} ₽/место`);
+Цена: ${t.price_per_seat} ₽/место`, deeplinkFor('trip_' + t.id));
         });
 
         actions.appendChild(btnBook);
@@ -1738,6 +1840,8 @@ ${t.from_city} → ${t.to_city}
 
         tripsList.appendChild(div);
       });
+
+      maybeFocusStartAction();
     }
 
     function createBooking(tripId, seats) {
@@ -2230,6 +2334,8 @@ function openRatingModal(opts) {
       filtered.forEach((p) => {
         const div = document.createElement('div');
         div.className = 'plan-card';
+        div.dataset.planId = String(p.id);
+        div.dataset.planId = String(p.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -2423,6 +2529,7 @@ function openRatingModal(opts) {
       activePlans.forEach((p) => {
         const div = document.createElement('div');
         div.className = 'plan-card';
+        div.dataset.planId = String(p.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -2482,6 +2589,8 @@ function openRatingModal(opts) {
 
         driverPassengerPlansList.appendChild(div);
       });
+
+      maybeFocusStartAction();
     }
 
     function takePassengerPlan(planId) {
