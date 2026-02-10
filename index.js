@@ -150,16 +150,11 @@ function userDisplayHtml(user) {
   return `<b>${escapeHtml(name)}</b>`;
 }
 
-function channelKeyboard() {
+function channelKeyboard(openUrl) {
   return {
     reply_markup: {
       inline_keyboard: [
-        [
-          {
-            text: 'Открыть в приложении',
-            url: WEBAPP_DEEPLINK, // или как у тебя называется deep-link
-          },
-        ],
+        [{ text: 'Открыть в приложении', url: openUrl }],
       ],
     },
   };
@@ -247,16 +242,26 @@ ${escapeHtml(CHANNEL_TAGS)}`;
 }
 
 async function autopostTripToChannel(trip, driver) {
-  if (!AUTOPOST_ENABLED || !AUTOPOST_TRIPS) return;
+  if (!AUTOPOST_TRIPS) return;
+  const openUrl = buildDeeplink(`trip_${trip.id}`);
+  if (!openUrl) {
+    console.warn('AUTOPOST: BOT_USERNAME/WEBAPP_SHORTNAME не заданы');
+    return;
+  }
   const html = buildTripPostHtml(trip, driver);
-  const kb = channelKeyboard(driver && driver.username, `trip_${trip.id}`);
+  const kb = channelKeyboard(openUrl); // только одна кнопка
   await sendToChannelSafe(html, kb);
 }
 
 async function autopostPlanToChannel(plan, passenger) {
-  if (!AUTOPOST_ENABLED || !AUTOPOST_PLANS) return;
+  if (!AUTOPOST_PLANS) return;
+  const openUrl = buildDeeplink(`plan_${plan.id}`);
+  if (!openUrl) {
+    console.warn('AUTOPOST: BOT_USERNAME/WEBAPP_SHORTNAME не заданы');
+    return;
+  }
   const html = buildPlanPostHtml(plan, passenger);
-  const kb = channelKeyboard(passenger && passenger.username, `plan_${plan.id}`);
+  const kb = channelKeyboard(openUrl); // только одна кнопка
   await sendToChannelSafe(html, kb);
 }
 
