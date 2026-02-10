@@ -14,7 +14,7 @@
 
     body {
       font-family: 'Manrope', sans-serif;
-      background: radial-gradient(1000px 700px at 50% -10%, rgba(148, 213, 255, 0.18), rgba(0,0,0,0) 55%), linear-gradient(180deg, #071426 0%, #0b1f33 45%, #0f2a44 100%);
+      background: radial-gradient(1000px 700px at 50% -10%, rgba(224, 230, 233, 0.18), rgba(0,0,0,0) 55%), linear-gradient(180deg, #071426 0%, #0b1f33 45%, #0f2a44 100%);
       color: #e2e8f0;
       min-height: 100vh;
       position: relative;
@@ -45,7 +45,7 @@
       padding: 14px 14px 16px 14px;
       margin-bottom: 14px;
       box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(233, 227, 227, 0.1);
     }
 
     .title-row {
@@ -122,7 +122,7 @@
       padding: 7px 9px;
       font-size: 15px;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 243, 243, 0.1);
       color: #e2e8f0;
     }
 
@@ -268,7 +268,7 @@ button:active {
   gap: 8px;
   padding: 10px;
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  border: 1px solid rgba(245, 241, 241, 0.12);
   border-radius: 18px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
   margin-bottom: 16px;
@@ -399,6 +399,19 @@ button:active {
     box-shadow: 0 0 0 6px rgba(255,255,255,0.08), 0 18px 40px rgba(0,0,0,0.35);
     transform: translateY(-1px);
   }
+  /* Подсказки в полях */
+input::placeholder,
+textarea::placeholder{
+  color: var(--ph) !important;
+  opacity: 1 !important;
+}
+
+/* Telegram/WebView (на всякий) */
+input::-webkit-input-placeholder,
+textarea::-webkit-input-placeholder{
+  color: var(--ph) !important;
+  opacity: 1 !important;
+}
 
 </style>
 </head>
