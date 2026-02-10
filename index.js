@@ -200,8 +200,6 @@ function buildTripPostHtml(trip, driver) {
 `;
   html += `────────────
 `;
-  html += `👤 Водитель: ${userDisplayHtml(driver)}
-`;
   if (CHANNEL_TAGS) html += `
 ${escapeHtml(CHANNEL_TAGS)}`;
   return html;
@@ -233,8 +231,6 @@ function buildPlanPostHtml(plan, passenger) {
   if (note) html += `📝 <i>${escapeHtml(note)}</i>
 `;
   html += `────────────
-`;
-  html += `👤 Пассажир: ${userDisplayHtml(passenger)}
 `;
   if (CHANNEL_TAGS) html += `
 ${escapeHtml(CHANNEL_TAGS)}`;
