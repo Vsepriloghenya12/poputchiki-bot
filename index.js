@@ -140,26 +140,29 @@ function formatMoney(val) {
 }
 
 function userDisplayHtml(user) {
-  const username = user && user.username ? String(user.username).replace('@', '') : '';
+  const username = user?.username ? String(user.username).replace('@', '') : '';
   const name =
-    [user && user.first_name, user && user.last_name].filter(Boolean).join(' ').trim() ||
+    [user?.first_name, user?.last_name].filter(Boolean).join(' ').trim() ||
     (username ? '@' + username : 'Пользователь');
 
-  if (username) {
-    return `<a href="https://t.me/${escapeHtml(username)}">${escapeHtml('@' + username)}</a>`;
-  }
+  // ВАЖНО: без ссылок. Просто текст.
+  if (username) return `<b>${escapeHtml('@' + username)}</b>`;
   return `<b>${escapeHtml(name)}</b>`;
 }
 
-function channelKeyboard(authorUsername, startParam) {
-  const row = [{ text: 'Открыть в приложении', url: buildDeeplink(startParam) }];
-
-  if (authorUsername) {
-    const u = String(authorUsername).replace('@', '');
-    row.push({ text: 'Написать', url: `https://t.me/${encodeURIComponent(u)}` });
-  }
-
-  return { reply_markup: { inline_keyboard: [row] } };
+function channelKeyboard() {
+  return {
+    reply_markup: {
+      inline_keyboard: [
+        [
+          {
+            text: 'Открыть в приложении',
+            url: WEBAPP_DEEPLINK, // или как у тебя называется deep-link
+          },
+        ],
+      ],
+    },
+  };
 }
 
 async function sendToChannelSafe(html, keyboardExtra) {
