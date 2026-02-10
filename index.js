@@ -1062,7 +1062,6 @@ app.post(
         `✅ Ваш план поездки взят водителем\n` +
         `${plan.from_city} → ${plan.to_city}\n` +
         `Время: ${plan.desired_time}\n` +
-        `Водитель: ${driverName}\n\n` +
         `Откройте мини‑приложение, чтобы посмотреть детали и подтвердить поездку после завершения.`;
 
       await sendMessageSafe(passengerRow?.passenger_telegram_id, msg, webAppOpenKeyboard());
