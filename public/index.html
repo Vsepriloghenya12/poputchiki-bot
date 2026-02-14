@@ -423,6 +423,35 @@ textarea::-webkit-input-placeholder{
   color: var(--ph) !important;
   opacity: 1 !important;
 }
+/* строка метаданных в карточке */
+.meta-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-top:10px;
+}
+
+.meta-item{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  font-weight:800;
+  font-size:13px;
+  color: rgba(255,255,255,.92);
+}
+
+.meta-item .muted{
+  font-weight:800;
+  color: rgba(255,255,255,.72);
+}
+
+/* подсветка при открытии из канала */
+.focus-flash{
+  outline: 2px solid rgba(59,130,246,.95);
+  box-shadow: 0 0 0 5px rgba(59,130,246,.25);
+  border-radius: 16px;
+}
+
   </style>
 </head>
 <body>
@@ -751,6 +780,7 @@ textarea::-webkit-input-placeholder{
 const tg = window.Telegram.WebApp;
 tg.ready();
 tg.expand();
+
 // Всегда подмешиваем initData в запросы на /api/*
 (() => {
   const tg = window.Telegram?.WebApp;
