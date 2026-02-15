@@ -2,31 +2,24 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>попутчики • тёплый зимний день в горах</title>
-  <meta name="viewport" content="width=390, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>попутчики • тёплый зимний день</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
-
-  <style>
-
+<style>
     :root{
-      /* Warm winter day in the mountains */
+      /* Warm winter DAY palette */
       --sky: #5ac4e9;
-
       --text: rgba(9, 23, 33, 0.92);
       --muted: rgba(9, 23, 33, 0.68);
       --muted2: rgba(9, 23, 33, 0.52);
       --ph: rgba(9, 23, 33, 0.42);
-
-      /* text on background */
-      --onBg: rgba(255,255,255,.96);
-      --onBgMuted: rgba(255,255,255,.84);
-      --onBgMuted2: rgba(255,255,255,.70);
-      --outline: rgba(0,0,0,.34);
 
       --panel: rgba(255,255,255,.92);
       --panel2: rgba(255,255,255,.84);
@@ -35,226 +28,206 @@
 
       --sun: #ffb357;
       --sun2: #ffd8a1;
+      --danger: #ef4444;
 
-      --r12: 12px;
-      --r16: 16px;
-      --r20: 20px;
-      --r24: 24px;
+      --r14: 14px;
+      --r18: 18px;
+      --r22: 22px;
 
       --shadow: 0 14px 38px rgba(9,23,33,.18);
       --shadow2: 0 10px 26px rgba(9,23,33,.14);
       --ring: 0 0 0 4px rgba(255,179,87,.25);
+      --appMax: 480px;     /* ширина твоего приложения (как max-width у .container) */
+      --bgBleed: 16px;     /* насколько фон выходит за приложение */
     }
 
     *{ margin:0; padding:0; box-sizing:border-box; }
-    html,body{ height:100%; }
+    html, body{ height: 100%; }
 
     body{
-      font-family: Manrope, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      font-family: 'Manrope', ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
       background: var(--sky);
       color: var(--text);
       min-height: 100vh;
-      position: relative;
       overflow-x: hidden;
       -webkit-font-smoothing: antialiased;
       -moz-osx-font-smoothing: grayscale;
       text-rendering: optimizeLegibility;
     }
 
-    /* Day mountains background (no gradients, no blur) */
-    .bg-mountains{
+    /* Background: warm winter day in the mountains (fit to app width) */
+.bg-mountains{
+  position: fixed;
+
+  /* НЕ на весь экран, а по центру под ширину приложения */
+  left: 50%;
+  transform: translateX(-50%);
+
+  /* фон чуть “шире” приложения */
+  width: calc(min(var(--appMax), 100vw) + (var(--bgBleed) * 2));
+
+  /* по высоте под экран, с небольшим “вылетом” */
+  top: calc(-1 * var(--bgBleed));
+  height: calc(100dvh + (var(--bgBleed) * 2));
+
+  pointer-events: none;
+  z-index: 0;
+
+  background-color: var(--sky);
+  background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'1600'%20height%3D'1200'%20viewBox%3D'0%200%201600%201200'%3E%0A%3Crect%20width%3D'1600'%20height%3D'1200'%20fill%3D'%235ac4e9'%2F%3E%0A%3Ccircle%20cx%3D'1260'%20cy%3D'205'%20r%3D'140'%20fill%3D'%23ffb357'%20opacity%3D'0.98'%2F%3E%0A%3Ccircle%20cx%3D'1260'%20cy%3D'205'%20r%3D'250'%20fill%3D'%23ffd8a1'%20opacity%3D'0.30'%2F%3E%0A%3Cg%20opacity%3D'0.22'%3E%0A%20%20%3Cellipse%20cx%3D'320'%20cy%3D'240'%20rx%3D'165'%20ry%3D'38'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Cellipse%20cx%3D'465'%20cy%3D'255'%20rx%3D'130'%20ry%3D'32'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Cellipse%20cx%3D'1035'%20cy%3D'290'%20rx%3D'185'%20ry%3D'40'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Cellipse%20cx%3D'1195'%20cy%3D'302'%20rx%3D'140'%20ry%3D'34'%20fill%3D'%23ffffff'%2F%3E%0A%3C%2Fg%3E%0A%3Cpath%20d%3D'M0%20560%20C260%20515%20360%20410%20560%20440%20C720%20460%20820%20535%20980%20525%20C1180%20515%201260%20430%201600%20470%20L1600%201200%20L0%201200%20Z'%20fill%3D'%232f6f80'%2F%3E%0A%3Cpath%20d%3D'M0%20672%20C260%20640%20390%20565%20560%20592%20C740%20622%20820%20718%201000%20698%20C1200%20678%201280%20592%201600%20622%20L1600%201200%20L0%201200%20Z'%20fill%3D'%232b6172'%2F%3E%0A%3Cpath%20d%3D'M210%20745%20L505%20450%20L780%20745%20Z'%20fill%3D'%2328596a'%2F%3E%0A%3Cpath%20d%3D'M925%20785%20L1210%20500%20L1495%20785%20Z'%20fill%3D'%23285565'%2F%3E%0A%3Cpath%20d%3D'M505%20450%20L630%20618%20L545%20618%20Z'%20fill%3D'%23f7fbff'%20opacity%3D'0.98'%2F%3E%0A%3Cpath%20d%3D'M1210%20500%20L1338%20662%20L1253%20662%20Z'%20fill%3D'%23f7fbff'%20opacity%3D'0.96'%2F%3E%0A%3Cpath%20d%3D'M0%20840%20C320%20795%20520%20945%20760%20925%20C980%20905%201220%20785%201600%20840%20L1600%201200%20L0%201200%20Z'%20fill%3D'%23214c5a'%2F%3E%0A%3C%2Fsvg%3E");
+
+  /* ВАЖНО: чтобы не резало ширину — показываем целиком */
+  background-size: 150% 190%;
+  background-repeat: no-repeat;
+
+  /* чтобы горы были внизу, солнце вверху — картинка вся целиком */
+  background-position: center center;
+}
+
+
+    /* Snow canvas exists for compatibility, but hidden for warm theme */
+    #snow-canvas{
+      display:none;
       position: fixed;
       inset: 0;
-      pointer-events: none;
-      z-index: 0;
-      background-color: var(--sky);
-      background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'1600'%20height%3D'1200'%20viewBox%3D'0%200%201600%201200'%3E%0A%3Crect%20width%3D'1600'%20height%3D'1200'%20fill%3D'%235ac4e9'%2F%3E%0A%3Ccircle%20cx%3D'1260'%20cy%3D'205'%20r%3D'140'%20fill%3D'%23ffb357'%20opacity%3D'0.98'%2F%3E%0A%3Ccircle%20cx%3D'1260'%20cy%3D'205'%20r%3D'250'%20fill%3D'%23ffd8a1'%20opacity%3D'0.30'%2F%3E%0A%3Cg%20opacity%3D'0.22'%3E%0A%20%20%3Cellipse%20cx%3D'320'%20cy%3D'240'%20rx%3D'165'%20ry%3D'38'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Cellipse%20cx%3D'465'%20cy%3D'255'%20rx%3D'130'%20ry%3D'32'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Cellipse%20cx%3D'1035'%20cy%3D'290'%20rx%3D'185'%20ry%3D'40'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Cellipse%20cx%3D'1195'%20cy%3D'302'%20rx%3D'140'%20ry%3D'34'%20fill%3D'%23ffffff'%2F%3E%0A%3C%2Fg%3E%0A%3Cpath%20d%3D'M0%20560%20C260%20515%20360%20410%20560%20440%20C720%20460%20820%20535%20980%20525%20C1180%20515%201260%20430%201600%20470%20L1600%201200%20L0%201200%20Z'%20fill%3D'%232f6f80'%2F%3E%0A%3Cpath%20d%3D'M0%20672%20C260%20640%20390%20565%20560%20592%20C740%20622%20820%20718%201000%20698%20C1200%20678%201280%20592%201600%20622%20L1600%201200%20L0%201200%20Z'%20fill%3D'%232b6172'%2F%3E%0A%3Cpath%20d%3D'M210%20745%20L505%20450%20L780%20745%20Z'%20fill%3D'%2328596a'%2F%3E%0A%3Cpath%20d%3D'M925%20785%20L1210%20500%20L1495%20785%20Z'%20fill%3D'%23285565'%2F%3E%0A%3Cpath%20d%3D'M505%20450%20L630%20618%20L545%20618%20Z'%20fill%3D'%23f7fbff'%20opacity%3D'0.98'%2F%3E%0A%3Cpath%20d%3D'M1210%20500%20L1338%20662%20L1253%20662%20Z'%20fill%3D'%23f7fbff'%20opacity%3D'0.96'%2F%3E%0A%3Cpath%20d%3D'M0%20840%20C320%20795%20520%20945%20760%20925%20C980%20905%201220%20785%201600%20840%20L1600%201200%20L0%201200%20Z'%20fill%3D'%23214c5a'%2F%3E%0A%3Cg%20opacity%3D'0.14'%3E%0A%20%20%3Ccircle%20cx%3D'230'%20cy%3D'360'%20r%3D'2.1'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'370'%20cy%3D'330'%20r%3D'1.7'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'525'%20cy%3D'372'%20r%3D'1.6'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'760'%20cy%3D'322'%20r%3D'1.7'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'940'%20cy%3D'350'%20r%3D'1.6'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'1110'%20cy%3D'342'%20r%3D'1.5'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'1410'%20cy%3D'360'%20r%3D'1.7'%20fill%3D'%23ffffff'%2F%3E%0A%3C%2Fg%3E%0A%3C%2Fsvg%3E");
-      background-size: cover;
-      background-position: center;
-    }
-
-    #snow-canvas{
-      position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
       pointer-events: none !important;
       z-index: 1;
       user-select: none;
-      opacity: .35; /* subtle */
     }
 
     .container{
       position: relative;
       z-index: 2;
-      max-width: 640px;
+      width: 100%;
+      max-width: 480px;
       margin: 0 auto;
-      padding: 14px 12px 84px;
+      padding: calc(12px + env(safe-area-inset-top)) 12px calc(72px + env(safe-area-inset-bottom));
     }
 
-    /* Readability on background */
-    .onbg-strong{
-      color: var(--onBg) !important;
-      text-shadow:
-        0.08px 0 0 var(--outline),
-        -0.08px 0 0 var(--outline),
-        0 0.08px 0 var(--outline),
-        0 -0.08px 0 var(--outline),
-        0 7px 20px rgba(0,0,0,.20);
-    }
-    .onbg-muted{
-      color: var(--onBgMuted) !important;
-      text-shadow:
-        0.08px 0 0 rgba(0,0,0,.26),
-        -0.08px 0 0 rgba(0,0,0,.26),
-        0 0.08px 0 rgba(0,0,0,.26),
-        0 -0.08px 0 rgba(0,0,0,.26),
-        0 6px 18px rgba(0,0,0,.16);
-    }
-    .onbg-kicker{
-      color: var(--onBgMuted2) !important;
-      text-shadow:
-        0.08px 0 0 rgba(0,0,0,.28),
-        -0.08px 0 0 rgba(0,0,0,.28),
-        0 0.08px 0 rgba(0,0,0,.28),
-        0 -0.08px 0 rgba(0,0,0,.28),
-        0 6px 18px rgba(0,0,0,.16);
-    }
-
-    /* Header */
-    .header-card{
-      margin: 6px 0 14px;
-      padding: 4px 2px 10px;
-    }
-
-    .appbar{
-      display:flex;
-      align-items:center;
-      justify-content:space-between;
-      gap: 12px;
-      margin-bottom: 8px;
-    }
-
-    .app-title{ min-width: 0; }
-
-    .logo{
-      width: 44px;
-      height: 44px;
-      border-radius: 14px;
-      border: 1px solid rgba(255,255,255,.25);
-      background: rgba(9,23,33,.20);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      overflow:hidden;
-      flex: 0 0 auto;
-      box-shadow: 0 10px 22px rgba(0,0,0,.14);
-    }
-
-    .logo svg{ width: 22px; height:22px; color: rgba(255,255,255,.96); }
-
-    .title{
-      font-size: 20px;
-      font-weight: 900;
-      letter-spacing: .2px;
-      line-height: 1.1;
-    }
-
-    .tagline{
-      font-size: 12.5px;
-      font-weight: 800;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      margin-top: 2px;
-    }
-
-    .chip{
-      display:inline-flex;
-      align-items:center;
-      gap: 8px;
-      padding: 8px 10px;
-      border-radius: 999px;
-      background: rgba(9,23,33,.22);
-      border: 1px solid rgba(255,255,255,.22);
-      font-size: 12.5px;
-      font-weight: 900;
-      user-select:none;
-      box-shadow: 0 10px 22px rgba(0,0,0,.12);
-      white-space: nowrap;
-    }
-
-    /* Cards */
     .card{
       background: var(--panel);
-      border-radius: var(--r24);
+      border-radius: var(--r22);
       padding: 14px 14px 16px;
       margin-bottom: 14px;
-      border: 1px solid var(--stroke);
       box-shadow: var(--shadow);
+      border: 1px solid var(--stroke);
     }
 
     .title-row{
       display:flex;
       align-items:center;
-      gap: 10px;
+      gap: 12px;
       margin-bottom: 10px;
-      padding-bottom: 0;
-      border-bottom: 0;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(9,23,33,.10);
+    }
+
+    .logo{
+      width: 46px;
+      height: 46px;
+      border-radius: 16px;
+      border: 1px solid rgba(9,23,33,.10);
+      background: rgba(9,23,33,.06);
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+      box-shadow: 0 10px 22px rgba(9,23,33,.10);
+    }
+
+    .logo-img{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      object-fit: contain;
+      padding: 7px;
+      display:block;
+    }
+
+    .logo-fallback{
+      font-weight: 900;
+      font-size: 16px;
+      letter-spacing: .02em;
+      color: rgba(9,23,33,.72);
+    }
+
+    .title-block{
+      display:flex;
+      flex-direction: column;
+      min-width: 0;
+      line-height: 1.15;
+    }
+
+    .title{
+      font-size: 18px;
+      font-weight: 900;
+      letter-spacing: .2px;
+      color: var(--text);
+    }
+
+    .title-sub{
+      font-size: 12.5px;
+      font-weight: 800;
+      color: var(--muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .subtitle{
       font-size: 12px;
       font-weight: 900;
-      letter-spacing: .14em;
       text-transform: uppercase;
-      color: var(--muted);
+      letter-spacing: .14em;
+      color: var(--muted2);
       margin-bottom: 8px;
     }
 
     .info{
       font-size: 13.5px;
-      color: rgba(9,23,33,.82);
+      color: var(--muted);
       margin-top: 4px;
       white-space: pre-line;
       line-height: 1.45;
-      font-weight: 700;
     }
 
     .small-text{
-      font-size: 12px;
-      color: var(--muted);
-      font-weight: 800;
+      font-size: 12.5px;
+      color: var(--muted2);
     }
 
-    /* Forms */
     .field{ margin-bottom: 10px; }
     .field label{
       display:block;
       font-size: 12.5px;
+      font-weight: 900;
       color: var(--muted);
       margin-bottom: 6px;
-      font-weight: 900;
       letter-spacing: .2px;
     }
 
     .field input,
     .field textarea,
     .field select{
-      width: 100%;
+      width:100%;
       border-radius: 14px;
       border: 1px solid var(--stroke2);
       padding: 12px 12px;
       font-size: 14px;
       background: rgba(255,255,255,.92);
       color: var(--text);
-      font-family: inherit;
       font-weight: 800;
       outline: none;
       box-shadow: inset 0 0 0 1px rgba(9,23,33,.03);
     }
 
     .field input::placeholder,
-    .field textarea::placeholder{ color: var(--ph); opacity: 1; }
+    .field textarea::placeholder{
+      color: var(--ph) !important;
+      opacity: 1 !important;
+    }
 
     .field input:focus,
     .field textarea:focus,
@@ -264,27 +237,27 @@
     }
 
     .field-inline{ display:flex; gap: 10px; }
-    .field-inline .field{ flex: 1; margin-bottom: 0; }
+    .field-inline .field{ flex:1; margin-bottom: 0; }
 
-    /* Buttons */
+    .role-buttons{ display:flex; gap: 10px; margin-top: 6px; }
+    .role-buttons button{ flex:1; min-height: 46px; }
+
     button{
-      appearance: none;
-      border: 0;
-      border-radius: 999px;
-      padding: 10px 14px;
+      appearance:none;
+      border-radius: 16px;
+      border: 1px solid transparent;
+      padding: 10px 12px;
       font-size: 14px;
       font-weight: 900;
       cursor: pointer;
-      transition: transform .06s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+      transition: transform 0.10s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
       display: inline-flex;
       align-items: center;
       justify-content: center;
       gap: 8px;
-      min-height: 44px;
+      min-height: 42px;
       user-select: none;
       -webkit-tap-highlight-color: transparent;
-      color: var(--text);
-      white-space: nowrap;
     }
 
     button:active{ transform: translateY(1px); }
@@ -292,105 +265,40 @@
     .primary-btn{
       background: rgba(255,179,87,.96);
       color: #1a1208;
-      border: 1px solid rgba(255,179,87,.75);
       box-shadow: 0 14px 30px rgba(255,179,87,.18);
+      border-color: rgba(255,179,87,.78);
     }
 
     .secondary-btn{
       background: rgba(255,255,255,.92);
+      color: var(--text);
       border: 1px solid var(--stroke2);
       box-shadow: inset 0 0 0 1px rgba(9,23,33,.03), 0 10px 22px rgba(9,23,33,.10);
     }
 
     .danger-btn{
       background: rgba(239,68,68,.94);
-      color: #fff;
-      border: 1px solid rgba(239,68,68,.55);
-      box-shadow: 0 14px 26px rgba(239,68,68,.16);
+      color: #ffffff;
+      box-shadow: 0 14px 30px rgba(239,68,68,.18);
+      border-color: rgba(239,68,68,.78);
     }
 
-    /* Role buttons */
-    .role-buttons{ display:flex; gap: 10px; margin-top: 6px; }
-    .role-buttons button{ flex: 1; }
-
-    .active-role{
-      background: rgba(255,179,87,.34) !important;
-      border: 1px solid rgba(255,179,87,.80) !important;
-      color: rgba(9,23,33,.92) !important;
-      box-shadow: 0 12px 26px rgba(255,179,87,.16) !important;
-    }
-
-    /* Tabs (no horizontal scroll) */
-    .tabs-bar{
-      gap: 8px;
-      padding: 10px;
-      background: rgba(255,255,255,.74);
-      border: 1px solid var(--stroke);
-      border-radius: var(--r24);
-      box-shadow: var(--shadow2);
-      margin-bottom: 16px;
-      position: sticky;
-      top: 10px;
-      z-index: 50;
-      overflow: hidden;
-    }
-
-    #driver-tabs-bar{ display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    #passenger-tabs-bar{ display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
-
-    .tab-btn{
-      width: 100%;
-      min-width: 0;
-      padding: 10px 10px;
-      font-size: 13px;
-      min-height: 44px;
-      border-radius: var(--r16);
-      white-space: normal;
-      line-height: 1.12;
-      text-align: center;
-    }
-
-    .tab-btn svg{ width: 16px; height: 16px; flex: 0 0 16px; fill: currentColor; }
-
-    /* Filters */
-    .filters{
-      display: grid;
-      grid-template-columns: 1fr 1fr;
-      gap: 10px;
-      margin: 10px 0 10px 0;
-      padding: 12px;
-      background: rgba(255,255,255,.90);
-      border: 1px solid var(--stroke);
-      border-radius: 18px;
-      box-shadow: 0 10px 22px rgba(9,23,33,.10);
-    }
-
-    .filters .field{ margin-bottom: 0; }
-    .filters .actions{ grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
-
-    /* Passenger toolbar row */
-    .p-toolbar{ display:flex; gap: 10px; margin: 10px 0 10px; }
-    .p-toolbar button{ flex: 1; }
-    .p-toolbar .chev{ font-weight: 900; margin-left: 2px; }
-
-    /* Trip/booking cards */
     .trip-card,
     .booking-card,
     .plan-card{
       border-radius: 18px;
       border: 1px solid var(--stroke);
-      padding: 12px;
+      padding: 12px 12px;
       margin-bottom: 10px;
       font-size: 13px;
-      background: rgba(255,255,255,.90);
+      background: rgba(255,255,255,.88);
       box-shadow: 0 10px 22px rgba(9,23,33,.10);
-      color: var(--text);
     }
 
     .trip-header,
     .booking-header{
       display:flex;
-      justify-content:space-between;
+      justify-content: space-between;
       align-items:center;
       margin-bottom: 6px;
       gap: 8px;
@@ -399,17 +307,17 @@
     .trip-route,
     .booking-status{
       font-weight: 900;
-      font-size: 14.5px;
+      font-size: 14px;
+      color: rgba(9,23,33,.90);
     }
 
-    .booking-status{ color: #16a34a; white-space: nowrap; }
+    .booking-status{ color: #0f766e; white-space: nowrap; }
 
     .trip-meta,
     .booking-meta{
       font-size: 12.5px;
-      color: rgba(9,23,33,.74);
+      color: rgba(9,23,33,.70);
       line-height: 1.45;
-      font-weight: 800;
     }
 
     .tag{
@@ -417,96 +325,148 @@
       padding: 3px 8px;
       border-radius: 999px;
       font-size: 11.5px;
+      font-weight: 900;
       border: 1px solid rgba(255,179,87,.55);
       background: rgba(255,179,87,.18);
-      color: rgba(9,23,33,.88);
+      color: rgba(26,18,8,.92);
       margin-right: 6px;
       margin-top: 4px;
-      font-weight: 900;
     }
 
     .hidden{ display:none !important; }
 
-    /* Toast (no emoji) */
+    /* Tabs: no scroll */
+    .tabs-bar{
+      display: grid;
+      gap: 8px;
+      padding: 10px;
+      background: var(--panel2);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      box-shadow: var(--shadow2);
+      margin-bottom: 16px;
+      position: sticky;
+      top: calc(8px + env(safe-area-inset-top));
+      z-index: 50;
+      overflow: hidden;
+    }
+
+    #driver-tabs-bar{ grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    #passenger-tabs-bar{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .tab-btn{
+      width: 100%;
+      min-width: 0;
+      white-space: normal;
+      padding: 9px 8px;
+      font-size: 12px;
+      min-height: 42px;
+      border-radius: 14px;
+      line-height: 1.12;
+    }
+
+    .tab-btn svg{
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
+      fill: currentColor;
+    }
+
+    .active-role{
+      background: rgba(255,179,87,.34) !important;
+      color: rgba(26,18,8,.92) !important;
+      border-color: rgba(255,179,87,.78) !important;
+      box-shadow: 0 14px 30px rgba(255,179,87,.16) !important;
+    }
+
+    /* Passenger toolbar: filters + refresh on one row */
+    .toolbar-row{
+      display:flex;
+      align-items:center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .filters{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 10px 0 12px 0;
+      padding: 12px;
+      background: rgba(255,255,255,.84);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      box-shadow: 0 10px 22px rgba(9,23,33,.10);
+    }
+
+    .filters .field{ margin-bottom: 0; }
+    .filters .field label{ font-size: 11.5px; font-weight: 900; color: var(--muted); }
+    .filters .actions{ grid-column: 1 / -1; display:flex; gap: 10px; }
+
+    /* Toast */
     .toast{
       position: fixed;
-      bottom: 80px;
+      bottom: calc(16px + env(safe-area-inset-bottom));
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(9,23,33,0.92);
-      color: rgba(255,255,255,.92);
+      background: rgba(255,255,255,.96);
+      color: rgba(9,23,33,.92);
       padding: 14px 18px;
-      border-radius: 16px;
-      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.30);
-      font-size: 15px;
-      font-weight: 800;
+      border-radius: 18px;
+      box-shadow: 0 18px 40px rgba(9,23,33,.22);
+      font-size: 14px;
+      font-weight: 900;
       z-index: 1000;
       opacity: 0;
       transition: opacity 0.35s ease, transform 0.35s ease;
       pointer-events: none;
-      border: 1px solid rgba(255,255,255,0.18);
+      border: 1px solid var(--stroke2);
       max-width: 92%;
     }
 
-    .toast.show{ opacity: 1; transform: translateX(-50%) translateY(-10px); }
+    .toast.show{
+      opacity: 1;
+      transform: translateX(-50%) translateY(-10px);
+    }
 
-    .toast::before{ content: ''; display:none; }
+    .toast::before{ content: ""; display:none; }
 
     .focus-highlight{
-      outline: 2px solid rgba(255,179,87,0.70);
-      box-shadow: 0 0 0 6px rgba(255,179,87,0.18), 0 18px 40px rgba(0,0,0,0.18);
+      outline: 2px solid rgba(255,179,87,.72);
+      box-shadow: 0 0 0 6px rgba(255,179,87,.22), 0 18px 40px rgba(9,23,33,.22);
       transform: translateY(-1px);
     }
 
-    
-    @media (max-width: 520px){
-      .filters{ grid-template-columns: 1fr; }
-      .p-toolbar{ flex-direction: column; }
-      .p-toolbar button{ width: 100%; }
+    @media (max-width: 420px){
+      .container{ max-width: 430px; }
+      .tab-btn{ font-size: 11.5px; padding: 9px 7px; }
+      .title{ font-size: 17px; }
     }
-
-@media (max-width: 430px){
-      .tab-btn{ font-size: 12.5px; padding: 10px 8px; }
-      .title{ font-size: 19px; }
-    }
-
-    @media (prefers-reduced-motion: reduce){
-      *{ transition: none !important; }
-    }
-
 </style>
 </head>
 <body>
   <div class="bg-mountains" aria-hidden="true"></div>
   <canvas id="snow-canvas"></canvas>
-<div class="container">
-    
-    <div class="header-card">
-      <div class="appbar">
-        <div class="logo" id="app-logo" aria-label="Лого">
-          <!-- passenger logo -->
-          <svg id="logo-passenger" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z" stroke="currentColor" stroke-width="2"/>
-            <path d="M4 21c1.4-4.8 14.6-4.8 16 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
-          <!-- driver logo -->
-          <svg id="logo-driver" class="hidden" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M5 16.5V10a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <path d="M7.5 16.5h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-            <path d="M8 10h0M16 10h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-          </svg>
+
+  <div class="container">
+    <div class="card header-card">
+      <div class="title-row">
+        <div class="logo" aria-label="Лого">
+          <!-- Положите файлы logo-passenger.png и logo-driver.png рядом с index.html (в ту же папку на сервере) -->
+          <img id="logo-passenger" class="logo-img" src="logo-passenger.png" alt="Лого пассажир">
+          <img id="logo-driver" class="logo-img hidden" src="logo-driver.png" alt="Лого водитель">
+          <span id="logo-fallback" class="logo-fallback">P</span>
         </div>
-        <div class="app-title" style="flex:1; min-width:0;">
-          <div class="title onbg-strong">попутчики</div>
-          <div class="tagline onbg-muted"></div>
+        <div class="title-block">
+          <div class="title">попутчики</div>
+          <div class="title-sub">тёплый зимний день в горах</div>
         </div>
-        <div class="chip onbg-muted" id="role-chip">Пассажир</div>
       </div>
-      <div class="info onbg-muted" id="user-info">Загрузка...</div>
+      <div class="info" id="user-info">Загрузка…</div>
     </div>
 
-
-    <div class="card">
+<div class="card">
       <div class="subtitle">Кто вы?</div>
       <div class="role-buttons">
         <button class="secondary-btn" id="btn-driver">Я водитель</button>
@@ -519,15 +479,19 @@
 
     <div class="tabs-bar hidden" id="driver-tabs-bar">
       <button class="tab-btn secondary-btn" data-role="driver" data-tab="create">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
         Создать
       </button>
       <button class="tab-btn secondary-btn" data-role="driver" data-tab="active">
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
         Активная
       </button>
       <button class="tab-btn secondary-btn" data-role="driver" data-tab="history">
+        <svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.11L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
         История
       </button>
       <button class="tab-btn secondary-btn" data-role="driver" data-tab="plans">
+        <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
         Пассажиры
       </button>
     </div>
@@ -647,19 +611,12 @@
         Список поездок с ещё свободными местами.
       </div>
 
-      <div class="p-toolbar">
-        <button class="secondary-btn" id="btn-refresh-trips" type="button">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v6h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
-          Обновить
-        </button>
-        <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">
-          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 5h16l-6 7v6l-4 1v-7L4 5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
-          <span class="lbl">Фильтры</span>
-          <span class="chev">▼</span>
-        </button>
+      <div class="toolbar-row">
+        <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">Фильтры ▼</button>
+        <button class="secondary-btn" id="btn-refresh-trips" type="button">Обновить</button>
       </div>
 
-      <div class="filters hidden" id="passenger-filters">
+<div class="filters hidden" id="passenger-filters">
         <div class="field">
           <label>Откуда</label>
           <select id="filter-from">
@@ -692,8 +649,7 @@
           <button class="secondary-btn" id="btn-reset-filters" type="button">Сброс</button>
         </div>
       </div>
-
-      <div id="trips-list" class="info">
+<div id="trips-list" class="info">
         Поездки ещё не загружены.
       </div>
     </div>
@@ -889,8 +845,6 @@ function openChat(username, telegramId) {
   alert('У пользователя нет username, чат открыть не удалось.');
 }
 
-
-
 function getStartParamRaw() {
   const unsafe = tg && tg.initDataUnsafe ? tg.initDataUnsafe : {};
   const sp = unsafe && (unsafe.start_param || unsafe.startParam);
@@ -954,7 +908,6 @@ function maybeFocusStartAction() {
   }
 }
 
-
 const ADMIN_ID = 504348666;
 
     let currentTelegramUser = null;
@@ -966,18 +919,6 @@ const ADMIN_ID = 504348666;
     const btnShareApp = document.getElementById('btn-share-app');
     const btnPassenger = document.getElementById('btn-passenger');
     const roleInfo = document.getElementById('role-info');
-
-    const roleChip = document.getElementById('role-chip');
-    const logoDriver = document.getElementById('logo-driver');
-    const logoPassenger = document.getElementById('logo-passenger');
-
-    function setRoleBrand(role) {
-      const isDriver = role === 'driver';
-      if (roleChip) roleChip.textContent = isDriver ? 'Водитель' : 'Пассажир';
-      if (logoDriver) logoDriver.classList.toggle('hidden', !isDriver);
-      if (logoPassenger) logoPassenger.classList.toggle('hidden', isDriver);
-    }
-
 
     const driverSection = document.getElementById('driver-section');
     const driverHistory = document.getElementById('driver-history');
@@ -1051,6 +992,40 @@ const ADMIN_ID = 504348666;
     const btnReloadDriverPassengerPlans = document.getElementById('btn-reload-driver-passenger-plans');
 
     const roleButtons = document.querySelectorAll('#btn-driver, #btn-passenger');
+
+    // --------------------
+    // Лого по роли (положите файлы рядом с index.html):
+    //   - logo-passenger.png
+    //   - logo-driver.png
+    // Если файла нет — покажется буква P/D.
+    // --------------------
+    const logoDriverImg = document.getElementById('logo-driver');
+    const logoPassengerImg = document.getElementById('logo-passenger');
+    const logoFallback = document.getElementById('logo-fallback');
+
+    function updateLogoFallbackVisibility() {
+      const driverOk = !!(logoDriverImg && !logoDriverImg.classList.contains('hidden') && logoDriverImg.complete && logoDriverImg.naturalWidth > 0);
+      const passengerOk = !!(logoPassengerImg && !logoPassengerImg.classList.contains('hidden') && logoPassengerImg.complete && logoPassengerImg.naturalWidth > 0);
+      const hasAny = driverOk || passengerOk;
+      if (logoFallback) logoFallback.style.display = hasAny ? 'none' : 'grid';
+    }
+
+    function setRoleLogo(role) {
+      const isDriver = role === 'driver';
+      if (logoDriverImg) logoDriverImg.classList.toggle('hidden', !isDriver);
+      if (logoPassengerImg) logoPassengerImg.classList.toggle('hidden', isDriver);
+      if (logoFallback) logoFallback.textContent = isDriver ? 'D' : 'P';
+      updateLogoFallbackVisibility();
+    }
+
+    [logoDriverImg, logoPassengerImg].forEach((img) => {
+      if (!img) return;
+      img.addEventListener('load', updateLogoFallbackVisibility);
+      img.addEventListener('error', () => {
+        img.classList.add('hidden');
+        updateLogoFallbackVisibility();
+      });
+    });
 
     let currentRole = null;
     let driverAutoTimer = null;
@@ -1130,7 +1105,6 @@ const ADMIN_ID = 504348666;
       driverTabsBar.classList.remove('hidden');
       passengerTabsBar.classList.add('hidden');
       currentRole = 'driver';
-      setRoleBrand('driver');
       setActiveTabUI(driverTabsBar, tab);
 
       driverPaymentBlock.classList.remove('hidden');
@@ -1155,7 +1129,6 @@ const ADMIN_ID = 504348666;
       passengerTabsBar.classList.remove('hidden');
       driverTabsBar.classList.add('hidden');
       currentRole = 'passenger';
-      setRoleBrand('passenger');
       setActiveTabUI(passengerTabsBar, tab);
 
       if (tab === 'trips') passengerSection.classList.remove('hidden');
@@ -1205,7 +1178,7 @@ const ADMIN_ID = 504348666;
     if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
       currentTelegramUser = tg.initDataUnsafe.user;
 
-      userInfoDiv.textContent = `Приветсвуем Вас ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''}`.trim();
+      userInfoDiv.textContent = `Вы вошли как: ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''}`.trim();
       if (currentTelegramUser.username) {
         userInfoDiv.textContent += ` @${currentTelegramUser.username}`;
       }
@@ -1225,20 +1198,23 @@ const ADMIN_ID = 504348666;
     }
 
     btnDriver.addEventListener('click', () => {
-      setRoleBrand('driver');
       roleInfo.textContent = 'Режим водителя: создавайте поездки, ищите пассажиров';
       roleButtons.forEach(b => b.classList.remove('active-role'));
       btnDriver.classList.add('active-role');
+      setRoleLogo('driver');
       showDriverTab('create');
     });
 
     btnPassenger.addEventListener('click', () => {
-      setRoleBrand('passenger');
       roleInfo.textContent = 'Режим пассажира: ищите водителя, планируйте свои поездки';
       roleButtons.forEach(b => b.classList.remove('active-role'));
       btnPassenger.classList.add('active-role');
+      setRoleLogo('passenger');
       showPassengerTab('trips');
     });
+
+    // Инициализация логотипа (по умолчанию — пассажир)
+    setRoleLogo('passenger');
 
     // Если Mini App открыли по deeplink из канала — сразу открываем нужную вкладку и подсвечиваем карточку
     START_ACTION = parseStartParam(getStartParamRaw());
@@ -1247,11 +1223,13 @@ const ADMIN_ID = 504348666;
         roleInfo.textContent = 'Режим водителя: создавайте поездки, ищите пассажиров';
         roleButtons.forEach(b => b.classList.remove('active-role'));
         btnDriver.classList.add('active-role');
+        setRoleLogo('driver');
         showDriverTab(START_ACTION.tab || 'plans');
       } else {
         roleInfo.textContent = 'Режим пассажира: ищите водителя, планируйте свои поездки';
         roleButtons.forEach(b => b.classList.remove('active-role'));
         btnPassenger.classList.add('active-role');
+        setRoleLogo('passenger');
         showPassengerTab(START_ACTION.tab || 'trips');
       }
     } else {
@@ -1259,57 +1237,59 @@ const ADMIN_ID = 504348666;
       btnPassenger.click();
     }
 
-
     if (btnInvite) {
       btnInvite.addEventListener('click', () => {
-        shareText('Попутчики — быстро найти попутчиков и поездки. Жми, чтобы открыть мини‑приложение.');
+        shareText('🚗 Попутчики — быстро найти попутчиков и поездки. Жми, чтобы открыть мини‑приложение.');
       });
     }
     if (btnShareApp) {
       btnShareApp.addEventListener('click', () => {
-        shareText('Поехали в горы вместе! Открой мини‑приложение «попутчики» и найди поездку/пассажира.');
+        shareText('🏔️ Поехали в горы вместе! Открой мини‑приложение «попутчики» и найди поездку/пассажира.');
       });
     }
 
-    // Снег
-    const canvas = document.getElementById('snow-canvas');
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    window.addEventListener('resize', () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    });
-
-    const flakes = [];
-    for (let i = 0; i < 100; i++) {
-      flakes.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        r: Math.random() * 3 + 1,
-        speed: Math.random() * 1 + 0.5,
-        drift: Math.random() * 0.6 - 0.3,
-        opacity: Math.random() * 0.4 + 0.6
-      });
+    // Снег (выключено для темы «тёплый зимний день». Если нужно — поставьте true)
+    const ENABLE_SNOW = false;
+    if (ENABLE_SNOW) {
+          const canvas = document.getElementById('snow-canvas');
+          const ctx = canvas.getContext('2d');
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+          window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+          });
+      
+          const flakes = [];
+          for (let i = 0; i < 100; i++) {
+            flakes.push({
+              x: Math.random() * canvas.width,
+              y: Math.random() * canvas.height,
+              r: Math.random() * 3 + 1,
+              speed: Math.random() * 1 + 0.5,
+              drift: Math.random() * 0.6 - 0.3,
+              opacity: Math.random() * 0.4 + 0.6
+            });
+          }
+      
+          function animateSnow() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            flakes.forEach(f => {
+              ctx.fillStyle = `rgba(255,255,255,${f.opacity})`;
+              ctx.beginPath();
+              ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+              ctx.fill();
+              f.y += f.speed;
+              f.x += f.drift;
+              if (f.y > canvas.height) {
+                f.y = -10;
+                f.x = Math.random() * canvas.width;
+              }
+            });
+            requestAnimationFrame(animateSnow);
+          }
+          animateSnow();
     }
-
-    function animateSnow() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      flakes.forEach(f => {
-        ctx.fillStyle = `rgba(255,255,255,${f.opacity})`;
-        ctx.beginPath();
-        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
-        ctx.fill();
-        f.y += f.speed;
-        f.x += f.drift;
-        if (f.y > canvas.height) {
-          f.y = -10;
-          f.x = Math.random() * canvas.width;
-        }
-      });
-      requestAnimationFrame(animateSnow);
-    }
-    animateSnow();
 
     // Весь твой оригинальный JavaScript от loadDriverProfile и ниже (полностью)
     function loadDriverProfile() {
@@ -1988,7 +1968,6 @@ ${t.from_city} → ${t.to_city}
   }, duration);
 }
 
-
 // ---------------- Подтверждение поездки и рейтинг ----------------
 async function getConfirmation(contextType, contextId) {
   const q = new URLSearchParams({
@@ -2151,7 +2130,6 @@ function openRatingModal(opts) {
   ensureRatingUI();
   window.__openRatingModal(opts);
 }
-
 
     btnLoadPassengerActive.addEventListener('click', loadPassengerActiveBookings);
 
@@ -2878,14 +2856,7 @@ function openRatingModal(opts) {
       if (!passengerFilters || !btnTogglePassengerFilters) return;
 
       passengerFilters.classList.toggle('hidden', !open);
-      const lbl = btnTogglePassengerFilters.querySelector('.lbl');
-      const chev = btnTogglePassengerFilters.querySelector('.chev');
-      if (lbl && chev) {
-        lbl.textContent = open ? 'Скрыть фильтры' : 'Фильтры';
-        chev.textContent = open ? '▲' : '▼';
-      } else {
-        btnTogglePassengerFilters.textContent = open ? 'Скрыть фильтры ▲' : 'Фильтры ▼';
-      }
+      btnTogglePassengerFilters.textContent = open ? 'Скрыть фильтры ▲' : 'Фильтры ▼';
 
       if (persist) {
         try {
