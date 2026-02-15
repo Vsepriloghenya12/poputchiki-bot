@@ -498,7 +498,7 @@
         </div>
         <div class="app-title" style="flex:1; min-width:0;">
           <div class="title onbg-strong">попутчики</div>
-          <div class="tagline onbg-muted">тёплый зимний день в горах</div>
+          <div class="tagline onbg-muted"></div>
         </div>
         <div class="chip onbg-muted" id="role-chip">Пассажир</div>
       </div>
@@ -1205,7 +1205,7 @@ const ADMIN_ID = 504348666;
     if (tg.initDataUnsafe && tg.initDataUnsafe.user) {
       currentTelegramUser = tg.initDataUnsafe.user;
 
-      userInfoDiv.textContent = `Вы вошли как: ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''}`.trim();
+      userInfoDiv.textContent = `Приветсвуем Вас ${currentTelegramUser.first_name || ''} ${currentTelegramUser.last_name || ''}`.trim();
       if (currentTelegramUser.username) {
         userInfoDiv.textContent += ` @${currentTelegramUser.username}`;
       }
