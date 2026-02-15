@@ -2,19 +2,14 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>попутчики • горы и снег 🏔️❄️</title>
+  <title>попутчики • горы и снег</title>
   <meta name="viewport" content="width=390, initial-scale=1, maximum-scale=1, user-scalable=no" />
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-
-  <style>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-
-    :root {
-      --ph: rgba(255,255,255,0.55);
-    }
 
     body {
       font-family: 'Manrope', sans-serif;
@@ -267,43 +262,45 @@ button:active {
     }
 
     .tabs-bar {
-      display: grid;
-      gap: 8px;
-      padding: 0;
-      margin: 0 0 16px 0;
-      background: transparent;
-      border: none;
-      box-shadow: none;
-      position: static;
-      overflow: visible;
-      backdrop-filter: none;
-    }
+  display: flex;
+  justify-content: flex-start;
+  gap: 8px;
+  padding: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(245, 241, 241, 0.12);
+  border-radius: 18px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
+  margin-bottom: 16px;
+  position: sticky;
+  top: 8px;
+  z-index: 50;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  backdrop-filter: blur(12px);
+}
 
-    #driver-tabs-bar { grid-template-columns: repeat(4, 1fr); }
-    #passenger-tabs-bar { grid-template-columns: repeat(3, 1fr); }
-
-.tabs-bar::-webkit-scrollbar {
+    .tabs-bar::-webkit-scrollbar {
       display: none;
     }
 
     .tab-btn {
-      width: 100%;
-      min-width: 0;
-      flex: unset;
-      padding: 8px 8px;
-      min-height: 38px;
-      font-size: 12.5px;
-      font-weight: 800;
-      border-radius: 16px;
-    }
+  flex: 0 0 auto;
+  min-width: unset;
+  white-space: nowrap;
+  padding: 8px 10px;
+  font-size: 12.5px;
+  min-height: 40px;
+  border-radius: 14px;
+}
 
 .tab-btn svg {
-      width: 18px;
-      height: 18px;
-      flex: 0 0 18px;
-    }
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
+}
 
-.filters {
+    .filters {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
@@ -316,9 +313,7 @@ button:active {
 
     .filter-toggle-row {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
+      justify-content: flex-end;
       margin-top: 8px;
     }
 
@@ -394,7 +389,7 @@ button:active {
 }
 
 .toast::before {
-  content: "❄️";
+  content: "";
   font-size: 24px;
 }
   
@@ -417,18 +412,144 @@ textarea::-webkit-input-placeholder{
   opacity: 1 !important;
 }
 
+
+/* -------------------- PRO UI OVERRIDES (no glass, no gradients, Inter) -------------------- */
+:root{
+  --bg0:#0b1a24;
+  --card:#122b39;
+  --stroke: rgba(255,255,255,.10);
+  --text: rgba(255,255,255,.92);
+  --muted: rgba(255,255,255,.66);
+  --muted2: rgba(255,255,255,.52);
+  --ph: rgba(255,255,255,.45);
+  --pri:#2b79ff;
+}
+
+body{
+  font-family: 'Inter', system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif !important;
+  background: var(--bg0) !important;
+  color: var(--text) !important;
+  font-size: 15px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+/* No glass anywhere */
+.card, .tabs-bar, .toast{
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* Cards: matte */
+.card{
+  background: rgba(18, 43, 57, .92) !important;
+  border: 1px solid var(--stroke) !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.40) !important;
+}
+
+/* Tabs container is not a bar */
+.tabs-bar{
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Tab buttons */
+.tab-btn{
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  color: rgba(255,255,255,.78) !important;
+  border-radius: 16px !important;
+  font-family: inherit !important;
+  font-weight: 800 !important;
+}
+.tab-btn.active, .tab-btn.is-active{
+  background: rgba(43,121,255,.22) !important;
+  border-color: rgba(43,121,255,.55) !important;
+  color: rgba(255,255,255,.96) !important;
+  box-shadow: 0 10px 24px rgba(43,121,255,.14) !important;
+}
+
+/* Buttons: no gradients */
+.primary-btn{
+  background: var(--pri) !important;
+  border: 0 !important;
+  color: #061622 !important;
+  font-family: inherit !important;
+  font-weight: 800 !important;
+  border-radius: 16px !important;
+}
+.secondary-btn, .danger-btn{
+  background: rgba(255,255,255,.06) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  color: var(--text) !important;
+  font-family: inherit !important;
+  font-weight: 800 !important;
+  border-radius: 16px !important;
+}
+
+/* Inputs */
+input, textarea, select{
+  background: rgba(8,16,24,.40) !important;
+  border: 1px solid rgba(255,255,255,.14) !important;
+  color: var(--text) !important;
+  font-family: inherit !important;
+  font-weight: 600 !important;
+}
+input::placeholder, textarea::placeholder{
+  color: var(--ph) !important;
+  opacity: 1 !important;
+}
+label{
+  font-weight: 700 !important;
+  letter-spacing: .2px;
+}
+
+/* Remove emoji pseudo content */
+.toast::before{ content: "" !important; display:none !important; }
+
+/* Make logo badge consistent */
+.logo{
+  background: rgba(255,255,255,.08) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  color: rgba(255,255,255,.92) !important;
+  box-shadow: none !important;
+}
+.hero-badge{
+  color: rgba(255,255,255,.86) !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  background: rgba(255,255,255,.06) !important;
+  box-shadow: none !important;
+}
+/* ----------------------------------------------------------------------------------------- */
+
 </style>
 </head>
 <body>
   <div class="bg-mountains" aria-hidden="true"></div>
   <canvas id="snow-canvas"></canvas>
 
-  <div class="hero-badge" aria-hidden="true">🏔️❄️</div>
+  <div class="hero-badge" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" style="width:22px;height:22px">
+        <path d="M3 18l6-9 4 6 2-3 6 6H3Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="M9 9l1.5 2.25L12 9l1.2 1.8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" opacity=".9"/>
+      </svg>
+    </div>
 
   <div class="container">
     <div class="card">
       <div class="title-row">
-        <div class="logo">🚗</div>
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" style="width:20px;height:20px">
+            <path d="M7 16h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M6.5 16 8 8.5A2 2 0 0 1 9.95 7h4.1A2 2 0 0 1 16 8.5L17.5 16" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+            <path d="M7.5 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" stroke="currentColor" stroke-width="2"/>
+            <path d="M16.5 19a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3Z" stroke="currentColor" stroke-width="2"/>
+          </svg>
+        </div>
         <div class="title">попутчики</div>
       </div>
       <div class="info" id="user-info">
@@ -590,9 +711,9 @@ textarea::-webkit-input-placeholder{
         <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">
           Фильтры ▼
         </button>
-        <button class="secondary-btn" id="btn-refresh-trips" type="button">Обновить</button>
       </div>
-<div class="filters hidden" id="passenger-filters">
+
+      <div class="filters hidden" id="passenger-filters">
         <div class="field">
           <label>Откуда</label>
           <select id="filter-from">
@@ -625,6 +746,8 @@ textarea::-webkit-input-placeholder{
           <button class="secondary-btn" id="btn-reset-filters" type="button">Сброс</button>
         </div>
       </div>
+
+      <button class="secondary-btn" id="btn-refresh-trips" type="button">Обновить</button>
 
       <div id="trips-list" class="info">
         Поездки ещё не загружены.
@@ -761,32 +884,14 @@ function apiFetch(url, options = {}) {
   return rawFetch(url, opts);
 }
 
-// Любые запросы к /api/* автоматически получают initData (включая абсолютные URL и Request)
-window.fetch = (input, options = {}) => {
+// Чтобы не переписывать весь код: любые fetch('/api/...') автоматически получают initData
+window.fetch = (url, options = {}) => {
   try {
-    const u = typeof input === 'string' ? input : (input && input.url ? input.url : '');
-    let pathname = '';
-    try {
-      pathname = new URL(u, window.location.href).pathname || '';
-    } catch (_) {
-      pathname = '';
+    if (typeof url === 'string' && url.startsWith('/api/')) {
+      return apiFetch(url, options);
     }
-
-    const isApi = (typeof input === 'string' && String(input).startsWith('/api/')) || pathname.startsWith('/api/');
-    if (!isApi) return rawFetch(input, options);
-
-    // Если передали Request — клонируем и дописываем заголовок
-    if (typeof Request !== 'undefined' && input instanceof Request) {
-      const headers = new Headers(input.headers);
-      if (tg && tg.initData) headers.set('x-telegram-init-data', tg.initData);
-      const req = new Request(input, { headers });
-      return rawFetch(req);
-    }
-
-    return apiFetch(String(input), options);
-  } catch (_) {
-    return rawFetch(input, options);
-  }
+  } catch (_) {}
+  return rawFetch(url, options);
 };
 
 let APP_CONFIG = null;
@@ -1197,12 +1302,12 @@ const ADMIN_ID = 504348666;
 
     if (btnInvite) {
       btnInvite.addEventListener('click', () => {
-        shareText('🚗 Попутчики — быстро найти попутчиков и поездки. Жми, чтобы открыть мини‑приложение.');
+        shareText('Попутчики — быстро найти попутчиков и поездки. Жми, чтобы открыть мини‑приложение.');
       });
     }
     if (btnShareApp) {
       btnShareApp.addEventListener('click', () => {
-        shareText('🏔️ Поехали в горы вместе! Открой мини‑приложение «попутчики» и найди поездку/пассажира.');
+        shareText('Поехали в горы вместе! Открой мини‑приложение «попутчики» и найди поездку/пассажира.');
       });
     }
 
@@ -1401,6 +1506,7 @@ const ADMIN_ID = 504348666;
         const div = document.createElement('div');
         div.className = 'trip-card';
         div.dataset.tripId = String(t.id);
+        div.dataset.tripId = String(t.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -1409,12 +1515,16 @@ const ADMIN_ID = 504348666;
         routeSpan.className = 'trip-route';
         routeSpan.textContent = `${t.from_city} → ${t.to_city}`;
 
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'small-text';
+        statusSpan.textContent = t.departure_time;
+
         header.appendChild(routeSpan);
+        header.appendChild(statusSpan);
 
         const meta = document.createElement('div');
         meta.className = 'trip-meta';
         meta.innerHTML =
-          `Выезд: <b>${formatDateReadable(t.departure_time)}</b><br/>` +
           `Мест всего: ${t.seats_total}, свободно: ${t.seats_available}<br/>` +
           `Цена за место: ${t.price_per_seat} ₽` +
           (t.note ? `<br/>Комментарий: ${t.note}` : '');
@@ -1693,7 +1803,7 @@ const ADMIN_ID = 504348666;
           activeTripId = t.id;
           driverActiveInfo.innerHTML =
             `${t.from_city} → ${t.to_city}<br/>` +
-            `Выезд: ${formatDateReadable(t.departure_time)}<br/>` +
+            `Выезд: ${t.departure_time}<br/>` +
             `Мест всего: ${t.seats_total}, свободно: ${t.seats_available}`;
         })
         .catch((err) => {
@@ -1788,13 +1898,17 @@ function fillCitiesFromTrips() {
         routeSpan.className = 'trip-route';
         routeSpan.textContent = `${t.from_city} → ${t.to_city}`;
 
+        const dateSpan = document.createElement('span');
+        dateSpan.className = 'small-text';
+        dateSpan.textContent = t.departure_time;
+
         header.appendChild(routeSpan);
+        header.appendChild(dateSpan);
 
         const meta = document.createElement('div');
         meta.className = 'trip-meta';
         meta.innerHTML =
           `Водитель: ${formatName(t.first_name, t.last_name, t.username)}<br/>` +
-          `Выезд: <b>${formatDateReadable(t.departure_time)}</b><br/>` +
           `Мест всего: ${t.seats_total}, свободно: ${t.seats_available}<br/>` +
           `Цена за место: ${t.price_per_seat} ₽` +
           (t.note ? `<br/>Комментарий: ${t.note}` : '');
@@ -1850,9 +1964,9 @@ function fillCitiesFromTrips() {
         btnShare.className = 'secondary-btn';
         btnShare.textContent = 'Поделиться';
         btnShare.addEventListener('click', () => {
-          shareText(`🚗 Поездка
+          shareText(`Поездка
 ${t.from_city} → ${t.to_city}
-Выезд: ${formatDateReadable(t.departure_time)}
+Выезд: ${t.departure_time}
 Цена: ${t.price_per_seat} ₽/место`, deeplinkFor('trip_' + t.id));
         });
 
@@ -2359,6 +2473,7 @@ function openRatingModal(opts) {
         const div = document.createElement('div');
         div.className = 'plan-card';
         div.dataset.planId = String(p.id);
+        div.dataset.planId = String(p.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -2396,7 +2511,7 @@ function openRatingModal(opts) {
           `<br/>Цена за место: ${p.price_per_seat || 0} ₽` +
           `<br/>Итого: ${p.amount_total || (p.price_per_seat || 0) * (p.seats_needed || 0)} ₽` +
           (p.note ? `<br/>Комментарий: ${p.note}` : '') +
-          `<br/>Время планируемого выезда: <b>${formatDateReadable(p.desired_time)}</b>` +
+          `<br/>Время планируемого выезда: ${formatDateReadable(p.desired_time)}` +
           `<br/><span class="tag">Статус: ${statusText}</span>` +
           driverInfo;
 
@@ -2584,7 +2699,7 @@ function openRatingModal(opts) {
           `Итого: ${p.amount_total || (p.price_per_seat || 0) * (p.seats_needed || 0)} ₽<br/>` +
           `Неявок у пассажира: ${p.passenger_no_show_count || 0}` +
           (p.note ? `<br/>Комментарий: ${p.note}` : '') +
-          `<br/>Время планируемого выезда: <b>${formatDateReadable(p.desired_time)}</b>`;
+          `<br/>Время планируемого выезда: ${formatDateReadable(p.desired_time)}`;
 
         const btnTake = document.createElement('button');
         btnTake.className = 'primary-btn';
