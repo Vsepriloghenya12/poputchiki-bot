@@ -2,418 +2,509 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <title>попутчики • горы и снег</title>
+  <title>попутчики • тёплый зимний день в горах</title>
   <meta name="viewport" content="width=390, initial-scale=1, maximum-scale=1, user-scalable=no" />
 
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
 
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <style>
+
     :root{
-      --bg:#071426;
-      --card:rgba(11,31,51,.92);
-      --card2:rgba(7,20,38,.55);
-      --border:rgba(255,255,255,.10);
-      --text:#e2e8f0;
-      --muted:#94a3b8;
-      --muted2:#cbd5e1;
-      --primary:#2563eb;
-      --primary-hover:#1d4ed8;
-      --danger:#dc2626;
-      --danger-hover:#b91c1c;
-      --ph: rgba(148,163,184,.85);
+      /* Warm winter day in the mountains */
+      --sky: #5ac4e9;
+
+      --text: rgba(9, 23, 33, 0.92);
+      --muted: rgba(9, 23, 33, 0.68);
+      --muted2: rgba(9, 23, 33, 0.52);
+      --ph: rgba(9, 23, 33, 0.42);
+
+      /* text on background */
+      --onBg: rgba(255,255,255,.96);
+      --onBgMuted: rgba(255,255,255,.84);
+      --onBgMuted2: rgba(255,255,255,.70);
+      --outline: rgba(0,0,0,.34);
+
+      --panel: rgba(255,255,255,.92);
+      --panel2: rgba(255,255,255,.84);
+      --stroke: rgba(9, 23, 33, 0.10);
+      --stroke2: rgba(9, 23, 33, 0.14);
+
+      --sun: #ffb357;
+      --sun2: #ffd8a1;
+
+      --r12: 12px;
+      --r16: 16px;
+      --r20: 20px;
+      --r24: 24px;
+
+      --shadow: 0 14px 38px rgba(9,23,33,.18);
+      --shadow2: 0 10px 26px rgba(9,23,33,.14);
+      --ring: 0 0 0 4px rgba(255,179,87,.25);
     }
 
     *{ margin:0; padding:0; box-sizing:border-box; }
+    html,body{ height:100%; }
 
     body{
-      font-family:'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: var(--bg);
+      font-family: Manrope, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: var(--sky);
       color: var(--text);
-      min-height:100vh;
-      overflow-x:hidden;
+      min-height: 100vh;
+      position: relative;
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
+    }
+
+    /* Day mountains background (no gradients, no blur) */
+    .bg-mountains{
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      background-color: var(--sky);
+      background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D'http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg'%20width%3D'1600'%20height%3D'1200'%20viewBox%3D'0%200%201600%201200'%3E%0A%3Crect%20width%3D'1600'%20height%3D'1200'%20fill%3D'%235ac4e9'%2F%3E%0A%3Ccircle%20cx%3D'1260'%20cy%3D'205'%20r%3D'140'%20fill%3D'%23ffb357'%20opacity%3D'0.98'%2F%3E%0A%3Ccircle%20cx%3D'1260'%20cy%3D'205'%20r%3D'250'%20fill%3D'%23ffd8a1'%20opacity%3D'0.30'%2F%3E%0A%3Cg%20opacity%3D'0.22'%3E%0A%20%20%3Cellipse%20cx%3D'320'%20cy%3D'240'%20rx%3D'165'%20ry%3D'38'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Cellipse%20cx%3D'465'%20cy%3D'255'%20rx%3D'130'%20ry%3D'32'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Cellipse%20cx%3D'1035'%20cy%3D'290'%20rx%3D'185'%20ry%3D'40'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Cellipse%20cx%3D'1195'%20cy%3D'302'%20rx%3D'140'%20ry%3D'34'%20fill%3D'%23ffffff'%2F%3E%0A%3C%2Fg%3E%0A%3Cpath%20d%3D'M0%20560%20C260%20515%20360%20410%20560%20440%20C720%20460%20820%20535%20980%20525%20C1180%20515%201260%20430%201600%20470%20L1600%201200%20L0%201200%20Z'%20fill%3D'%232f6f80'%2F%3E%0A%3Cpath%20d%3D'M0%20672%20C260%20640%20390%20565%20560%20592%20C740%20622%20820%20718%201000%20698%20C1200%20678%201280%20592%201600%20622%20L1600%201200%20L0%201200%20Z'%20fill%3D'%232b6172'%2F%3E%0A%3Cpath%20d%3D'M210%20745%20L505%20450%20L780%20745%20Z'%20fill%3D'%2328596a'%2F%3E%0A%3Cpath%20d%3D'M925%20785%20L1210%20500%20L1495%20785%20Z'%20fill%3D'%23285565'%2F%3E%0A%3Cpath%20d%3D'M505%20450%20L630%20618%20L545%20618%20Z'%20fill%3D'%23f7fbff'%20opacity%3D'0.98'%2F%3E%0A%3Cpath%20d%3D'M1210%20500%20L1338%20662%20L1253%20662%20Z'%20fill%3D'%23f7fbff'%20opacity%3D'0.96'%2F%3E%0A%3Cpath%20d%3D'M0%20840%20C320%20795%20520%20945%20760%20925%20C980%20905%201220%20785%201600%20840%20L1600%201200%20L0%201200%20Z'%20fill%3D'%23214c5a'%2F%3E%0A%3Cg%20opacity%3D'0.14'%3E%0A%20%20%3Ccircle%20cx%3D'230'%20cy%3D'360'%20r%3D'2.1'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'370'%20cy%3D'330'%20r%3D'1.7'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'525'%20cy%3D'372'%20r%3D'1.6'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'760'%20cy%3D'322'%20r%3D'1.7'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'940'%20cy%3D'350'%20r%3D'1.6'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'1110'%20cy%3D'342'%20r%3D'1.5'%20fill%3D'%23ffffff'%2F%3E%0A%20%20%3Ccircle%20cx%3D'1410'%20cy%3D'360'%20r%3D'1.7'%20fill%3D'%23ffffff'%2F%3E%0A%3C%2Fg%3E%0A%3C%2Fsvg%3E");
+      background-size: cover;
+      background-position: center;
     }
 
     #snow-canvas{
-      position:fixed; inset:0;
-      width:100%; height:100%;
-      pointer-events:none !important;
-      z-index:1;
-      user-select:none;
-      opacity:0.55;
-    }
-
-    .bg-mountains{
-      position:fixed; inset:0;
-      pointer-events:none;
-      z-index:0;
-      background-image:
-        url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0naHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmcnIHZpZXdCb3g9JzAgMCAxNDQwIDkwMCc+PHBhdGggZD0nTTAgNjgwIEwyMDAgNTIwIEwzNjAgNjAwIEw1NDAgNDQwIEw3MDAgNTgwIEw4NDAgNDgwIEwxMDIwIDYyMCBMMTIwMCA0NjAgTDE0NDAgNjgwIEwxNDQwIDkwMCBMMCA5MDAnIGZpbGw9J3JnYmEoMjU1LDI1NSwyNTUsMC4wNiknLz48cGF0aCBkPSdNMCA3NDAgTDIyMCA2MDAgTDQzMCA3MjAgTDYwMCA1MTAgTDc3MCA3MTAgTDk0MCA1NjAgTDExMjAgNzMwIEwxMzAwIDU1MCBMMTQ0MCA3NDAgTDE0NDAgOTAwIEwwIDkwMCcgc3R5bGU9J2ZpbGw6cmdiYSgwLDAsMCwwLjI2KTsnLz48L3N2Zz4=");
-      background-position: bottom center;
-      background-size: cover;
-      opacity:0.95;
-      filter: saturate(0.95) contrast(1.05);
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      pointer-events: none !important;
+      z-index: 1;
+      user-select: none;
+      opacity: .35; /* subtle */
     }
 
     .container{
-      position:relative;
-      z-index:2;
-      max-width:720px;
-      margin:0 auto;
-      padding:14px 12px 70px;
+      position: relative;
+      z-index: 2;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 14px 12px 84px;
     }
 
+    /* Readability on background */
+    .onbg-strong{
+      color: var(--onBg) !important;
+      text-shadow:
+        0.08px 0 0 var(--outline),
+        -0.08px 0 0 var(--outline),
+        0 0.08px 0 var(--outline),
+        0 -0.08px 0 var(--outline),
+        0 7px 20px rgba(0,0,0,.20);
+    }
+    .onbg-muted{
+      color: var(--onBgMuted) !important;
+      text-shadow:
+        0.08px 0 0 rgba(0,0,0,.26),
+        -0.08px 0 0 rgba(0,0,0,.26),
+        0 0.08px 0 rgba(0,0,0,.26),
+        0 -0.08px 0 rgba(0,0,0,.26),
+        0 6px 18px rgba(0,0,0,.16);
+    }
+    .onbg-kicker{
+      color: var(--onBgMuted2) !important;
+      text-shadow:
+        0.08px 0 0 rgba(0,0,0,.28),
+        -0.08px 0 0 rgba(0,0,0,.28),
+        0 0.08px 0 rgba(0,0,0,.28),
+        0 -0.08px 0 rgba(0,0,0,.28),
+        0 6px 18px rgba(0,0,0,.16);
+    }
+
+    /* Header */
+    .header-card{
+      margin: 6px 0 14px;
+      padding: 4px 2px 10px;
+    }
+
+    .appbar{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .app-title{ min-width: 0; }
+
+    .logo{
+      width: 44px;
+      height: 44px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.25);
+      background: rgba(9,23,33,.20);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      overflow:hidden;
+      flex: 0 0 auto;
+      box-shadow: 0 10px 22px rgba(0,0,0,.14);
+    }
+
+    .logo svg{ width: 22px; height:22px; color: rgba(255,255,255,.96); }
+
+    .title{
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: .2px;
+      line-height: 1.1;
+    }
+
+    .tagline{
+      font-size: 12.5px;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin-top: 2px;
+    }
+
+    .chip{
+      display:inline-flex;
+      align-items:center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 999px;
+      background: rgba(9,23,33,.22);
+      border: 1px solid rgba(255,255,255,.22);
+      font-size: 12.5px;
+      font-weight: 900;
+      user-select:none;
+      box-shadow: 0 10px 22px rgba(0,0,0,.12);
+      white-space: nowrap;
+    }
+
+    /* Cards */
     .card{
-      background: var(--card);
-      border:1px solid var(--border);
-      border-radius:16px;
-      padding:14px 14px 16px;
-      margin-bottom:12px;
-      box-shadow: 0 10px 26px rgba(0,0,0,0.28);
+      background: var(--panel);
+      border-radius: var(--r24);
+      padding: 14px 14px 16px;
+      margin-bottom: 14px;
+      border: 1px solid var(--stroke);
+      box-shadow: var(--shadow);
     }
 
     .title-row{
       display:flex;
       align-items:center;
-      gap:10px;
-      margin-bottom:10px;
-      padding-bottom:10px;
-      border-bottom:1px solid rgba(255,255,255,.08);
-    }
-
-    .logo{
-      width:42px;
-      height:42px;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.04);
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      overflow:hidden;
-      flex-shrink:0;
-    }
-
-    #app-logo{
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      display:none;
-    }
-
-    .logo-fallback{
-      width:100%;
-      height:100%;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      color: rgba(226,232,240,.9);
-    }
-    .logo-fallback svg{ width:22px; height:22px; fill: currentColor; }
-
-    .title-col{ display:flex; flex-direction:column; gap:2px; min-width:0; }
-    .title{
-      font-size:20px;
-      font-weight:800;
-      letter-spacing:-0.01em;
-      color: var(--text);
-      line-height:1.1;
-    }
-    .small-text{
-      font-size:12px;
-      color: var(--muted);
-      line-height:1.25;
+      gap: 10px;
+      margin-bottom: 10px;
+      padding-bottom: 0;
+      border-bottom: 0;
     }
 
     .subtitle{
-      font-size:12px;
-      font-weight:800;
-      text-transform:uppercase;
-      letter-spacing:0.06em;
+      font-size: 12px;
+      font-weight: 900;
+      letter-spacing: .14em;
+      text-transform: uppercase;
       color: var(--muted);
-      margin-bottom:10px;
+      margin-bottom: 8px;
     }
 
     .info{
-      font-size:13px;
-      color: var(--muted2);
-      white-space:pre-line;
-      line-height:1.45;
+      font-size: 13.5px;
+      color: rgba(9,23,33,.82);
+      margin-top: 4px;
+      white-space: pre-line;
+      line-height: 1.45;
+      font-weight: 700;
     }
 
-    .field{ margin-bottom:10px; }
+    .small-text{
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 800;
+    }
+
+    /* Forms */
+    .field{ margin-bottom: 10px; }
     .field label{
       display:block;
-      font-size:12px;
+      font-size: 12.5px;
       color: var(--muted);
-      margin-bottom:4px;
-      font-weight:700;
+      margin-bottom: 6px;
+      font-weight: 900;
+      letter-spacing: .2px;
     }
 
     .field input,
     .field textarea,
     .field select{
-      width:100%;
-      border-radius:12px;
-      border:1px solid rgba(255,255,255,.14);
-      padding:10px 11px;
-      font-size:15px;
-      background: rgba(7,20,38,.55);
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid var(--stroke2);
+      padding: 12px 12px;
+      font-size: 14px;
+      background: rgba(255,255,255,.92);
       color: var(--text);
+      font-family: inherit;
+      font-weight: 800;
+      outline: none;
+      box-shadow: inset 0 0 0 1px rgba(9,23,33,.03);
     }
+
+    .field input::placeholder,
+    .field textarea::placeholder{ color: var(--ph); opacity: 1; }
 
     .field input:focus,
     .field textarea:focus,
     .field select:focus{
-      outline:none;
-      border-color: rgba(37,99,235,.55);
-      box-shadow: 0 0 0 3px rgba(37,99,235,.18);
-      background: rgba(7,20,38,.68);
+      border-color: rgba(255,179,87,.62);
+      box-shadow: var(--ring), inset 0 0 0 1px rgba(255,255,255,.05);
     }
 
-    .field-inline{ display:flex; gap:10px; }
-    .field-inline .field{ flex:1; margin-bottom:0; }
+    .field-inline{ display:flex; gap: 10px; }
+    .field-inline .field{ flex: 1; margin-bottom: 0; }
 
-    .role-buttons{ display:flex; gap:10px; margin-top:6px; }
-    .role-buttons button{ flex:1; }
-
+    /* Buttons */
     button{
-      appearance:none;
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.14);
-      padding:10px 12px;
-      font-size:14px;
-      font-weight:800;
-      cursor:pointer;
-      transition: transform .12s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
-      display:inline-flex;
-      align-items:center;
-      justify-content:center;
-      gap:8px;
-      min-height:42px;
-      user-select:none;
-      -webkit-tap-highlight-color:transparent;
+      appearance: none;
+      border: 0;
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+      transition: transform .06s ease, background .18s ease, border-color .18s ease, box-shadow .18s ease;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
       color: var(--text);
-      background: rgba(255,255,255,.04);
+      white-space: nowrap;
     }
+
     button:active{ transform: translateY(1px); }
-    button:disabled{ opacity:.55; cursor:not-allowed; }
 
     .primary-btn{
-      background: var(--primary);
-      border-color: rgba(255,255,255,.12);
-      box-shadow: 0 12px 26px rgba(37,99,235,.22);
-      color:#fff;
+      background: rgba(255,179,87,.96);
+      color: #1a1208;
+      border: 1px solid rgba(255,179,87,.75);
+      box-shadow: 0 14px 30px rgba(255,179,87,.18);
     }
-    .primary-btn:hover{ background: var(--primary-hover); }
 
     .secondary-btn{
-      background: rgba(255,255,255,.04);
-      border-color: rgba(255,255,255,.14);
-      box-shadow:none;
+      background: rgba(255,255,255,.92);
+      border: 1px solid var(--stroke2);
+      box-shadow: inset 0 0 0 1px rgba(9,23,33,.03), 0 10px 22px rgba(9,23,33,.10);
     }
-    .secondary-btn:hover{ background: rgba(255,255,255,.06); }
 
     .danger-btn{
-      background: var(--danger);
-      border-color: rgba(255,255,255,.10);
-      box-shadow: 0 12px 22px rgba(220,38,38,.18);
-      color:#fff;
+      background: rgba(239,68,68,.94);
+      color: #fff;
+      border: 1px solid rgba(239,68,68,.55);
+      box-shadow: 0 14px 26px rgba(239,68,68,.16);
     }
-    .danger-btn:hover{ background: var(--danger-hover); }
 
-    .trip-card,.booking-card,.plan-card{
-      border-radius:14px;
-      border:1px solid rgba(255,255,255,.10);
-      padding:10px 11px;
-      margin-bottom:10px;
-      background: rgba(255,255,255,.03);
-      font-size:13px;
+    /* Role buttons */
+    .role-buttons{ display:flex; gap: 10px; margin-top: 6px; }
+    .role-buttons button{ flex: 1; }
+
+    .active-role{
+      background: rgba(255,179,87,.34) !important;
+      border: 1px solid rgba(255,179,87,.80) !important;
+      color: rgba(9,23,33,.92) !important;
+      box-shadow: 0 12px 26px rgba(255,179,87,.16) !important;
     }
-    .trip-header,.booking-header{
+
+    /* Tabs (no horizontal scroll) */
+    .tabs-bar{
+      gap: 8px;
+      padding: 10px;
+      background: rgba(255,255,255,.74);
+      border: 1px solid var(--stroke);
+      border-radius: var(--r24);
+      box-shadow: var(--shadow2);
+      margin-bottom: 16px;
+      position: sticky;
+      top: 10px;
+      z-index: 50;
+      overflow: hidden;
+    }
+
+    #driver-tabs-bar{ display:grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+    #passenger-tabs-bar{ display:grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
+
+    .tab-btn{
+      width: 100%;
+      min-width: 0;
+      padding: 10px 10px;
+      font-size: 13px;
+      min-height: 44px;
+      border-radius: var(--r16);
+      white-space: normal;
+      line-height: 1.12;
+      text-align: center;
+    }
+
+    .tab-btn svg{ width: 16px; height: 16px; flex: 0 0 16px; fill: currentColor; }
+
+    /* Filters */
+    .filters{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin: 10px 0 10px 0;
+      padding: 12px;
+      background: rgba(255,255,255,.90);
+      border: 1px solid var(--stroke);
+      border-radius: 18px;
+      box-shadow: 0 10px 22px rgba(9,23,33,.10);
+    }
+
+    .filters .field{ margin-bottom: 0; }
+    .filters .actions{ grid-column: 1 / -1; display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* Passenger toolbar row */
+    .p-toolbar{ display:flex; gap: 10px; margin: 10px 0 10px; }
+    .p-toolbar button{ flex: 1; }
+    .p-toolbar .chev{ font-weight: 900; margin-left: 2px; }
+
+    /* Trip/booking cards */
+    .trip-card,
+    .booking-card,
+    .plan-card{
+      border-radius: 18px;
+      border: 1px solid var(--stroke);
+      padding: 12px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      background: rgba(255,255,255,.90);
+      box-shadow: 0 10px 22px rgba(9,23,33,.10);
+      color: var(--text);
+    }
+
+    .trip-header,
+    .booking-header{
       display:flex;
       justify-content:space-between;
-      align-items:flex-start;
-      margin-bottom:6px;
-      gap:8px;
+      align-items:center;
+      margin-bottom: 6px;
+      gap: 8px;
     }
-    .trip-route,.booking-status{ font-weight:900; font-size:14px; }
-    .trip-header .small-text, .booking-header .small-text{
-      color: rgba(226,232,240,.88);
+
+    .trip-route,
+    .booking-status{
+      font-weight: 900;
+      font-size: 14.5px;
+    }
+
+    .booking-status{ color: #16a34a; white-space: nowrap; }
+
+    .trip-meta,
+    .booking-meta{
+      font-size: 12.5px;
+      color: rgba(9,23,33,.74);
+      line-height: 1.45;
       font-weight: 800;
     }
-    .booking-status{ color:#34d399; white-space:nowrap; }
-    .trip-meta,.booking-meta{ font-size:12.5px; color: var(--muted2); line-height:1.45; }
 
     .tag{
       display:inline-block;
-      padding:3px 8px;
-      border-radius:999px;
-      font-size:11px;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.04);
-      color: var(--muted2);
-      margin-right:6px;
-      margin-top:4px;
+      padding: 3px 8px;
+      border-radius: 999px;
+      font-size: 11.5px;
+      border: 1px solid rgba(255,179,87,.55);
+      background: rgba(255,179,87,.18);
+      color: rgba(9,23,33,.88);
+      margin-right: 6px;
+      margin-top: 4px;
+      font-weight: 900;
     }
 
     .hidden{ display:none !important; }
 
-    /* Tabs: без "бара", без скролла, одинаковые отступы */
-    .tabs-bar{
-      margin: 6px 0 14px;
-      padding: 0;
-      background: transparent;
-      border: 0;
-      box-shadow:none;
-      position: static;
-      z-index: 10;
-      overflow: visible;
-      display: grid;
-      gap: 8px;
-    }
-    #driver-tabs-bar{ grid-template-columns: repeat(4, minmax(0, 1fr)); }
-    #passenger-tabs-bar{ grid-template-columns: repeat(3, minmax(0, 1fr)); }
-
-    .tab-btn{
-      width:100%;
-      min-width:0;
-      white-space:normal;
-      padding:10px 10px;
-      font-size:12.5px;
-      line-height:1.1;
-      min-height:42px;
-      border-radius:14px;
-    }
-    .tab-btn svg{
-      width:18px;
-      height:18px;
-      flex:0 0 18px;
-      fill: currentColor;
-      opacity: .95;
-    }
-
-    .active-role{
-      background: rgba(37,99,235,.16) !important;
-      border-color: rgba(37,99,235,.35) !important;
-      box-shadow: 0 12px 26px rgba(37,99,235,.12) !important;
-      color: #fff !important;
-    }
-
-    .filters{
-      display:grid;
-      grid-template-columns: 1fr 1fr;
-      gap:10px;
-      margin: 10px 0 10px;
-      padding: 12px;
-      background: rgba(7,20,38,.42);
-      border: 1px solid rgba(255,255,255,.10);
-      border-radius:14px;
-    }
-    .filters .field{ margin-bottom:0; }
-    .filters .field label{ font-size:11px; font-weight:900; color: var(--muted); }
-    .filters .actions{ grid-column:1 / -1; display:flex; gap:10px; flex-wrap:wrap; }
-    .filters .actions button{ flex:1; }
-
-    .top-actions{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      align-items:center;
-      justify-content:space-between;
-      margin-top:10px;
-    }
-
-    /* Toast (без эмодзи) */
+    /* Toast (no emoji) */
     .toast{
       position: fixed;
       bottom: 80px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(11,31,51,.96);
-      color: #e5eefc;
-      padding: 14px 16px;
+      background: rgba(9,23,33,0.92);
+      color: rgba(255,255,255,.92);
+      padding: 14px 18px;
       border-radius: 16px;
-      box-shadow: 0 18px 40px rgba(0,0,0,0.35);
-      font-size: 14px;
+      box-shadow: 0 18px 40px rgba(0, 0, 0, 0.30);
+      font-size: 15px;
       font-weight: 800;
       z-index: 1000;
       opacity: 0;
-      transition: opacity .35s ease, transform .35s ease;
+      transition: opacity 0.35s ease, transform 0.35s ease;
       pointer-events: none;
-      border: 1px solid rgba(255,255,255,.12);
-      display:flex;
-      align-items:center;
-      gap:12px;
+      border: 1px solid rgba(255,255,255,0.18);
       max-width: 92%;
     }
-    .toast.show{
-      opacity:1;
-      transform: translateX(-50%) translateY(-10px);
-    }
-    .toast::before{
-      content:"";
-      width:18px;
-      height:18px;
-      border-radius:6px;
-      background: rgba(37,99,235,.95);
-      box-shadow: 0 10px 20px rgba(37,99,235,.20);
-      flex: 0 0 18px;
-    }
+
+    .toast.show{ opacity: 1; transform: translateX(-50%) translateY(-10px); }
+
+    .toast::before{ content: ''; display:none; }
 
     .focus-highlight{
-      outline: 2px solid rgba(255,255,255,0.25);
-      box-shadow: 0 0 0 6px rgba(255,255,255,0.06), 0 18px 40px rgba(0,0,0,0.35);
+      outline: 2px solid rgba(255,179,87,0.70);
+      box-shadow: 0 0 0 6px rgba(255,179,87,0.18), 0 18px 40px rgba(0,0,0,0.18);
       transform: translateY(-1px);
     }
 
-    /* Подсказки в полях */
-    input::placeholder, textarea::placeholder{
-      color: var(--ph) !important;
-      opacity: 1 !important;
-    }
-    input::-webkit-input-placeholder, textarea::-webkit-input-placeholder{
-      color: var(--ph) !important;
-      opacity: 1 !important;
+    
+    @media (max-width: 520px){
+      .filters{ grid-template-columns: 1fr; }
+      .p-toolbar{ flex-direction: column; }
+      .p-toolbar button{ width: 100%; }
     }
 
-    /* Звёзды в рейтинге */
-    .star-btn{
-      width:44px;
-      min-height:44px;
-      padding:0;
-      border-radius:14px;
+@media (max-width: 430px){
+      .tab-btn{ font-size: 12.5px; padding: 10px 8px; }
+      .title{ font-size: 19px; }
     }
-    .star-btn svg{ width:22px; height:22px; fill: currentColor; }
+
+    @media (prefers-reduced-motion: reduce){
+      *{ transition: none !important; }
+    }
+
 </style>
 </head>
 <body>
   <div class="bg-mountains" aria-hidden="true"></div>
   <canvas id="snow-canvas"></canvas>
 <div class="container">
-    <div class="card">
-  <div class="title-row">
-    <div class="logo" id="logo-slot" aria-label="Логотип">
-      <img id="app-logo" alt="Логотип" />
-      <div class="logo-fallback" id="logo-fallback" aria-hidden="true">
-        <svg viewBox="0 0 24 24" aria-hidden="true">
-          <path d="M3 19h18v2H3v-2zm1-2 6-8 4 5 3-4 6 7H4zm8.2-6.6L10 13l-2.1-2.8L5.7 15h12.7l-3.7-4.3-2.1 2.8z"/>
-        </svg>
+    
+    <div class="header-card">
+      <div class="appbar">
+        <div class="logo" id="app-logo" aria-label="Лого">
+          <!-- passenger logo -->
+          <svg id="logo-passenger" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M12 12a4 4 0 1 0-4-4 4 4 0 0 0 4 4Z" stroke="currentColor" stroke-width="2"/>
+            <path d="M4 21c1.4-4.8 14.6-4.8 16 0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+          <!-- driver logo -->
+          <svg id="logo-driver" class="hidden" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M5 16.5V10a3 3 0 0 1 3-3h8a3 3 0 0 1 3 3v6.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M7.5 16.5h9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            <path d="M8 10h0M16 10h0" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="app-title" style="flex:1; min-width:0;">
+          <div class="title onbg-strong">попутчики</div>
+          <div class="tagline onbg-muted">тёплый зимний день в горах</div>
+        </div>
+        <div class="chip onbg-muted" id="role-chip">Пассажир</div>
       </div>
+      <div class="info onbg-muted" id="user-info">Загрузка...</div>
     </div>
-    <div class="title-col">
-      <div class="title" id="app-title">попутчики</div>
-      <div class="small-text" id="app-subtitle"></div>
-    </div>
-  </div>
 
-  <div class="info" id="user-info">Загрузка...</div>
-
-  <div class="top-actions">
-    <button class="secondary-btn" id="btn-invite" type="button">Пригласить друга</button>
-    <button class="secondary-btn" id="btn-share-app" type="button">Поделиться приложением</button>
-  </div>
-</div>
 
     <div class="card">
       <div class="subtitle">Кто вы?</div>
@@ -428,15 +519,19 @@
 
     <div class="tabs-bar hidden" id="driver-tabs-bar">
       <button class="tab-btn secondary-btn" data-role="driver" data-tab="create">
+        <svg viewBox="0 0 24 24"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
         Создать
       </button>
       <button class="tab-btn secondary-btn" data-role="driver" data-tab="active">
+        <svg viewBox="0 0 24 24"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg>
         Активная
       </button>
       <button class="tab-btn secondary-btn" data-role="driver" data-tab="history">
+        <svg viewBox="0 0 24 24"><path d="M13 3a9 9 0 0 0-9 9H1l3.89 3.89.07.11L9 12H6c0-3.87 3.13-7 7-7s7 3.13 7 7-3.13 7-7 7c-1.93 0-3.68-.79-4.94-2.06l-1.42 1.42A8.954 8.954 0 0 0 13 21a9 9 0 0 0 0-18zm-1 5v5l4.28 2.54.72-1.21-3.5-2.08V8H12z"/></svg>
         История
       </button>
       <button class="tab-btn secondary-btn" data-role="driver" data-tab="plans">
+        <svg viewBox="0 0 24 24"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
         Пассажиры
       </button>
     </div>
@@ -556,9 +651,16 @@
         Список поездок с ещё свободными местами.
       </div>
 
-      <div class="top-actions">
-        <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">Фильтры ▼</button>
-        <button class="secondary-btn" id="btn-refresh-trips" type="button">Обновить</button>
+      <div class="p-toolbar">
+        <button class="secondary-btn" id="btn-refresh-trips" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M20 12a8 8 0 1 1-2.3-5.7" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M20 4v6h-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          Обновить
+        </button>
+        <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path d="M4 5h16l-6 7v6l-4 1v-7L4 5Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+          <span class="lbl">Фильтры</span>
+          <span class="chev">▼</span>
+        </button>
       </div>
 
       <div class="filters hidden" id="passenger-filters">
@@ -753,8 +855,7 @@ async function loadAppConfig() {
 }
 
 // Загружаем конфиг (deeplink_prefix) с бэка
-const __appConfigPromise = loadAppConfig();
-__appConfigPromise.then(() => { try { applyRoleBrand(currentRole); } catch (_) {} });
+loadAppConfig();
 
 function deeplinkFor(startParam) {
   const sp = String(startParam || '').trim();
@@ -870,6 +971,18 @@ const ADMIN_ID = 504348666;
     const btnPassenger = document.getElementById('btn-passenger');
     const roleInfo = document.getElementById('role-info');
 
+    const roleChip = document.getElementById('role-chip');
+    const logoDriver = document.getElementById('logo-driver');
+    const logoPassenger = document.getElementById('logo-passenger');
+
+    function setRoleBrand(role) {
+      const isDriver = role === 'driver';
+      if (roleChip) roleChip.textContent = isDriver ? 'Водитель' : 'Пассажир';
+      if (logoDriver) logoDriver.classList.toggle('hidden', !isDriver);
+      if (logoPassenger) logoPassenger.classList.toggle('hidden', isDriver);
+    }
+
+
     const driverSection = document.getElementById('driver-section');
     const driverHistory = document.getElementById('driver-history');
     const driverActive = document.getElementById('driver-active');
@@ -944,41 +1057,7 @@ const ADMIN_ID = 504348666;
     const roleButtons = document.querySelectorAll('#btn-driver, #btn-passenger');
 
     let currentRole = null;
-    
-
-    // --- Логотип по роли (водитель / пассажир) ---
-    const appLogoEl = document.getElementById('app-logo');
-    const appLogoFallbackEl = document.getElementById('logo-fallback');
-    const appSubtitleEl = document.getElementById('app-subtitle');
-
-    function getLogoUrlForRole(role) {
-      const cfg = APP_CONFIG || {};
-      if (role === 'driver') return cfg.logo_driver_url || cfg.logo_driver || cfg.driver_logo_url || '';
-      if (role === 'passenger') return cfg.logo_passenger_url || cfg.logo_passenger || cfg.passenger_logo_url || '';
-      return cfg.logo_url || '';
-    }
-
-    function applyRoleBrand(role) {
-      const r = role === 'driver' || role === 'passenger' ? role : null;
-      if (appSubtitleEl) {
-        appSubtitleEl.textContent = r === 'driver' ? 'Режим водителя' : (r === 'passenger' ? 'Режим пассажира' : '');
-      }
-
-      const url = getLogoUrlForRole(r);
-      if (!appLogoEl) return;
-
-      if (url) {
-        appLogoEl.src = url;
-        appLogoEl.style.display = 'block';
-        if (appLogoFallbackEl) appLogoFallbackEl.style.display = 'none';
-      } else {
-        appLogoEl.removeAttribute('src');
-        appLogoEl.style.display = 'none';
-        if (appLogoFallbackEl) appLogoFallbackEl.style.display = 'flex';
-      }
-    }
-
-let driverAutoTimer = null;
+    let driverAutoTimer = null;
     let passengerAutoTimer = null;
 
     function isStillActiveByDeparture(departureTimeStr) {
@@ -1055,7 +1134,7 @@ let driverAutoTimer = null;
       driverTabsBar.classList.remove('hidden');
       passengerTabsBar.classList.add('hidden');
       currentRole = 'driver';
-      applyRoleBrand('driver');
+      setRoleBrand('driver');
       setActiveTabUI(driverTabsBar, tab);
 
       driverPaymentBlock.classList.remove('hidden');
@@ -1080,7 +1159,7 @@ let driverAutoTimer = null;
       passengerTabsBar.classList.remove('hidden');
       driverTabsBar.classList.add('hidden');
       currentRole = 'passenger';
-      applyRoleBrand('passenger');
+      setRoleBrand('passenger');
       setActiveTabUI(passengerTabsBar, tab);
 
       if (tab === 'trips') passengerSection.classList.remove('hidden');
@@ -1150,6 +1229,7 @@ let driverAutoTimer = null;
     }
 
     btnDriver.addEventListener('click', () => {
+      setRoleBrand('driver');
       roleInfo.textContent = 'Режим водителя: создавайте поездки, ищите пассажиров';
       roleButtons.forEach(b => b.classList.remove('active-role'));
       btnDriver.classList.add('active-role');
@@ -1157,6 +1237,7 @@ let driverAutoTimer = null;
     });
 
     btnPassenger.addEventListener('click', () => {
+      setRoleBrand('passenger');
       roleInfo.textContent = 'Режим пассажира: ищите водителя, планируйте свои поездки';
       roleButtons.forEach(b => b.classList.remove('active-role'));
       btnPassenger.classList.add('active-role');
@@ -1343,7 +1424,7 @@ let driverAutoTimer = null;
             document.getElementById('trip-note').value = '';
             loadDriverTrips();
             loadDriverActiveTrip();
-            showToast('Поездка успешно создана!');
+            showToast('Поездка успешно создана! 🎉');
           }
           
         })
@@ -1847,7 +1928,7 @@ function fillCitiesFromTrips() {
         btnShare.className = 'secondary-btn';
         btnShare.textContent = 'Поделиться';
         btnShare.addEventListener('click', () => {
-          shareText(`Поездка
+          shareText(`🚗 Поездка
 ${t.from_city} → ${t.to_city}
 Выезд: ${t.departure_time}
 Цена: ${t.price_per_seat} ₽/место`, deeplinkFor('trip_' + t.id));
@@ -1998,7 +2079,7 @@ function ensureRatingUI() {
   btnSubmit.addEventListener('click', async () => {
     if (!ratingState) return;
     if (!ratingState.rating || ratingState.rating < 1) {
-      alert('Выберите оценку');
+      alert('Выберите оценку ★');
       return;
     }
     btnSubmit.disabled = true;
@@ -2801,7 +2882,14 @@ function openRatingModal(opts) {
       if (!passengerFilters || !btnTogglePassengerFilters) return;
 
       passengerFilters.classList.toggle('hidden', !open);
-      btnTogglePassengerFilters.textContent = open ? 'Скрыть фильтры ▲' : 'Фильтры ▼';
+      const lbl = btnTogglePassengerFilters.querySelector('.lbl');
+      const chev = btnTogglePassengerFilters.querySelector('.chev');
+      if (lbl && chev) {
+        lbl.textContent = open ? 'Скрыть фильтры' : 'Фильтры';
+        chev.textContent = open ? '▲' : '▼';
+      } else {
+        btnTogglePassengerFilters.textContent = open ? 'Скрыть фильтры ▲' : 'Фильтры ▼';
+      }
 
       if (persist) {
         try {
@@ -3088,11 +3176,11 @@ function openRatingModal(opts) {
       <div class="subtitle" id="rating-title">Оценка</div>
 
       <div style="display:flex; gap:8px; margin:10px 0; flex-wrap:wrap;">
-        <button class="secondary-btn star-btn" id="star-1" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.3 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.3z"/></svg></button>
-        <button class="secondary-btn star-btn" id="star-2" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.3 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.3z"/></svg></button>
-        <button class="secondary-btn star-btn" id="star-3" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.3 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.3z"/></svg></button>
-        <button class="secondary-btn star-btn" id="star-4" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.3 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.3z"/></svg></button>
-        <button class="secondary-btn star-btn" id="star-5" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 17.3 18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21 12 17.3z"/></svg></button>
+        <button class="secondary-btn" id="star-1" type="button">★</button>
+        <button class="secondary-btn" id="star-2" type="button">★</button>
+        <button class="secondary-btn" id="star-3" type="button">★</button>
+        <button class="secondary-btn" id="star-4" type="button">★</button>
+        <button class="secondary-btn" id="star-5" type="button">★</button>
       </div>
 
       <div class="info small-text" style="margin-top:6px;">Теги (опционально):</div>
