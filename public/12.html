@@ -12,9 +12,13 @@
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
+    :root {
+      --ph: rgba(255,255,255,0.55);
+    }
+
     body {
       font-family: 'Manrope', sans-serif;
-      background: radial-gradient(1000px 700px at 50% -10%, rgba(148, 213, 255, 0.18), rgba(0,0,0,0) 55%), linear-gradient(180deg, #071426 0%, #0b1f33 45%, #0f2a44 100%);
+      background: radial-gradient(1000px 700px at 50% -10%, rgba(224, 230, 233, 0.18), rgba(0,0,0,0) 55%), linear-gradient(180deg, #071426 0%, #0b1f33 45%, #0f2a44 100%);
       color: #e2e8f0;
       min-height: 100vh;
       position: relative;
@@ -45,7 +49,7 @@
       padding: 14px 14px 16px 14px;
       margin-bottom: 14px;
       box-shadow: 0 6px 14px rgba(0, 0, 0, 0.3);
-      border: 1px solid rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(233, 227, 227, 0.1);
     }
 
     .title-row {
@@ -122,7 +126,7 @@
       padding: 7px 9px;
       font-size: 15px;
       box-sizing: border-box;
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(255, 243, 243, 0.1);
       color: #e2e8f0;
     }
 
@@ -262,46 +266,44 @@ button:active {
       display: none !important;
     }
 
-        /* --- Tabs (водитель/пассажир) --- */
     .tabs-bar {
-      display: flex;
+      display: grid;
       gap: 8px;
-      margin: 6px 0 14px;
       padding: 0;
+      margin: 0 0 16px 0;
       background: transparent;
       border: none;
       box-shadow: none;
-      position: static; /* убрали "бар"/sticky */
-      overflow: visible; /* без горизонтального скролла */
+      position: static;
+      overflow: visible;
+      backdrop-filter: none;
+    }
+
+    #driver-tabs-bar { grid-template-columns: repeat(4, 1fr); }
+    #passenger-tabs-bar { grid-template-columns: repeat(3, 1fr); }
+
+.tabs-bar::-webkit-scrollbar {
+      display: none;
     }
 
     .tab-btn {
-      flex: 1 1 0;
-      min-width: 0 !important;
-      min-height: 38px !important;
-      padding: 9px 8px !important;
-      font-size: 12.5px !important;
-      font-weight: 800 !important;
-      border-radius: 16px !important;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      width: 100%;
+      min-width: 0;
+      flex: unset;
+      padding: 8px 8px;
+      min-height: 38px;
+      font-size: 12.5px;
+      font-weight: 800;
+      border-radius: 16px;
     }
 
-    /* Убираем иконки внутри табов — они "раздувают" кнопки */
-    .tab-btn svg { display: none !important; }
-
-    /* На самых узких экранах чуть уменьшим шрифт */
-    @media (max-width: 390px) {
-      .tab-btn { font-size: 12px !important; padding: 9px 6px !important; }
-      #driver-tabs-bar .tab-btn { font-size: 11.6px !important; }
+.tab-btn svg {
+      width: 18px;
+      height: 18px;
+      flex: 0 0 18px;
     }
 
-    /* Гарантируем, что табы не смешиваются */
-    body.role-driver #passenger-tabs-bar { display: none !important; }
-    body.role-passenger #driver-tabs-bar { display: none !important; }
-
-    .filters {
+.filters {
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 8px;
@@ -312,22 +314,11 @@ button:active {
       border-radius: 14px;
     }
 
-    .trips-toolbar{
-      display:flex;
-      gap:8px;
-      margin-top:10px;
-      margin-bottom:8px;
-    }
-    .trips-toolbar button{
-      flex:1;
-      min-height:38px !important;
-      padding: 9px 8px !important;
-      font-weight: 800;
-    }
-
-    .filter-toggle-row{
+    .filter-toggle-row {
       display: flex;
-      justify-content: flex-end;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
       margin-top: 8px;
     }
 
@@ -406,53 +397,27 @@ button:active {
   content: "❄️";
   font-size: 24px;
 }
-:root{
-  --ph: rgba(255,255,255,.55); /* ← меняй тут */
-}
-
-/* подсказки "Например: ..." */
+  
+  .focus-highlight {
+    outline: 2px solid rgba(255,255,255,0.35);
+    box-shadow: 0 0 0 6px rgba(255,255,255,0.08), 0 18px 40px rgba(0,0,0,0.35);
+    transform: translateY(-1px);
+  }
+  /* Подсказки в полях */
 input::placeholder,
 textarea::placeholder{
   color: var(--ph) !important;
   opacity: 1 !important;
 }
 
-/* на всякий для Telegram/WebView */
+/* Telegram/WebView (на всякий) */
 input::-webkit-input-placeholder,
 textarea::-webkit-input-placeholder{
   color: var(--ph) !important;
   opacity: 1 !important;
 }
-/* строка метаданных в карточке */
-.meta-row{
-  display:flex;
-  flex-wrap:wrap;
-  gap:10px;
-  margin-top:10px;
-}
 
-.meta-item{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  font-weight:800;
-  font-size:13px;
-  color: rgba(255,255,255,.92);
-}
-
-.meta-item .muted{
-  font-weight:800;
-  color: rgba(255,255,255,.72);
-}
-
-/* подсветка при открытии из канала */
-.focus-flash{
-  outline: 2px solid rgba(59,130,246,.95);
-  box-shadow: 0 0 0 5px rgba(59,130,246,.25);
-  border-radius: 16px;
-}
-
-  </style>
+</style>
 </head>
 <body>
   <div class="bg-mountains" aria-hidden="true"></div>
@@ -621,12 +586,13 @@ textarea::-webkit-input-placeholder{
         Список поездок с ещё свободными местами.
       </div>
 
-      <div class="trips-toolbar">
-        <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">Фильтры ▼</button>
+      <div class="filter-toggle-row">
+        <button class="secondary-btn" id="btn-toggle-passenger-filters" type="button">
+          Фильтры ▼
+        </button>
         <button class="secondary-btn" id="btn-refresh-trips" type="button">Обновить</button>
       </div>
-
-      <div class="filters hidden" id="passenger-filters">
+<div class="filters hidden" id="passenger-filters">
         <div class="field">
           <label>Откуда</label>
           <select id="filter-from">
@@ -777,30 +743,14 @@ textarea::-webkit-input-placeholder{
 
   <script>
     
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
 
-// Всегда подмешиваем initData в запросы на /api/*
-(() => {
-  const tg = window.Telegram?.WebApp;
-  const realFetch = window.fetch.bind(window);
+const tg = window.Telegram?.WebApp;
+if (tg) {
+  tg.ready();
+  tg.expand();
+}
 
-  window.fetch = (url, options = {}) => {
-    try {
-      const u = (typeof url === 'string') ? url : (url?.url || '');
-      const isApi = typeof u === 'string' && u.startsWith('/api/');
-
-      if (isApi && tg?.initData) {
-        const headers = new Headers(options.headers || {});
-        headers.set('x-telegram-init-data', tg.initData);
-        return realFetch(url, { ...options, headers });
-      }
-    } catch (_) {}
-
-    return realFetch(url, options);
-  };
-})();
+const rawFetch = window.fetch.bind(window);
 
 function apiFetch(url, options = {}) {
   const opts = { ...options };
@@ -808,13 +758,68 @@ function apiFetch(url, options = {}) {
   if (tg && tg.initData) {
     opts.headers['x-telegram-init-data'] = tg.initData;
   }
-  return fetch(url, opts);
+  return rawFetch(url, opts);
 }
 
-function shareText(text) {
+// Любые запросы к /api/* автоматически получают initData (включая абсолютные URL и Request)
+window.fetch = (input, options = {}) => {
+  try {
+    const u = typeof input === 'string' ? input : (input && input.url ? input.url : '');
+    let pathname = '';
+    try {
+      pathname = new URL(u, window.location.href).pathname || '';
+    } catch (_) {
+      pathname = '';
+    }
+
+    const isApi = (typeof input === 'string' && String(input).startsWith('/api/')) || pathname.startsWith('/api/');
+    if (!isApi) return rawFetch(input, options);
+
+    // Если передали Request — клонируем и дописываем заголовок
+    if (typeof Request !== 'undefined' && input instanceof Request) {
+      const headers = new Headers(input.headers);
+      if (tg && tg.initData) headers.set('x-telegram-init-data', tg.initData);
+      const req = new Request(input, { headers });
+      return rawFetch(req);
+    }
+
+    return apiFetch(String(input), options);
+  } catch (_) {
+    return rawFetch(input, options);
+  }
+};
+
+let APP_CONFIG = null;
+
+async function loadAppConfig() {
+  try {
+    const res = await apiFetch('/api/app-config');
+    const data = await res.json();
+    APP_CONFIG = data || {};
+  } catch (_) {
+    APP_CONFIG = null;
+  }
+}
+
+// Загружаем конфиг (deeplink_prefix) с бэка
+loadAppConfig();
+
+function deeplinkFor(startParam) {
+  const sp = String(startParam || '').trim();
+  const prefix = APP_CONFIG && APP_CONFIG.deeplink_prefix ? String(APP_CONFIG.deeplink_prefix) : '';
+  if (prefix) {
+    return prefix + encodeURIComponent(sp);
+  }
+  const base = location.href.split('#')[0];
+  const sep = base.includes('?') ? '&' : '?';
+  return base + sep + 'startapp=' + encodeURIComponent(sp);
+}
+
+function shareText(text, urlOverride) {
+  const shareUrl = urlOverride || location.href;
   const u =
     'https://t.me/share/url?url=' +
-    encodeURIComponent(location.href) +
+    encodeURIComponent(shareUrl) +
     '&text=' +
     encodeURIComponent(text);
   if (tg && tg.openTelegramLink) tg.openTelegramLink(u);
@@ -833,6 +838,71 @@ function openChat(username, telegramId) {
     } catch (_) {}
   }
   alert('У пользователя нет username, чат открыть не удалось.');
+}
+
+
+
+function getStartParamRaw() {
+  const unsafe = tg && tg.initDataUnsafe ? tg.initDataUnsafe : {};
+  const sp = unsafe && (unsafe.start_param || unsafe.startParam);
+  if (sp) return String(sp);
+  try {
+    const params = new URL(location.href).searchParams;
+    return (
+      params.get('startapp') ||
+      params.get('tgWebAppStartParam') ||
+      params.get('start_param') ||
+      ''
+    );
+  } catch (_) {
+    return '';
+  }
+}
+
+let START_ACTION = null;
+let START_ACTION_APPLIED = false;
+
+function parseStartParam(sp) {
+  const s = String(sp || '').trim();
+  let m;
+  if ((m = s.match(/^trip_(\d+)$/i))) {
+    return { type: 'trip', id: Number(m[1]), role: 'passenger', tab: 'trips' };
+  }
+  if ((m = s.match(/^plan_(\d+)$/i))) {
+    return { type: 'plan', id: Number(m[1]), role: 'driver', tab: 'plans' };
+  }
+  return null;
+}
+
+function flashFocus(el) {
+  try {
+    el.classList.add('focus-highlight');
+    setTimeout(() => el.classList.remove('focus-highlight'), 4500);
+  } catch (_) {}
+}
+
+function maybeFocusStartAction() {
+  if (!START_ACTION || START_ACTION_APPLIED) return;
+
+  if (START_ACTION.type === 'trip') {
+    const el = document.querySelector(`[data-trip-id="${START_ACTION.id}"]`);
+    if (el) {
+      START_ACTION_APPLIED = true;
+      flashFocus(el);
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
+
+  if (START_ACTION.type === 'plan') {
+    const el = document.querySelector(`[data-plan-id="${START_ACTION.id}"]`);
+    if (el) {
+      START_ACTION_APPLIED = true;
+      flashFocus(el);
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+    return;
+  }
 }
 
 
@@ -922,7 +992,6 @@ const ADMIN_ID = 504348666;
     const roleButtons = document.querySelectorAll('#btn-driver, #btn-passenger');
 
     let currentRole = null;
-    document.body.classList.remove('role-driver','role-passenger');
     let driverAutoTimer = null;
     let passengerAutoTimer = null;
 
@@ -1000,8 +1069,6 @@ const ADMIN_ID = 504348666;
       driverTabsBar.classList.remove('hidden');
       passengerTabsBar.classList.add('hidden');
       currentRole = 'driver';
-      document.body.classList.add('role-driver');
-      document.body.classList.remove('role-passenger');
       setActiveTabUI(driverTabsBar, tab);
 
       driverPaymentBlock.classList.remove('hidden');
@@ -1026,8 +1093,6 @@ const ADMIN_ID = 504348666;
       passengerTabsBar.classList.remove('hidden');
       driverTabsBar.classList.add('hidden');
       currentRole = 'passenger';
-      document.body.classList.add('role-passenger');
-      document.body.classList.remove('role-driver');
       setActiveTabUI(passengerTabsBar, tab);
 
       if (tab === 'trips') passengerSection.classList.remove('hidden');
@@ -1109,6 +1174,25 @@ const ADMIN_ID = 504348666;
       btnPassenger.classList.add('active-role');
       showPassengerTab('trips');
     });
+
+    // Если Mini App открыли по deeplink из канала — сразу открываем нужную вкладку и подсвечиваем карточку
+    START_ACTION = parseStartParam(getStartParamRaw());
+    if (START_ACTION) {
+      if (START_ACTION.role === 'driver') {
+        roleInfo.textContent = 'Режим водителя: создавайте поездки, ищите пассажиров';
+        roleButtons.forEach(b => b.classList.remove('active-role'));
+        btnDriver.classList.add('active-role');
+        showDriverTab(START_ACTION.tab || 'plans');
+      } else {
+        roleInfo.textContent = 'Режим пассажира: ищите водителя, планируйте свои поездки';
+        roleButtons.forEach(b => b.classList.remove('active-role'));
+        btnPassenger.classList.add('active-role');
+        showPassengerTab(START_ACTION.tab || 'trips');
+      }
+    } else {
+      // Дефолт: показываем пассажиру список поездок
+      btnPassenger.click();
+    }
 
 
     if (btnInvite) {
@@ -1316,6 +1400,7 @@ const ADMIN_ID = 504348666;
       trips.forEach((t) => {
         const div = document.createElement('div');
         div.className = 'trip-card';
+        div.dataset.tripId = String(t.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -1324,16 +1409,12 @@ const ADMIN_ID = 504348666;
         routeSpan.className = 'trip-route';
         routeSpan.textContent = `${t.from_city} → ${t.to_city}`;
 
-        const statusSpan = document.createElement('span');
-        statusSpan.className = 'small-text';
-        statusSpan.textContent = t.departure_time;
-
         header.appendChild(routeSpan);
-        header.appendChild(statusSpan);
 
         const meta = document.createElement('div');
         meta.className = 'trip-meta';
         meta.innerHTML =
+          `Выезд: <b>${formatDateReadable(t.departure_time)}</b><br/>` +
           `Мест всего: ${t.seats_total}, свободно: ${t.seats_available}<br/>` +
           `Цена за место: ${t.price_per_seat} ₽` +
           (t.note ? `<br/>Комментарий: ${t.note}` : '');
@@ -1612,7 +1693,7 @@ const ADMIN_ID = 504348666;
           activeTripId = t.id;
           driverActiveInfo.innerHTML =
             `${t.from_city} → ${t.to_city}<br/>` +
-            `Выезд: ${t.departure_time}<br/>` +
+            `Выезд: ${formatDateReadable(t.departure_time)}<br/>` +
             `Мест всего: ${t.seats_total}, свободно: ${t.seats_available}`;
         })
         .catch((err) => {
@@ -1698,6 +1779,7 @@ function fillCitiesFromTrips() {
       trips.forEach((t) => {
         const div = document.createElement('div');
         div.className = 'trip-card';
+        div.dataset.tripId = String(t.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -1706,17 +1788,13 @@ function fillCitiesFromTrips() {
         routeSpan.className = 'trip-route';
         routeSpan.textContent = `${t.from_city} → ${t.to_city}`;
 
-        const dateSpan = document.createElement('span');
-        dateSpan.className = 'small-text';
-        dateSpan.textContent = t.departure_time;
-
         header.appendChild(routeSpan);
-        header.appendChild(dateSpan);
 
         const meta = document.createElement('div');
         meta.className = 'trip-meta';
         meta.innerHTML =
           `Водитель: ${formatName(t.first_name, t.last_name, t.username)}<br/>` +
+          `Выезд: <b>${formatDateReadable(t.departure_time)}</b><br/>` +
           `Мест всего: ${t.seats_total}, свободно: ${t.seats_available}<br/>` +
           `Цена за место: ${t.price_per_seat} ₽` +
           (t.note ? `<br/>Комментарий: ${t.note}` : '');
@@ -1774,8 +1852,8 @@ function fillCitiesFromTrips() {
         btnShare.addEventListener('click', () => {
           shareText(`🚗 Поездка
 ${t.from_city} → ${t.to_city}
-Выезд: ${t.departure_time}
-Цена: ${t.price_per_seat} ₽/место`);
+Выезд: ${formatDateReadable(t.departure_time)}
+Цена: ${t.price_per_seat} ₽/место`, deeplinkFor('trip_' + t.id));
         });
 
         actions.appendChild(btnBook);
@@ -1786,6 +1864,8 @@ ${t.from_city} → ${t.to_city}
 
         tripsList.appendChild(div);
       });
+
+      maybeFocusStartAction();
     }
 
     function createBooking(tripId, seats) {
@@ -2278,6 +2358,7 @@ function openRatingModal(opts) {
       filtered.forEach((p) => {
         const div = document.createElement('div');
         div.className = 'plan-card';
+        div.dataset.planId = String(p.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -2315,7 +2396,7 @@ function openRatingModal(opts) {
           `<br/>Цена за место: ${p.price_per_seat || 0} ₽` +
           `<br/>Итого: ${p.amount_total || (p.price_per_seat || 0) * (p.seats_needed || 0)} ₽` +
           (p.note ? `<br/>Комментарий: ${p.note}` : '') +
-          `<br/>Время планируемого выезда: ${formatDateReadable(p.desired_time)}` +
+          `<br/>Время планируемого выезда: <b>${formatDateReadable(p.desired_time)}</b>` +
           `<br/><span class="tag">Статус: ${statusText}</span>` +
           driverInfo;
 
@@ -2471,6 +2552,7 @@ function openRatingModal(opts) {
       activePlans.forEach((p) => {
         const div = document.createElement('div');
         div.className = 'plan-card';
+        div.dataset.planId = String(p.id);
 
         const header = document.createElement('div');
         header.className = 'trip-header';
@@ -2502,7 +2584,7 @@ function openRatingModal(opts) {
           `Итого: ${p.amount_total || (p.price_per_seat || 0) * (p.seats_needed || 0)} ₽<br/>` +
           `Неявок у пассажира: ${p.passenger_no_show_count || 0}` +
           (p.note ? `<br/>Комментарий: ${p.note}` : '') +
-          `<br/>Время планируемого выезда: ${formatDateReadable(p.desired_time)}`;
+          `<br/>Время планируемого выезда: <b>${formatDateReadable(p.desired_time)}</b>`;
 
         const btnTake = document.createElement('button');
         btnTake.className = 'primary-btn';
@@ -2530,6 +2612,8 @@ function openRatingModal(opts) {
 
         driverPassengerPlansList.appendChild(div);
       });
+
+      maybeFocusStartAction();
     }
 
     function takePassengerPlan(planId) {
