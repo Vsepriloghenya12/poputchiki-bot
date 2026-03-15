@@ -303,11 +303,15 @@ async function createTrip({
 }
 
 // Список поездок (для пассажира)
+// Берём только актуальные и не полные поездки, а лимит применяем уже после фильтрации.
+// Иначе при большом количестве старых записей новые поездки не попадут в первые 50 строк
+// и перестанут отображаться у пассажиров.
 async function getLatestTrips(limit = 50) {
   const rows = await allAsync(
     `
       SELECT
         t.*,
+        u.telegram_id AS driver_telegram_id,
         u.first_name,
         u.last_name,
         u.username,
@@ -318,6 +322,8 @@ async function getLatestTrips(limit = 50) {
         ) AS bookings_count
       FROM trips t
       JOIN users u ON u.id = t.driver_id
+      WHERE t.seats_available > 0
+        AND datetime(t.departure_time) >= datetime('now', '-10 minutes')
       ORDER BY datetime(t.departure_time) ASC
       LIMIT ?
     `,
