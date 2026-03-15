@@ -263,6 +263,10 @@ async function autopostPlanToChannel(plan, passenger) {
 
 const app = express();
 
+app.get('/health', (req, res) => {
+  res.status(200).json({ ok: true });
+});
+
 // Хранилище файлов чеков
 const uploadDir = process.env.UPLOADS_PATH
   ? process.env.UPLOADS_PATH
