@@ -1,0 +1,11 @@
+<anonymous_script>:0
+
+
+[Error: SQLITE_IOERR: disk I/O error
+Emitted 'error' event on Statement instance at:
+] {
+  errno: 10,
+  code: 'SQLITE_IOERR'
+}
+
+Node.js v20.19.5

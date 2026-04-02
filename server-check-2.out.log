@@ -1,0 +1,3 @@
+[dotenv@17.2.3] injecting env (4) from .env -- tip: ⚙️  specify custom .env file path with { path: '/custom/path/.env' }
+Бот не запущен (DISABLE_BOT=1)
+HTTP-сервер запущен на порту 3000

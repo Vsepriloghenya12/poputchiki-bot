@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <title>Отчёты владельца • Попутчики</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/css/owner.css" />
+</head>
+<body>
+  <div class="owner-shell">
+    <div class="owner-screen">
+      <header class="topbar">
+        <button class="icon-btn" type="button" id="backBtn" aria-label="Назад">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.7 5.3-1.4-1.4L5.2 12l8.1 8.1 1.4-1.4L8 12l6.7-6.7z"/></svg>
+        </button>
+        <div class="brand">
+          <div class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M12 2 3 6v6c0 5 3.8 9.2 9 10 5.2-.8 9-5 9-10V6l-9-4zm0 4.2 5 2.2V12c0 3.8-2.6 7-5 7.8-2.4-.8-5-4-5-7.8V8.4l5-2.2z"/></svg>
+          </div>
+          <div>
+            <div class="brand-title">Отчёты владельца</div>
+            <div class="brand-subtitle">Управление сервисом без монетизации</div>
+          </div>
+        </div>
+        <div class="icon-btn primary" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M5 17h3V9H5v8zm5.5 0h3V5h-3v12zM16 17h3v-6h-3v6z"/></svg>
+        </div>
+      </header>
+
+      <main class="owner-body">
+        <section class="status-banner hidden" id="ownerStatusBanner"></section>
+
+        <section class="access-card hidden" id="accessCard">
+          Эта страница доступна только владельцу сервиса. Откройте её из аккаунта владельца внутри Telegram Mini App.
+        </section>
+
+        <div id="ownerContent">
+          <section class="owner-section">
+            <div class="owner-section__head">
+              <div>
+                <h2>Сводка</h2>
+                <p>Общая картина по пользователям, поездкам и заявкам.</p>
+              </div>
+              <span class="badge success" id="ownerName">Владелец</span>
+            </div>
+            <div class="metrics-grid" id="metricsGrid"></div>
+          </section>
+
+          <section class="owner-section">
+            <div class="owner-section__head">
+              <div>
+                <h2>Свежие поездки</h2>
+                <p>Последние созданные водительские поездки.</p>
+              </div>
+            </div>
+            <div class="owner-feed" id="recentTripsList"></div>
+          </section>
+
+          <section class="owner-section">
+            <div class="owner-section__head">
+              <div>
+                <h2>Свежие заявки пассажиров</h2>
+                <p>Последние запросы на поездку.</p>
+              </div>
+            </div>
+            <div class="owner-feed" id="recentPlansList"></div>
+          </section>
+
+          <section class="owner-section">
+            <div class="owner-section__head">
+              <div>
+                <h2>Активность водителей</h2>
+                <p>По выбранной дате видно, кто создавал поездки, получал брони и забирал заявки.</p>
+              </div>
+              <div class="filter-bar">
+                <input class="input" id="driversDate" type="date" />
+                <button class="button" type="button" id="reloadDriversBtn">Показать</button>
+              </div>
+            </div>
+            <div class="report-list" id="driversList"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <script type="module" src="/assets/js/owner.js"></script>
+</body>
+</html>

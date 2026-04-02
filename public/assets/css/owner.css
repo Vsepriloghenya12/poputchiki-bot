@@ -1,0 +1,138 @@
+@import url('./base.css');
+
+.owner-body {
+  display: grid;
+  gap: 18px;
+}
+
+.metrics-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.metric-card {
+  padding: 18px;
+}
+
+.metric-card__label {
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.metric-card__value {
+  margin-top: 10px;
+  font-size: 30px;
+  line-height: 1;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+}
+
+.metric-card__hint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.owner-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.owner-feed {
+  display: grid;
+  gap: 12px;
+}
+
+.owner-item {
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid var(--color-border);
+  background: #f7faff;
+}
+
+.owner-item__title {
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.owner-item__meta {
+  margin-top: 6px;
+  color: var(--color-muted);
+  line-height: 1.55;
+  font-size: 14px;
+}
+
+.report-list {
+  display: grid;
+  gap: 12px;
+}
+
+.report-row {
+  padding: 16px;
+  border-radius: 20px;
+  background: #f7faff;
+  border: 1px solid var(--color-border);
+}
+
+.report-row__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.report-row__name {
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.report-row__stats {
+  display: grid;
+  gap: 10px;
+  margin-top: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.report-stat {
+  padding: 12px 14px;
+  border-radius: 16px;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+}
+
+.report-stat__label {
+  color: var(--color-muted);
+  font-size: 12px;
+}
+
+.report-stat__value {
+  margin-top: 4px;
+  font-weight: 800;
+}
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.access-card {
+  padding: 22px;
+  border-radius: 24px;
+  background: rgba(217, 79, 92, 0.08);
+  border: 1px solid rgba(217, 79, 92, 0.14);
+  color: var(--color-danger);
+}
+
+@media (max-width: 480px) {
+  .metrics-grid,
+  .report-row__stats {
+    grid-template-columns: 1fr;
+  }
+}
