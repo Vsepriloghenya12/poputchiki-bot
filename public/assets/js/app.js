@@ -46,7 +46,6 @@ const refs = {
   ownerDrawerItem: document.getElementById('ownerDrawerItem'),
   menuBtn: document.getElementById('menuBtn'),
   createBtn: document.getElementById('createBtn'),
-  refreshFeedBtn: document.getElementById('refreshFeedBtn'),
   sheetBackdrop: document.getElementById('sheetBackdrop'),
   closeComposerBtn: document.getElementById('closeComposerBtn'),
   composerTitle: document.getElementById('composerTitle'),
@@ -613,7 +612,6 @@ refs.closeComposerBtn.addEventListener('click', closeComposer);
 refs.sheetBackdrop.addEventListener('click', (event) => {
   if (event.target === refs.sheetBackdrop) closeComposer();
 });
-refs.refreshFeedBtn.addEventListener('click', refreshCurrentView);
 refs.feedDriverBtn.addEventListener('click', () => setFeed('driver-trips', true));
 refs.feedPlansBtn.addEventListener('click', () => setFeed('passenger-requests', true));
 refs.composerForm.addEventListener('submit', submitComposer);

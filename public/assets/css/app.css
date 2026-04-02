@@ -91,11 +91,6 @@
   gap: 12px;
 }
 
-.feed-toolbar {
-  display: flex;
-  justify-content: flex-end;
-}
-
 .plain-section {
   display: grid;
   gap: 8px;
@@ -130,11 +125,6 @@
   margin: 4px 0 0;
   color: var(--color-muted);
   font-size: 13px;
-}
-
-.feed-toolbar .ghost-button {
-  min-height: 36px;
-  padding-inline: 12px;
 }
 
 .icon-btn.close {
