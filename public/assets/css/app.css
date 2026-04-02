@@ -2,35 +2,7 @@
 
 .app-page .page-body {
   display: grid;
-  gap: 18px;
-}
-
-.app-summary {
-  padding: 18px;
-  border-radius: 24px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(244, 248, 255, 0.96) 100%);
-  border: 1px solid rgba(255, 255, 255, 0.82);
-  box-shadow: var(--color-shadow-soft);
-}
-
-.app-summary__row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 12px;
-}
-
-.app-summary__title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--color-muted);
-}
-
-.app-summary__value {
-  margin-top: 6px;
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
 }
 
 .drawer-user {
@@ -66,21 +38,15 @@
   color: var(--color-primary-strong);
 }
 
-.drawer-footer {
-  margin-top: auto;
-  font-size: 12px;
-  color: var(--color-muted);
-}
-
 .block-list {
   display: grid;
-  gap: 12px;
+  gap: 8px;
 }
 
 .mini-card {
-  padding: 14px;
-  border-radius: 18px;
-  background: #f7faff;
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.9);
   border: 1px solid var(--color-border);
 }
 
@@ -92,38 +58,47 @@
 }
 
 .mini-card__title {
-  font-size: 16px;
+  font-size: 15px;
   font-weight: 800;
 }
 
 .mini-card__meta {
-  margin-top: 6px;
+  margin-top: 4px;
   color: var(--color-muted);
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.4;
 }
 
 .feed-topline {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
+  gap: 10px;
+}
+
+.app-page .view.is-active {
+  display: grid;
   gap: 12px;
 }
 
-.feed-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  background: rgba(31, 102, 214, 0.08);
-  color: var(--color-primary-strong);
-  font-size: 13px;
-  font-weight: 700;
+.feed-toolbar {
+  display: flex;
+  justify-content: flex-end;
 }
 
-.owner-shortcut {
-  margin-top: 6px;
+.plain-section {
+  display: grid;
+  gap: 8px;
+}
+
+.section-label {
+  padding: 2px 2px 0;
+  font-size: 11px;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-muted);
+  font-weight: 800;
 }
 
 .sheet-head {
@@ -131,20 +106,20 @@
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
 
 .sheet-title {
   margin: 0;
-  font-size: 24px;
+  font-size: 20px;
   line-height: 1.05;
   letter-spacing: -0.045em;
 }
 
 .sheet-subtitle {
-  margin: 6px 0 0;
+  margin: 4px 0 0;
   color: var(--color-muted);
-  font-size: 14px;
+  font-size: 13px;
 }
 
 .icon-btn.close {
@@ -168,5 +143,9 @@
 @media (max-width: 480px) {
   .grid-2 {
     grid-template-columns: 1fr;
+  }
+
+  .feed-topline {
+    align-items: center;
   }
 }

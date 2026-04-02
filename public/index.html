@@ -38,7 +38,6 @@
             <span id="openOwnerPage">Отчёты владельца</span>
           </button>
         </nav>
-        <div class="drawer-footer">Новый интерфейс: чистая лента, отдельная история и быстрые действия без старого визуального слоя.</div>
       </div>
     </aside>
 
@@ -94,10 +93,7 @@
           <div class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24"><path d="M5 11h14l-1.1-3.1A3 3 0 0 0 15 6H9a3 3 0 0 0-2.9 1.9L5 11zm-.5 1.5A2.5 2.5 0 0 0 2 15v2.5A1.5 1.5 0 0 0 3.5 19H5a2 2 0 1 0 4 0h6a2 2 0 1 0 4 0h1.5A1.5 1.5 0 0 0 22 17.5V15a2.5 2.5 0 0 0-2.5-2.5h-15z"/></svg>
           </div>
-          <div>
-            <div class="brand-title">Попутчики</div>
-            <div class="brand-subtitle" id="brandSubtitle">Лента водительских поездок</div>
-          </div>
+          <div class="brand-title">Попутчики</div>
         </div>
         <button class="icon-btn primary" type="button" id="createBtn" aria-label="Создать">
           <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M11 5h2v14h-2zM5 11h14v2H5z"/></svg>
@@ -110,80 +106,51 @@
       </section>
 
       <main class="page-body">
-        <section class="app-summary">
-          <div class="app-summary__row">
-            <div>
-              <div class="app-summary__title" id="summaryLabel">Сейчас доступно</div>
-              <div class="app-summary__value" id="summaryValue">0 поездок</div>
-            </div>
-            <span class="feed-chip">Новый UI</span>
-          </div>
-        </section>
-
         <section class="status-banner hidden" id="statusBanner"></section>
 
         <section class="view is-active" id="viewFeed">
-          <div class="section-head">
-            <div>
-              <h1 id="feedTitle">Поездки водителей</h1>
-              <p id="feedDescription">Выберите маршрут, время и сразу забронируйте место.</p>
-            </div>
+          <div class="feed-toolbar">
             <button class="ghost-button" type="button" id="refreshFeedBtn">Обновить</button>
           </div>
           <div class="cards-stack" id="feedList"></div>
         </section>
 
         <section class="view" id="viewActive">
-          <section class="panel">
-            <div class="section-head">
-              <div>
-                <h2>Я водитель</h2>
-                <p>Активная поездка и текущие пассажиры.</p>
-              </div>
-            </div>
+          <section class="plain-section">
+            <div class="section-label">Я водитель</div>
             <div class="cards-stack" id="activeDriverTripList"></div>
             <div class="block-list" id="activeDriverBookingsList"></div>
           </section>
 
-          <section class="panel">
-            <div class="section-head">
-              <div>
-                <h2>Я пассажир</h2>
-                <p>Ваши действующие бронирования.</p>
-              </div>
-            </div>
+          <section class="plain-section">
+            <div class="section-label">Я пассажир</div>
             <div class="cards-stack" id="activePassengerBookingsList"></div>
           </section>
 
-          <section class="panel">
-            <div class="section-head">
-              <div>
-                <h2>Заявки, которые я забрал</h2>
-                <p>Пассажирские заявки, которые вы взяли как водитель.</p>
-              </div>
-            </div>
+          <section class="plain-section">
+            <div class="section-label">Забранные заявки</div>
             <div class="cards-stack" id="activeTakenPlansList"></div>
           </section>
         </section>
 
         <section class="view" id="viewHistory">
-          <section class="panel">
-            <div class="section-head"><div><h2>Мои поездки как водитель</h2><p>Все созданные поездки.</p></div></div>
+          <section class="plain-section">
+            <div class="section-label">История водителя</div>
             <div class="cards-stack" id="historyDriverTripsList"></div>
           </section>
 
-          <section class="panel">
-            <div class="section-head"><div><h2>Мои бронирования как пассажир</h2><p>Вся история поездок, которые вы бронировали.</p></div></div>
+          <section class="plain-section">
+            <div class="section-label">Мои бронирования</div>
             <div class="cards-stack" id="historyPassengerBookingsList"></div>
           </section>
 
-          <section class="panel">
-            <div class="section-head"><div><h2>Мои заявки пассажира</h2><p>Все ваши запросы на поездку.</p></div></div>
+          <section class="plain-section">
+            <div class="section-label">Мои заявки</div>
             <div class="cards-stack" id="historyPassengerPlansList"></div>
           </section>
 
-          <section class="panel">
-            <div class="section-head"><div><h2>Заявки, которые я забирал</h2><p>История взятых пассажирских заявок.</p></div></div>
+          <section class="plain-section">
+            <div class="section-label">Забранные заявки</div>
             <div class="cards-stack" id="historyTakenPlansList"></div>
           </section>
         </section>

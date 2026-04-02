@@ -24,17 +24,12 @@ const state = {
 };
 
 const refs = {
-  brandSubtitle: document.getElementById('brandSubtitle'),
-  summaryLabel: document.getElementById('summaryLabel'),
-  summaryValue: document.getElementById('summaryValue'),
   feedDriverBtn: document.getElementById('feedDriverBtn'),
   feedPlansBtn: document.getElementById('feedPlansBtn'),
   statusBanner: document.getElementById('statusBanner'),
   viewFeed: document.getElementById('viewFeed'),
   viewActive: document.getElementById('viewActive'),
   viewHistory: document.getElementById('viewHistory'),
-  feedTitle: document.getElementById('feedTitle'),
-  feedDescription: document.getElementById('feedDescription'),
   feedList: document.getElementById('feedList'),
   activeDriverTripList: document.getElementById('activeDriverTripList'),
   activeDriverBookingsList: document.getElementById('activeDriverBookingsList'),
@@ -95,20 +90,6 @@ function updateUserCard() {
 function updateTabs() {
   refs.feedDriverBtn.classList.toggle('is-active', state.currentFeed === 'driver-trips');
   refs.feedPlansBtn.classList.toggle('is-active', state.currentFeed === 'passenger-requests');
-
-  if (state.currentFeed === 'driver-trips') {
-    refs.feedTitle.textContent = 'Поездки водителей';
-    refs.feedDescription.textContent = 'Выберите маршрут, время и сразу забронируйте место.';
-    refs.summaryLabel.textContent = 'Сейчас доступно';
-    refs.summaryValue.textContent = `${state.data.feedTrips.length} поездок`;
-    refs.brandSubtitle.textContent = 'Лента водительских поездок';
-  } else {
-    refs.feedTitle.textContent = 'Заявки пассажиров';
-    refs.feedDescription.textContent = 'Посмотрите, кто ищет машину, и заберите заявку в один тап.';
-    refs.summaryLabel.textContent = 'Сейчас открыто';
-    refs.summaryValue.textContent = `${state.data.feedPlans.length} заявок`;
-    refs.brandSubtitle.textContent = 'Лента заявок пассажиров';
-  }
 }
 
 function updateViews() {
@@ -135,8 +116,8 @@ function openComposer() {
   const isTripMode = state.currentFeed === 'driver-trips';
   refs.composerTitle.textContent = isTripMode ? 'Создать поездку' : 'Создать заявку пассажира';
   refs.composerSubtitle.textContent = isTripMode
-    ? 'Новая поездка появится в общей ленте и будет доступна для бронирования.'
-    : 'Опишите маршрут и время, чтобы водитель мог забрать заявку.';
+    ? 'Поездка сразу появится в ленте.'
+    : 'Заявка сразу появится в ленте.';
   refs.composerSeatsLabel.textContent = isTripMode ? 'Свободных мест' : 'Нужно мест';
   refs.composerPriceLabel.textContent = isTripMode ? 'Цена за место' : 'Бюджет за место';
   refs.composerSubmit.textContent = isTripMode ? 'Создать поездку' : 'Создать заявку';
