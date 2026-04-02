@@ -26,10 +26,13 @@ const state = {
 const refs = {
   feedDriverBtn: document.getElementById('feedDriverBtn'),
   feedPlansBtn: document.getElementById('feedPlansBtn'),
+  tabsPanel: document.getElementById('tabsPanel'),
   statusBanner: document.getElementById('statusBanner'),
   viewFeed: document.getElementById('viewFeed'),
   viewActive: document.getElementById('viewActive'),
   viewHistory: document.getElementById('viewHistory'),
+  bottomSearchBtn: document.getElementById('bottomSearchBtn'),
+  bottomActiveBtn: document.getElementById('bottomActiveBtn'),
   feedList: document.getElementById('feedList'),
   activeDriverTripList: document.getElementById('activeDriverTripList'),
   activeDriverBookingsList: document.getElementById('activeDriverBookingsList'),
@@ -95,6 +98,9 @@ function updateViews() {
   refs.viewFeed.classList.toggle('is-active', state.currentView === 'feed');
   refs.viewActive.classList.toggle('is-active', state.currentView === 'active');
   refs.viewHistory.classList.toggle('is-active', state.currentView === 'history');
+  refs.tabsPanel.classList.toggle('hidden', state.currentView !== 'feed');
+  refs.bottomSearchBtn.classList.toggle('is-active', state.currentView === 'feed');
+  refs.bottomActiveBtn.classList.toggle('is-active', state.currentView === 'active');
 
   document.querySelectorAll('.drawer-link[data-view]').forEach((button) => {
     button.classList.toggle('is-active', button.dataset.view === state.currentView);
@@ -614,6 +620,8 @@ refs.sheetBackdrop.addEventListener('click', (event) => {
 });
 refs.feedDriverBtn.addEventListener('click', () => setFeed('driver-trips', true));
 refs.feedPlansBtn.addEventListener('click', () => setFeed('passenger-requests', true));
+refs.bottomSearchBtn.addEventListener('click', () => setView('feed'));
+refs.bottomActiveBtn.addEventListener('click', () => setView('active'));
 refs.composerForm.addEventListener('submit', submitComposer);
 document.addEventListener('click', handleActionClick);
 

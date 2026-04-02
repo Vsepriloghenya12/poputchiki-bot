@@ -2,7 +2,7 @@
 
 .app-page .page-body {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .drawer-user {
@@ -41,15 +41,15 @@
 .block-list {
   display: grid;
   gap: 0;
-  background: rgba(255, 255, 255, 0.94);
-  border: 1px solid rgba(215, 225, 241, 0.9);
-  border-radius: 18px;
-  box-shadow: var(--color-shadow-soft);
-  overflow: hidden;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+  overflow: visible;
 }
 
 .mini-card {
-  padding: 12px 14px;
+  padding: 12px 0;
   border-radius: 0;
   background: transparent;
   border: 0;
@@ -88,22 +88,63 @@
 
 .app-page .view.is-active {
   display: grid;
-  gap: 12px;
+  gap: 10px;
 }
 
 .plain-section {
   display: grid;
-  gap: 8px;
+  gap: 6px;
 }
 
 .section-label {
-  padding: 2px 2px 0;
+  padding: 10px 0 0;
   font-size: 11px;
   line-height: 1.2;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   color: var(--color-muted);
   font-weight: 800;
+}
+
+.bottom-nav {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  z-index: 50;
+  width: min(100vw, var(--page-max));
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 10px 14px calc(env(safe-area-inset-bottom) + 10px);
+  background: rgba(255, 255, 255, 0.96);
+  border-top: 1px solid rgba(215, 225, 241, 0.95);
+  box-shadow: 0 -8px 24px rgba(18, 41, 76, 0.08);
+}
+
+.bottom-nav__item {
+  min-height: 46px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  color: var(--color-muted);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.15;
+  text-align: center;
+}
+
+.bottom-nav__item svg {
+  width: 22px;
+  height: 22px;
+  fill: currentColor;
+}
+
+.bottom-nav__item.is-active {
+  color: var(--color-primary);
+  background: rgba(31, 102, 214, 0.08);
 }
 
 .sheet-head {
@@ -152,5 +193,9 @@
 
   .feed-topline {
     align-items: center;
+  }
+
+  .bottom-nav__item {
+    font-size: 10px;
   }
 }

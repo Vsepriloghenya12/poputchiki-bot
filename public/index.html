@@ -25,10 +25,6 @@
             <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h16v3H4V6zm0 5h16v3H4v-3zm0 5h16v3H4v-3z"/></svg>
             Лента
           </button>
-          <button class="drawer-link" type="button" data-view="active">
-            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 7v6c0 5 3.8 8.7 9 9 5.2-.3 9-4 9-9V7l-9-5zm-1 13-4-4 1.4-1.4L11 12.2l4.6-4.6L17 9l-6 6z"/></svg>
-            Мои активные поездки
-          </button>
           <button class="drawer-link" type="button" data-view="history">
             <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3a9 9 0 1 0 8.95 10h-2.02A7 7 0 1 1 13 5v4l5-5-5-5v4zm-1 5h2v6h-5v-2h3V8z"/></svg>
             Моя история
@@ -100,7 +96,7 @@
         </button>
       </header>
 
-      <section class="tabs-panel">
+      <section class="tabs-panel" id="tabsPanel">
         <button class="tab-btn is-active" id="feedDriverBtn" type="button">Поездки водителей</button>
         <button class="tab-btn" id="feedPlansBtn" type="button">Заявки пассажиров</button>
       </section>
@@ -152,6 +148,17 @@
           </section>
         </section>
       </main>
+
+      <nav class="bottom-nav" aria-label="Основная навигация">
+        <button class="bottom-nav__item is-active" id="bottomSearchBtn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10.5 4a6.5 6.5 0 1 0 4.06 11.57l4.43 4.43 1.41-1.41-4.43-4.43A6.5 6.5 0 0 0 10.5 4zm0 2a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9z"/></svg>
+          <span>Поиск</span>
+        </button>
+        <button class="bottom-nav__item" id="bottomActiveBtn" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 7v6c0 5 3.8 8.7 9 9 5.2-.3 9-4 9-9V7l-9-5zm-1 13-4-4 1.4-1.4L11 12.2l4.6-4.6L17 9l-6 6z"/></svg>
+          <span>Мои активные поездки</span>
+        </button>
+      </nav>
     </div>
   </div>
 
