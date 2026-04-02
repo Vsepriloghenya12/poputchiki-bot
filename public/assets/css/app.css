@@ -40,14 +40,24 @@
 
 .block-list {
   display: grid;
-  gap: 8px;
+  gap: 0;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid rgba(215, 225, 241, 0.9);
+  border-radius: 18px;
+  box-shadow: var(--color-shadow-soft);
+  overflow: hidden;
 }
 
 .mini-card {
   padding: 12px 14px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid var(--color-border);
+  border-radius: 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+}
+
+.mini-card + .mini-card {
+  border-top: 1px solid var(--color-border);
 }
 
 .mini-card__head {
@@ -120,6 +130,11 @@
   margin: 4px 0 0;
   color: var(--color-muted);
   font-size: 13px;
+}
+
+.feed-toolbar .ghost-button {
+  min-height: 36px;
+  padding-inline: 12px;
 }
 
 .icon-btn.close {

@@ -1,5 +1,5 @@
 
-import { apiRequest, deeplinkFor, getStartParam, getTelegramUser, initUser, openChat, shareText, showAlert } from './shared/api.js';
+import { apiRequest, getStartParam, getTelegramUser, initUser, openChat, showAlert } from './shared/api.js';
 import { escapeHtml, formatDateTime, formatMoney, formatName, getInitials, isUpcoming, statusBadge } from './shared/format.js';
 
 const state = {
@@ -165,8 +165,6 @@ function renderDriverTripCard(trip, options = {}) {
             <button type="button" data-action="seat-up" data-trip-id="${trip.id}" data-max="${trip.seats_available}">+</button>
           </div>
           <button class="button" type="button" data-action="book-trip" data-trip-id="${trip.id}">Забронировать</button>
-          <button class="ghost-button" type="button" data-action="chat-trip-driver" data-trip-id="${trip.id}">Чат</button>
-          <button class="ghost-button" type="button" data-action="share-trip" data-trip-id="${trip.id}">Поделиться</button>
         ` : ''}
         ${canCancel ? `<button class="danger-button" type="button" data-action="cancel-trip" data-trip-id="${trip.id}">Отменить поездку</button>` : ''}
       </div>
@@ -272,7 +270,7 @@ function renderFeed() {
       : emptyState('Сейчас нет доступных поездок. Создайте новую поездку или загляните чуть позже.');
   } else {
     refs.feedList.innerHTML = state.data.feedPlans.length
-      ? state.data.feedPlans.map((plan) => renderPlanCard(plan, { take: true, chat: true, chatAction: 'chat-plan-passenger' })).join('')
+      ? state.data.feedPlans.map((plan) => renderPlanCard(plan, { take: true })).join('')
       : emptyState('Пассажирских заявок пока нет. Смените вкладку или создайте новую заявку через кнопку +.');
   }
 
@@ -564,19 +562,6 @@ function handleActionClick(event) {
       if (action === 'cancel-trip') return cancelTrip(target.dataset.tripId);
       if (action === 'cancel-plan') return cancelPlan(target.dataset.planId);
       if (action === 'mark-no-show') return markNoShow(target.dataset.bookingId);
-
-      if (action === 'chat-trip-driver') {
-        const trip = findTripById(target.dataset.tripId);
-        if (trip) openChat(trip.username, trip.driver_telegram_id);
-      }
-
-      if (action === 'share-trip') {
-        const trip = findTripById(target.dataset.tripId);
-        if (trip) {
-          const link = await deeplinkFor(`trip_${trip.id}`);
-          return shareText(`Поездка ${trip.from_city} → ${trip.to_city}. Время: ${formatDateTime(trip.departure_time)}.`, link);
-        }
-      }
 
       if (action === 'chat-plan-passenger') {
         const plan = findPlanById(target.dataset.planId);
