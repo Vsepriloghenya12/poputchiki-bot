@@ -80,6 +80,44 @@
       </section>
     </div>
 
+    <div class="sheet-backdrop" id="filterBackdrop">
+      <section class="sheet sheet--filters">
+        <div class="sheet-head">
+          <div>
+            <h2 class="sheet-title">Фильтры поиска</h2>
+            <p class="sheet-subtitle">Откуда, дата, время и количество мест.</p>
+          </div>
+          <button class="icon-btn close" type="button" id="closeFilterBtn" aria-label="Закрыть фильтры">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z"/></svg>
+          </button>
+        </div>
+        <form class="form-grid" id="filterForm">
+          <div class="field">
+            <label for="filterFrom">Откуда</label>
+            <input class="input" id="filterFrom" type="text" placeholder="Например: Анапа" />
+          </div>
+          <div class="form-grid two-col">
+            <div class="field">
+              <label for="filterDate">Дата</label>
+              <input class="input" id="filterDate" type="date" />
+            </div>
+            <div class="field">
+              <label for="filterTime">Время</label>
+              <input class="input" id="filterTime" type="time" />
+            </div>
+          </div>
+          <div class="field">
+            <label for="filterSeats">Количество мест</label>
+            <input class="input" id="filterSeats" type="number" min="1" max="8" placeholder="Например: 2" />
+          </div>
+          <div class="sheet-actions">
+            <button class="ghost-button" type="button" id="clearFilterBtn">Сбросить</button>
+            <button class="button" type="submit">Показать</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
     <div class="screen">
       <header class="topbar">
         <button class="icon-btn" type="button" id="menuBtn" aria-label="Открыть меню">

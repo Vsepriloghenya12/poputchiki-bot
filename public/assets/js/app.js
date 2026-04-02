@@ -9,6 +9,12 @@ const state = {
   currentFeed: 'driver-trips',
   seatSelection: new Map(),
   pendingHighlight: null,
+  filters: {
+    from: '',
+    date: '',
+    time: '',
+    seats: '',
+  },
   data: {
     feedTrips: [],
     feedPlans: [],
@@ -49,6 +55,14 @@ const refs = {
   ownerDrawerItem: document.getElementById('ownerDrawerItem'),
   menuBtn: document.getElementById('menuBtn'),
   createBtn: document.getElementById('createBtn'),
+  filterBackdrop: document.getElementById('filterBackdrop'),
+  closeFilterBtn: document.getElementById('closeFilterBtn'),
+  filterForm: document.getElementById('filterForm'),
+  filterFrom: document.getElementById('filterFrom'),
+  filterDate: document.getElementById('filterDate'),
+  filterTime: document.getElementById('filterTime'),
+  filterSeats: document.getElementById('filterSeats'),
+  clearFilterBtn: document.getElementById('clearFilterBtn'),
   sheetBackdrop: document.getElementById('sheetBackdrop'),
   closeComposerBtn: document.getElementById('closeComposerBtn'),
   composerTitle: document.getElementById('composerTitle'),
@@ -118,6 +132,7 @@ function closeDrawer() {
 }
 
 function openComposer() {
+  closeFilterSheet();
   const isTripMode = state.currentFeed === 'driver-trips';
   refs.composerTitle.textContent = isTripMode ? 'Создать поездку' : 'Создать заявку пассажира';
   refs.composerSubtitle.textContent = isTripMode
@@ -133,8 +148,80 @@ function closeComposer() {
   refs.sheetBackdrop.classList.remove('is-open');
 }
 
+function syncFilterForm() {
+  refs.filterFrom.value = state.filters.from;
+  refs.filterDate.value = state.filters.date;
+  refs.filterTime.value = state.filters.time;
+  refs.filterSeats.value = state.filters.seats;
+}
+
+function openFilterSheet() {
+  closeComposer();
+  closeDrawer();
+  syncFilterForm();
+  refs.filterBackdrop.classList.add('is-open');
+}
+
+function closeFilterSheet() {
+  refs.filterBackdrop.classList.remove('is-open');
+}
+
 function emptyState(text) {
   return `<div class="empty-state">${escapeHtml(text)}</div>`;
+}
+
+function normalizeText(value = '') {
+  return String(value).trim().toLowerCase();
+}
+
+function toLocalDateString(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function toLocalTimeString(date) {
+  const hours = String(date.getHours()).padStart(2, '0');
+  const minutes = String(date.getMinutes()).padStart(2, '0');
+  return `${hours}:${minutes}`;
+}
+
+function hasActiveFilters() {
+  return Object.values(state.filters).some((value) => String(value).trim() !== '');
+}
+
+function matchesFeedFilters(item, feedType) {
+  if (!hasActiveFilters()) return true;
+
+  const fromNeedle = normalizeText(state.filters.from);
+  const seatsNeed = Number(state.filters.seats);
+  const datetimeValue = feedType === 'driver-trips' ? item.departure_time : item.desired_time;
+  const seatsValue = Number(feedType === 'driver-trips' ? item.seats_available : item.seats_needed);
+  const itemDate = new Date(datetimeValue);
+
+  if (fromNeedle && !normalizeText(item.from_city).includes(fromNeedle)) {
+    return false;
+  }
+
+  if (state.filters.date && !Number.isNaN(itemDate.getTime()) && toLocalDateString(itemDate) !== state.filters.date) {
+    return false;
+  }
+
+  if (state.filters.time && !Number.isNaN(itemDate.getTime()) && toLocalTimeString(itemDate) < state.filters.time) {
+    return false;
+  }
+
+  if (state.filters.seats && Number.isFinite(seatsNeed) && seatsNeed > 0 && (!Number.isFinite(seatsValue) || seatsValue < seatsNeed)) {
+    return false;
+  }
+
+  return true;
+}
+
+function getFilteredFeedItems() {
+  const items = state.currentFeed === 'driver-trips' ? state.data.feedTrips : state.data.feedPlans;
+  return items.filter((item) => matchesFeedFilters(item, state.currentFeed));
 }
 
 function renderDriverTripCard(trip, options = {}) {
@@ -269,14 +356,20 @@ function findBookingById(bookingId) {
 }
 
 function renderFeed() {
+  const items = getFilteredFeedItems();
+
   if (state.currentFeed === 'driver-trips') {
-    refs.feedList.innerHTML = state.data.feedTrips.length
-      ? state.data.feedTrips.map((trip) => renderDriverTripCard(trip, { booking: true })).join('')
-      : emptyState('Сейчас нет доступных поездок. Создайте новую поездку или загляните чуть позже.');
+    refs.feedList.innerHTML = items.length
+      ? items.map((trip) => renderDriverTripCard(trip, { booking: true })).join('')
+      : emptyState(hasActiveFilters()
+        ? 'По выбранным фильтрам поездок не найдено.'
+        : 'Сейчас нет доступных поездок. Создайте новую поездку или загляните чуть позже.');
   } else {
-    refs.feedList.innerHTML = state.data.feedPlans.length
-      ? state.data.feedPlans.map((plan) => renderPlanCard(plan, { take: true })).join('')
-      : emptyState('Пассажирских заявок пока нет. Смените вкладку или создайте новую заявку через кнопку +.');
+    refs.feedList.innerHTML = items.length
+      ? items.map((plan) => renderPlanCard(plan, { take: true })).join('')
+      : emptyState(hasActiveFilters()
+        ? 'По выбранным фильтрам заявок не найдено.'
+        : 'Пассажирских заявок пока нет. Смените вкладку или создайте новую заявку через кнопку +.');
   }
 
   updateTabs();
@@ -434,9 +527,19 @@ async function setView(view) {
   state.currentView = view;
   updateViews();
   closeDrawer();
+  if (view !== 'feed') closeFilterSheet();
   if (view === 'feed') await loadFeed();
   if (view === 'active') await loadActiveView();
   if (view === 'history') await loadHistoryView();
+}
+
+async function openSearchFilters() {
+  if (state.currentView !== 'feed') {
+    await setView('feed');
+  } else {
+    updateViews();
+  }
+  openFilterSheet();
 }
 
 async function submitComposer(event) {
@@ -542,6 +645,27 @@ async function markNoShow(bookingId) {
   setStatus('Пассажир отмечен как не приехавший.');
   await loadActiveView();
 }
+
+function clearFilters() {
+  state.filters = { from: '', date: '', time: '', seats: '' };
+  syncFilterForm();
+  if (state.currentView === 'feed') {
+    renderFeed();
+  }
+}
+
+function applyFilters(event) {
+  event.preventDefault();
+  state.filters = {
+    from: refs.filterFrom.value.trim(),
+    date: refs.filterDate.value,
+    time: refs.filterTime.value,
+    seats: refs.filterSeats.value.trim(),
+  };
+  renderFeed();
+  closeFilterSheet();
+}
+
 function handleActionClick(event) {
   const target = event.target.closest('[data-action]');
   if (!target) return;
@@ -618,11 +742,17 @@ refs.closeComposerBtn.addEventListener('click', closeComposer);
 refs.sheetBackdrop.addEventListener('click', (event) => {
   if (event.target === refs.sheetBackdrop) closeComposer();
 });
+refs.closeFilterBtn.addEventListener('click', closeFilterSheet);
+refs.filterBackdrop.addEventListener('click', (event) => {
+  if (event.target === refs.filterBackdrop) closeFilterSheet();
+});
 refs.feedDriverBtn.addEventListener('click', () => setFeed('driver-trips', true));
 refs.feedPlansBtn.addEventListener('click', () => setFeed('passenger-requests', true));
-refs.bottomSearchBtn.addEventListener('click', () => setView('feed'));
+refs.bottomSearchBtn.addEventListener('click', openSearchFilters);
 refs.bottomActiveBtn.addEventListener('click', () => setView('active'));
 refs.composerForm.addEventListener('submit', submitComposer);
+refs.filterForm.addEventListener('submit', applyFilters);
+refs.clearFilterBtn.addEventListener('click', clearFilters);
 document.addEventListener('click', handleActionClick);
 
 document.querySelectorAll('.drawer-link[data-view]').forEach((button) => {
