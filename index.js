@@ -225,6 +225,17 @@ function hasValidUserSessionToken(token) {
   }
 }
 
+function parseUserSessionToken(token) {
+  if (!hasValidUserSessionToken(token)) return null;
+
+  try {
+    const [encodedPayload] = String(token).split('.');
+    return JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+  } catch (_) {
+    return null;
+  }
+}
+
 function hasOwnerSessionFromRequest(req) {
   const token = parseCookiesFromHeader(req?.headers?.cookie)[OWNER_SESSION_COOKIE];
   return hasValidOwnerSessionToken(token);
@@ -481,6 +492,65 @@ app.get('/handoff', (req, res) => {
   return res.redirect('/?handoff=ok');
 });
 
+app.get('/launch', (req, res) => {
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+
+  const payload = parseUserSessionToken(req.query.token);
+  if (!payload?.telegram_id) {
+    return res.redirect('/?launch=expired');
+  }
+
+  setUserSessionCookie(req, res, payload.telegram_id);
+  return res.redirect('/?launch=ok');
+});
+
+app.get('/manifest.webmanifest', (req, res) => {
+  const session = getUserSessionData(req);
+  const launchToken = session?.telegram_id ? createUserSessionToken(session.telegram_id) : '';
+  const startUrl = launchToken
+    ? `/launch?token=${encodeURIComponent(launchToken)}`
+    : '/';
+
+  res.setHeader('Content-Type', 'application/manifest+json');
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+
+  return res.json({
+    name: 'Попутчики',
+    short_name: 'Попутчики',
+    id: '/',
+    description: 'Поиск поездок водителей и заявок пассажиров',
+    start_url: startUrl,
+    scope: '/',
+    display: 'standalone',
+    display_override: ['standalone', 'minimal-ui'],
+    orientation: 'portrait',
+    background_color: '#e8eef8',
+    theme_color: '#1f66d6',
+    lang: 'ru',
+    icons: [
+      {
+        src: '/assets/icons/icon-192.png',
+        sizes: '192x192',
+        type: 'image/png',
+        purpose: 'any maskable',
+      },
+      {
+        src: '/assets/icons/icon-512.png',
+        sizes: '512x512',
+        type: 'image/png',
+        purpose: 'any maskable',
+      },
+      {
+        src: '/assets/icons/apple-touch-icon.png',
+        sizes: '180x180',
+        type: 'image/png',
+      },
+    ],
+  });
+});
+
 app.get('/owner', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'owner.html'));
 });
@@ -569,10 +639,7 @@ function createUserSessionToken(telegramId) {
 
 function getUserSessionData(req) {
   const token = parseCookies(req)[USER_SESSION_COOKIE];
-  if (!hasValidUserSessionToken(token)) return null;
-
-  const [encodedPayload] = String(token).split('.');
-  return JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+  return parseUserSessionToken(token);
 }
 
 function hasUserSession(req) {

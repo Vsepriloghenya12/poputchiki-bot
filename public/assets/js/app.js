@@ -866,6 +866,7 @@ function handleActionClick(event) {
 async function bootstrap() {
   state.pendingHighlight = parseStartAction(getStartParam());
   const handoffState = getQueryParam('handoff');
+  const launchState = getQueryParam('launch');
 
   try {
     const initData = await initUser();
@@ -896,7 +897,11 @@ async function bootstrap() {
   const initialFeed = state.pendingHighlight?.feed || 'driver-trips';
   await setFeed(initialFeed, true);
 
-  if (handoffState === 'ok' && state.user) {
+  if (launchState === 'ok' && state.user) {
+    setStatus('Установленная версия готова. Теперь приложение будет открываться уже с выполненным входом.');
+  } else if (launchState === 'expired') {
+    setStatus('Сохранённый вход для установленной версии устарел. Откройте приложение в Telegram и нажмите «Установить» ещё раз.', 'error');
+  } else if (handoffState === 'ok' && state.user) {
     setStatus('Браузерная сессия готова. Теперь установите приложение на телефон через меню браузера или кнопку внизу.');
   } else if (handoffState === 'ok') {
     setStatus('Браузер открылся, но вход не подтянулся. Вернитесь в Telegram и нажмите «Установить» ещё раз.', 'error');

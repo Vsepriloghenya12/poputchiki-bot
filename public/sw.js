@@ -1,14 +1,13 @@
-const CACHE_NAME = 'poputchiki-pwa-v3';
+const CACHE_NAME = 'poputchiki-pwa-v4';
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/manifest.webmanifest',
-  '/assets/css/base.css?v=20260403b',
-  '/assets/css/app.css?v=20260403b',
-  '/assets/js/app.js?v=20260403b',
-  '/assets/js/shared/api.js?v=20260403b',
-  '/assets/js/shared/format.js?v=20260403b',
-  '/assets/js/shared/pwa.js?v=20260403b',
+  '/assets/css/base.css?v=20260403c',
+  '/assets/css/app.css?v=20260403c',
+  '/assets/js/app.js?v=20260403c',
+  '/assets/js/shared/api.js?v=20260403c',
+  '/assets/js/shared/format.js?v=20260403c',
+  '/assets/js/shared/pwa.js?v=20260403c',
   '/assets/icons/icon-192.png',
   '/assets/icons/icon-512.png',
   '/assets/icons/apple-touch-icon.png',
@@ -52,8 +51,9 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
+  if (url.pathname === '/manifest.webmanifest' || url.pathname === '/launch') return;
+
   const isStaticAsset =
-    url.pathname === '/manifest.webmanifest' ||
     url.pathname === '/index.html' ||
     url.pathname.startsWith('/assets/');
 
