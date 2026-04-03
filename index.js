@@ -65,6 +65,8 @@ const AUTOPOST_TRIPS = process.env.AUTOPOST_TRIPS !== '0';
 const AUTOPOST_PLANS = process.env.AUTOPOST_PLANS !== '0';
 const CHANNEL_BRAND = (process.env.CHANNEL_BRAND || 'Попутчики').trim();
 const PUSH_ENABLED = !!(WEB_PUSH_PUBLIC_KEY && WEB_PUSH_PRIVATE_KEY);
+const HANDOFF_TTL_MS = Math.max(1, Number(process.env.SESSION_HANDOFF_TTL_MINUTES || 10)) * 60 * 1000;
+const sessionHandoffStore = new Map();
 
 if (!BOT_TOKEN) {
   console.error('Ошибка: не задан BOT_TOKEN в .env или переменных окружения');
@@ -91,6 +93,30 @@ async function sendMessageSafe(telegramId, text, extra = undefined) {
 function buildWebAppUrl(startParam = '') {
   const baseUrl = String(WEBAPP_URL || '').trim() || 'http://localhost:3000';
   return withStartParamUrl(baseUrl, startParam);
+}
+
+function getRequestOrigin(req) {
+  const forwardedProto = String(req?.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
+  const protocol = forwardedProto || (req?.protocol || 'http');
+  const host = req?.get ? req.get('host') : req?.headers?.host;
+  return `${protocol}://${host}`;
+}
+
+function createSessionHandoffToken(telegramId) {
+  const token = crypto.randomBytes(24).toString('base64url');
+  sessionHandoffStore.set(token, {
+    telegram_id: String(telegramId || ''),
+    exp: Date.now() + HANDOFF_TTL_MS,
+  });
+  return token;
+}
+
+function consumeSessionHandoffToken(token) {
+  const value = sessionHandoffStore.get(String(token || ''));
+  if (!value) return null;
+  sessionHandoffStore.delete(String(token || ''));
+  if (!value.telegram_id || Number(value.exp) < Date.now()) return null;
+  return value;
 }
 
 async function sendPushPayloadToUserIds(userIds, payload) {
@@ -443,6 +469,16 @@ app.use((req, res, next) => {
   next();
 });
 
+app.get('/handoff', (req, res) => {
+  const payload = consumeSessionHandoffToken(req.query.token);
+  if (!payload?.telegram_id) {
+    return res.redirect('/?handoff=expired');
+  }
+
+  setUserSessionCookie(req, res, payload.telegram_id);
+  return res.redirect('/?handoff=ok');
+});
+
 app.get('/owner', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'owner.html'));
 });
@@ -647,6 +683,27 @@ app.get('/api/session', async (req, res) => {
 app.post('/api/session/logout', (req, res) => {
   clearUserSessionCookie(req, res);
   return res.json({ success: true });
+});
+
+app.post('/api/session/handoff', async (req, res) => {
+  try {
+    const telegramId = req.telegramId || req.body.telegram_id;
+    if (!telegramId) {
+      return res.status(401).json({ error: 'Сначала откройте приложение через Telegram' });
+    }
+
+    const user = await getUserByTelegramId(telegramId);
+    if (!user) {
+      return res.status(400).json({ error: 'Пользователь не найден. Сначала откройте приложение через Telegram.' });
+    }
+
+    const token = createSessionHandoffToken(user.telegram_id);
+    const url = `${getRequestOrigin(req)}/handoff?token=${encodeURIComponent(token)}`;
+    return res.json({ success: true, url });
+  } catch (error) {
+    console.error('Ошибка /api/session/handoff:', error);
+    return res.status(500).json({ error: 'Не удалось подготовить переход в браузер' });
+  }
 });
 
 app.post('/api/init-user', async (req, res) => {

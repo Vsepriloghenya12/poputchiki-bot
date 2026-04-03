@@ -1,5 +1,5 @@
 
-import { apiRequest, getStartParam, getTelegramUser, initUser, openChat, showAlert } from './shared/api.js';
+import { apiRequest, getStartParam, getTelegramUser, initUser, openChat, showAlert, tg } from './shared/api.js';
 import { escapeHtml, formatDateTime, formatMoney, formatName, getInitials, isUpcoming, statusBadge } from './shared/format.js';
 import { disablePushNotifications, enablePushNotifications, getPwaState, initPwa, promptInstall } from './shared/pwa.js';
 
@@ -45,6 +45,8 @@ const refs = {
   viewHistory: document.getElementById('viewHistory'),
   bottomSearchBtn: document.getElementById('bottomSearchBtn'),
   bottomActiveBtn: document.getElementById('bottomActiveBtn'),
+  bottomInstallBtn: document.getElementById('bottomInstallBtn'),
+  bottomInstallLabel: document.getElementById('bottomInstallLabel'),
   feedList: document.getElementById('feedList'),
   activeDriverTripList: document.getElementById('activeDriverTripList'),
   activeDriverBookingsList: document.getElementById('activeDriverBookingsList'),
@@ -99,6 +101,14 @@ function parseStartAction(value) {
   return null;
 }
 
+function getQueryParam(name) {
+  try {
+    return new URL(window.location.href).searchParams.get(name) || '';
+  } catch (_) {
+    return '';
+  }
+}
+
 function setStatus(message = '', tone = '') {
   refs.statusBanner.textContent = message;
   refs.statusBanner.classList.toggle('hidden', !message);
@@ -124,6 +134,10 @@ function updatePwaActions() {
     ? 'Приложение установлено'
     : (state.pwa.installAvailable ? 'Установить приложение' : 'Как установить');
   refs.installAppBtn.disabled = false;
+  refs.bottomInstallLabel.textContent = state.pwa.standalone
+    ? 'Установлено'
+    : (state.pwa.installAvailable ? 'Установить' : 'На телефон');
+  refs.bottomInstallBtn.classList.toggle('is-complete', state.pwa.standalone);
 
   refs.pushToggleLabel.textContent = state.pwa.pushEnabled ? 'Выключить уведомления' : 'Включить уведомления';
   refs.pushToggleBtn.disabled = !state.user || !state.pwa.pushSupported;
@@ -579,6 +593,23 @@ async function openSearchFilters() {
 
 async function handleInstallApp() {
   try {
+    closeDrawer();
+
+    if (tg && !state.pwa.standalone) {
+      const handoff = await apiRequest('/api/session/handoff', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (handoff?.url) {
+        if (tg.openLink) tg.openLink(handoff.url);
+        else window.open(handoff.url, '_blank', 'noopener');
+        setStatus('Открыл приложение во внешнем браузере. Установите его там на телефон, и оно будет работать как отдельное веб-приложение.');
+        return;
+      }
+    }
+
     const result = await promptInstall();
     updatePwaActions();
 
@@ -593,7 +624,7 @@ async function handleInstallApp() {
     }
 
     if (result?.outcome === 'manual') {
-      showAlert('Откройте сайт в браузере Chrome или Safari и добавьте его на экран домой. После этого приложение будет запускаться отдельно от Telegram.');
+      showAlert('Откройте сайт в обычном браузере Chrome или Safari и добавьте его на экран домой. Внутри Telegram полноценная установка PWA обычно недоступна.');
     }
   } catch (error) {
     setStatus(error.message || 'Не удалось открыть сценарий установки.', 'error');
@@ -796,6 +827,7 @@ function handleActionClick(event) {
 
 async function bootstrap() {
   state.pendingHighlight = parseStartAction(getStartParam());
+  const handoffState = getQueryParam('handoff');
 
   try {
     const initData = await initUser();
@@ -818,7 +850,11 @@ async function bootstrap() {
   const initialFeed = state.pendingHighlight?.feed || 'driver-trips';
   await setFeed(initialFeed, true);
 
-  if (needsStandaloneHint) {
+  if (handoffState === 'ok') {
+    setStatus('Браузерная сессия готова. Теперь установите приложение на телефон через меню браузера или кнопку внизу.');
+  } else if (handoffState === 'expired') {
+    setStatus('Ссылка для перехода в браузер устарела. Нажмите «Установить» ещё раз внутри Telegram.', 'error');
+  } else if (needsStandaloneHint) {
     setStatus('Откройте приложение через Telegram хотя бы один раз. После этого его можно установить на телефон и запускать как обычное веб-приложение.');
   }
 }
@@ -838,6 +874,7 @@ refs.feedDriverBtn.addEventListener('click', () => setFeed('driver-trips', true)
 refs.feedPlansBtn.addEventListener('click', () => setFeed('passenger-requests', true));
 refs.bottomSearchBtn.addEventListener('click', openSearchFilters);
 refs.bottomActiveBtn.addEventListener('click', () => setView('active'));
+refs.bottomInstallBtn.addEventListener('click', handleInstallApp);
 refs.installAppBtn.addEventListener('click', handleInstallApp);
 refs.pushToggleBtn.addEventListener('click', handlePushToggle);
 refs.composerForm.addEventListener('submit', submitComposer);
