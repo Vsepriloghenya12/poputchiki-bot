@@ -95,6 +95,42 @@ function buildDeeplink(startParam) {
   return buildDeeplinkPrefix() + encodeURIComponent(String(startParam || '').trim());
 }
 
+function parseCookiesFromHeader(cookieHeader) {
+  const source = String(cookieHeader || '');
+  if (!source) return {};
+
+  return source.split(';').reduce((acc, part) => {
+    const [rawName, ...rest] = part.trim().split('=');
+    if (!rawName) return acc;
+    acc[rawName] = decodeURIComponent(rest.join('=') || '');
+    return acc;
+  }, {});
+}
+
+function signOwnerSessionPayload(encodedPayload) {
+  return crypto.createHmac('sha256', OWNER_SESSION_SECRET).update(String(encodedPayload || ''), 'utf8').digest('base64url');
+}
+
+function hasValidOwnerSessionToken(token) {
+  if (!token || !String(token).includes('.')) return false;
+
+  const [encodedPayload, signature] = String(token).split('.');
+  const expectedSignature = signOwnerSessionPayload(encodedPayload);
+  if (!signature || !isSameSecret(signature, expectedSignature)) return false;
+
+  try {
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+    return !!(payload && payload.role === 'owner' && payload.exp && Number(payload.exp) >= Date.now());
+  } catch (_) {
+    return false;
+  }
+}
+
+function hasOwnerSessionFromRequest(req) {
+  const token = parseCookiesFromHeader(req?.headers?.cookie)[OWNER_SESSION_COOKIE];
+  return hasValidOwnerSessionToken(token);
+}
+
 function webAppOpenKeyboard(label = 'Открыть мини-приложение', startParam = '') {
   const url = withStartParamUrl(WEBAPP_URL, startParam);
   return {
@@ -273,6 +309,11 @@ function validateTelegramInitData(initData, botToken, maxAgeSec) {
 }
 
 app.use('/api', (req, res, next) => {
+  const isOwnerApi = req.path === '/owner/login' || req.path === '/owner/logout' || req.path === '/owner/session' || req.path.startsWith('/owner/');
+  if (isOwnerApi && (hasOwnerSessionFromRequest(req) || req.path === '/owner/login' || req.path === '/owner/session' || req.path === '/owner/logout')) {
+    return next();
+  }
+
   const initData =
     req.headers['x-telegram-init-data'] ||
     req.headers['x-telegram-initdata'] ||
@@ -341,19 +382,7 @@ function isSecureOwnerCookie(req) {
 }
 
 function parseCookies(req) {
-  const source = String(req.headers.cookie || '');
-  if (!source) return {};
-
-  return source.split(';').reduce((acc, part) => {
-    const [rawName, ...rest] = part.trim().split('=');
-    if (!rawName) return acc;
-    acc[rawName] = decodeURIComponent(rest.join('=') || '');
-    return acc;
-  }, {});
-}
-
-function signOwnerSessionPayload(encodedPayload) {
-  return crypto.createHmac('sha256', OWNER_SESSION_SECRET).update(String(encodedPayload || ''), 'utf8').digest('base64url');
+  return parseCookiesFromHeader(req.headers.cookie || '');
 }
 
 function createOwnerSessionToken() {
@@ -370,21 +399,10 @@ function createOwnerSessionToken() {
 
 function getOwnerSessionData(req) {
   const token = parseCookies(req)[OWNER_SESSION_COOKIE];
-  if (!token || !token.includes('.')) return null;
+  if (!hasValidOwnerSessionToken(token)) return null;
 
-  const [encodedPayload, signature] = token.split('.');
-  const expectedSignature = signOwnerSessionPayload(encodedPayload);
-  if (!signature || !isSameSecret(signature, expectedSignature)) return null;
-
-  try {
-    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
-    if (!payload || payload.role !== 'owner' || !payload.exp || Number(payload.exp) < Date.now()) {
-      return null;
-    }
-    return payload;
-  } catch (_) {
-    return null;
-  }
+  const [encodedPayload] = String(token).split('.');
+  return JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
 }
 
 function hasOwnerSession(req) {

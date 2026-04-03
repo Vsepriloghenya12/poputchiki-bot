@@ -1,17 +1,16 @@
-import { apiRequest, getTelegramUser, initUser } from './shared/api.js';
+import { apiRequest } from './shared/api.js';
 import { escapeHtml, formatDateTime, formatName } from './shared/format.js';
-
-const OWNER_STORAGE_KEY = 'poputchiki.owner.telegram_id';
 
 const refs = {
   statusBanner: document.getElementById('ownerStatusBanner'),
   desktopAccessPanel: document.getElementById('desktopAccessPanel'),
   desktopAccessForm: document.getElementById('desktopAccessForm'),
-  ownerTelegramIdInput: document.getElementById('ownerTelegramIdInput'),
+  ownerPasswordInput: document.getElementById('ownerPasswordInput'),
   clearDesktopAccessBtn: document.getElementById('clearDesktopAccessBtn'),
   accessCard: document.getElementById('accessCard'),
   ownerContent: document.getElementById('ownerContent'),
-  ownerName: document.getElementById('ownerName'),
+  ownerAuthBadge: document.getElementById('ownerAuthBadge'),
+  logoutOwnerBtn: document.getElementById('logoutOwnerBtn'),
   metricsGrid: document.getElementById('metricsGrid'),
   recentTripsList: document.getElementById('recentTripsList'),
   recentPlansList: document.getElementById('recentPlansList'),
@@ -21,9 +20,8 @@ const refs = {
 };
 
 const state = {
-  user: null,
-  isOwner: false,
-  ownerTelegramId: '',
+  authenticated: false,
+  passwordConfigured: false,
 };
 
 function setStatus(message = '', tone = '') {
@@ -32,74 +30,22 @@ function setStatus(message = '', tone = '') {
   refs.statusBanner.classList.toggle('is-error', tone === 'error');
 }
 
-function getStoredOwnerTelegramId() {
-  try {
-    const params = new URL(window.location.href).searchParams;
-    return params.get('telegram_id') || window.localStorage.getItem(OWNER_STORAGE_KEY) || '';
-  } catch (_) {
-    return '';
+function setAccessMessage(message = '') {
+  refs.accessCard.textContent = message;
+  refs.accessCard.classList.toggle('hidden', !message);
+}
+
+function setAuthenticatedUI(authenticated) {
+  state.authenticated = !!authenticated;
+  refs.desktopAccessPanel.classList.toggle('hidden', state.authenticated);
+  refs.ownerContent.classList.toggle('hidden', !state.authenticated);
+  refs.logoutOwnerBtn.classList.toggle('hidden', !state.authenticated);
+  refs.ownerAuthBadge.classList.toggle('hidden', !state.authenticated);
+
+  if (state.authenticated) {
+    refs.ownerPasswordInput.value = '';
+    setAccessMessage('');
   }
-}
-
-function saveOwnerTelegramId(value) {
-  try {
-    if (value) {
-      window.localStorage.setItem(OWNER_STORAGE_KEY, value);
-    } else {
-      window.localStorage.removeItem(OWNER_STORAGE_KEY);
-    }
-  } catch (_) {}
-}
-
-function setOwnerLabel() {
-  if (state.user) {
-    refs.ownerName.textContent = formatName(state.user.first_name, state.user.last_name, state.user.username);
-    return;
-  }
-
-  refs.ownerName.textContent = state.ownerTelegramId ? `ID ${state.ownerTelegramId}` : 'Владелец';
-}
-
-function setDesktopAccessVisible(visible) {
-  refs.desktopAccessPanel.classList.toggle('hidden', !visible);
-}
-
-function setOwnerContentVisible(visible) {
-  refs.ownerContent.classList.toggle('hidden', !visible);
-}
-
-function appendTelegramId(url, telegramId) {
-  const nextUrl = new URL(url, window.location.origin);
-  nextUrl.searchParams.set('telegram_id', telegramId);
-  return nextUrl.pathname + nextUrl.search;
-}
-
-async function ownerRequest(url, options = {}) {
-  const requestOptions = { ...options };
-  const hasTelegramSession = !!window.Telegram?.WebApp?.initData;
-  const desktopOwnerId = !hasTelegramSession ? String(state.ownerTelegramId || '').trim() : '';
-
-  if (!desktopOwnerId) {
-    return apiRequest(url, requestOptions);
-  }
-
-  const method = String(requestOptions.method || 'GET').toUpperCase();
-  if (method === 'GET') {
-    return apiRequest(appendTelegramId(url, desktopOwnerId), requestOptions);
-  }
-
-  let body = {};
-  if (requestOptions.body) {
-    try {
-      body = JSON.parse(requestOptions.body);
-    } catch (_) {
-      body = {};
-    }
-  }
-
-  requestOptions.headers = { ...(requestOptions.headers || {}), 'Content-Type': 'application/json' };
-  requestOptions.body = JSON.stringify({ ...body, telegram_id: desktopOwnerId });
-  return apiRequest(url, requestOptions);
 }
 
 function metricCard(label, value, hint) {
@@ -197,7 +143,7 @@ function renderDrivers(drivers) {
 }
 
 async function loadOverview() {
-  const data = await ownerRequest('/api/owner/overview');
+  const data = await apiRequest('/api/owner/overview');
   renderOverview(data.stats || {});
   renderRecentTrips(data.recent_trips || []);
   renderRecentPlans(data.recent_plans || []);
@@ -206,107 +152,103 @@ async function loadOverview() {
 async function loadDrivers() {
   const date = refs.driversDate.value;
   const url = date ? `/api/owner/drivers?date=${encodeURIComponent(date)}` : '/api/owner/drivers';
-  const data = await ownerRequest(url);
+  const data = await apiRequest(url);
   renderDrivers(data.drivers || []);
 }
 
 async function loadOwnerDashboard() {
   await Promise.all([loadOverview(), loadDrivers()]);
   setStatus('');
-  refs.accessCard.classList.add('hidden');
-  setDesktopAccessVisible(false);
-  setOwnerContentVisible(true);
+}
+
+async function checkOwnerSession() {
+  const data = await apiRequest('/api/owner/session');
+  state.passwordConfigured = !!data.password_configured;
+  return !!data.authenticated;
 }
 
 async function bootstrap() {
   refs.driversDate.value = new Date().toISOString().slice(0, 10);
-  state.ownerTelegramId = getStoredOwnerTelegramId();
-  refs.ownerTelegramIdInput.value = state.ownerTelegramId;
 
   try {
-    const initData = await initUser();
-    state.user = initData.user || getTelegramUser();
-    state.isOwner = !!initData.is_owner;
+    const authenticated = await checkOwnerSession();
+
+    if (!state.passwordConfigured) {
+      setAuthenticatedUI(false);
+      setAccessMessage('На сервере не настроен пароль owner-панели. Добавьте OWNER_PANEL_PASSWORD в .env и перезапустите сервер.');
+      setStatus('На сервере не настроен OWNER_PANEL_PASSWORD.', 'error');
+      return;
+    }
+
+    if (!authenticated) {
+      setAuthenticatedUI(false);
+      setAccessMessage('');
+      return;
+    }
+
+    setAuthenticatedUI(true);
+    await loadOwnerDashboard();
   } catch (error) {
-    state.user = getTelegramUser();
-    if (state.user) {
-      setStatus(error.message || 'Не удалось определить пользователя.', 'error');
-    }
-  }
-
-  setOwnerLabel();
-
-  if (state.isOwner) {
-    setDesktopAccessVisible(false);
-    setOwnerContentVisible(true);
-    refs.accessCard.classList.add('hidden');
-    try {
-      await loadOwnerDashboard();
-    } catch (error) {
-      setStatus(error.message || 'Не удалось загрузить отчёты.', 'error');
-    }
-    return;
-  }
-
-  setOwnerContentVisible(false);
-  setDesktopAccessVisible(true);
-
-  if (state.user && !state.isOwner) {
-    refs.accessCard.classList.remove('hidden');
-  } else {
-    refs.accessCard.classList.add('hidden');
-  }
-
-  if (state.ownerTelegramId) {
-    try {
-      await loadOwnerDashboard();
-      state.isOwner = true;
-    } catch (error) {
-      refs.accessCard.classList.remove('hidden');
-      setStatus(error.message || 'Не удалось открыть панель владельца.', 'error');
-      setOwnerContentVisible(false);
-      setDesktopAccessVisible(true);
-    }
+    setAuthenticatedUI(false);
+    setAccessMessage('Не удалось проверить доступ к owner-панели.');
+    setStatus(error.message || 'Не удалось открыть owner-панель.', 'error');
   }
 }
 
-refs.reloadDriversBtn.addEventListener('click', () => {
-  loadDrivers().catch((error) => setStatus(error.message || 'Не удалось загрузить список водителей.', 'error'));
-});
-
 refs.desktopAccessForm.addEventListener('submit', (event) => {
   event.preventDefault();
-  state.ownerTelegramId = refs.ownerTelegramIdInput.value.trim();
-  saveOwnerTelegramId(state.ownerTelegramId);
-  setOwnerLabel();
-  loadOwnerDashboard()
-    .then(() => {
-      state.isOwner = true;
+
+  const password = refs.ownerPasswordInput.value;
+  if (!password) {
+    setAccessMessage('Введите пароль владельца.');
+    setStatus('Введите пароль владельца.', 'error');
+    return;
+  }
+
+  apiRequest('/api/owner/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ password }),
+  })
+    .then(async () => {
+      setAuthenticatedUI(true);
+      await loadOwnerDashboard();
     })
     .catch((error) => {
-      refs.accessCard.classList.remove('hidden');
-      setStatus(error.message || 'Не удалось открыть панель владельца.', 'error');
-      setOwnerContentVisible(false);
-      setDesktopAccessVisible(true);
+      setAuthenticatedUI(false);
+      setAccessMessage('Пароль неверный или доступ не настроен.');
+      setStatus(error.message || 'Не удалось выполнить вход.', 'error');
     });
 });
 
 refs.clearDesktopAccessBtn.addEventListener('click', () => {
-  state.ownerTelegramId = '';
-  refs.ownerTelegramIdInput.value = '';
-  saveOwnerTelegramId('');
-  setOwnerLabel();
-  setOwnerContentVisible(false);
-  setDesktopAccessVisible(true);
-  refs.accessCard.classList.add('hidden');
+  refs.ownerPasswordInput.value = '';
+  setAccessMessage('');
   setStatus('');
+});
+
+refs.logoutOwnerBtn.addEventListener('click', () => {
+  apiRequest('/api/owner/logout', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({}),
+  })
+    .then(() => {
+      setAuthenticatedUI(false);
+      setStatus('Вы вышли из панели владельца.');
+    })
+    .catch((error) => setStatus(error.message || 'Не удалось выйти из панели владельца.', 'error'));
+});
+
+refs.reloadDriversBtn.addEventListener('click', () => {
+  loadDrivers().catch((error) => setStatus(error.message || 'Не удалось загрузить список водителей.', 'error'));
 });
 
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-action="toggle-driver-block"]');
   if (!button) return;
 
-  ownerRequest('/api/owner/block-driver', {
+  apiRequest('/api/owner/block-driver', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
