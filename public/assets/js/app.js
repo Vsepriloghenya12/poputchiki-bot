@@ -9,6 +9,10 @@ const state = {
   currentFeed: 'driver-trips',
   seatSelection: new Map(),
   pendingHighlight: null,
+  auth: {
+    pendingToken: '',
+    pollTimer: null,
+  },
   filters: {
     from: '',
     date: '',
@@ -40,6 +44,9 @@ const refs = {
   feedPlansBtn: document.getElementById('feedPlansBtn'),
   tabsPanel: document.getElementById('tabsPanel'),
   statusBanner: document.getElementById('statusBanner'),
+  authPanel: document.getElementById('authPanel'),
+  authPanelText: document.getElementById('authPanelText'),
+  telegramLoginBtn: document.getElementById('telegramLoginBtn'),
   viewFeed: document.getElementById('viewFeed'),
   viewActive: document.getElementById('viewActive'),
   viewHistory: document.getElementById('viewHistory'),
@@ -90,6 +97,8 @@ const refs = {
   composerSubmit: document.getElementById('composerSubmit'),
 };
 
+const TELEGRAM_LOGIN_TOKEN_KEY = 'poputchiki_telegram_login_token';
+
 function parseStartAction(value) {
   const raw = String(value || '').trim();
   const tripMatch = raw.match(/^trip_(\d+)$/i);
@@ -113,6 +122,46 @@ function setStatus(message = '', tone = '') {
   refs.statusBanner.textContent = message;
   refs.statusBanner.classList.toggle('hidden', !message);
   refs.statusBanner.classList.toggle('is-error', tone === 'error');
+}
+
+function saveTelegramLoginToken(token = '') {
+  state.auth.pendingToken = String(token || '').trim();
+  try {
+    if (state.auth.pendingToken) {
+      window.localStorage.setItem(TELEGRAM_LOGIN_TOKEN_KEY, state.auth.pendingToken);
+    } else {
+      window.localStorage.removeItem(TELEGRAM_LOGIN_TOKEN_KEY);
+    }
+  } catch (_) {}
+}
+
+function loadSavedTelegramLoginToken() {
+  try {
+    return String(window.localStorage.getItem(TELEGRAM_LOGIN_TOKEN_KEY) || '').trim();
+  } catch (_) {
+    return '';
+  }
+}
+
+function stopTelegramLoginPolling() {
+  if (state.auth.pollTimer) {
+    window.clearInterval(state.auth.pollTimer);
+    state.auth.pollTimer = null;
+  }
+}
+
+function updateAuthPanel() {
+  const needsTelegramLogin = !state.user && !getTelegramUser();
+  refs.authPanel.classList.toggle('hidden', !needsTelegramLogin);
+  if (!needsTelegramLogin) return;
+
+  if (state.auth.pendingToken) {
+    refs.authPanelText.textContent = 'Подтвердите вход в Telegram. Как только вы нажмёте ссылку у бота, приложение авторизуется автоматически.';
+    refs.telegramLoginBtn.textContent = 'Открыть Telegram';
+  } else {
+    refs.authPanelText.textContent = 'Авторизуйтесь через Telegram, чтобы видеть свои поездки, брони и историю.';
+    refs.telegramLoginBtn.textContent = 'Войти через Telegram';
+  }
 }
 
 function updateUserCard() {
@@ -142,6 +191,7 @@ function updatePwaActions() {
   refs.pushToggleLabel.textContent = state.pwa.pushEnabled ? 'Выключить уведомления' : 'Включить уведомления';
   refs.pushToggleBtn.disabled = !state.user || !state.pwa.pushSupported;
   refs.pushToggleBtn.classList.toggle('is-disabled', refs.pushToggleBtn.disabled);
+  updateAuthPanel();
 }
 
 function getCurrentTelegramId() {
@@ -175,6 +225,65 @@ function openExternalInstallUrl(url) {
       setStatus('Если внешний браузер не открылся, нажмите «Установить» ещё раз.');
     }
   }, 1400);
+}
+
+function openTelegramLoginUrl(url) {
+  const targetUrl = String(url || '').trim();
+  if (!targetUrl) return;
+
+  if (tg?.openTelegramLink) {
+    try {
+      tg.openTelegramLink(targetUrl);
+      return;
+    } catch (_) {}
+  }
+
+  window.location.assign(targetUrl);
+}
+
+async function applyStandaloneAuth(user) {
+  state.user = user || null;
+  stopTelegramLoginPolling();
+  saveTelegramLoginToken('');
+  updateUserCard();
+  updatePwaActions();
+  await refreshCurrentView();
+}
+
+async function pollTelegramLoginStatus(token) {
+  const result = await apiRequest(`/api/auth/telegram/status?token=${encodeURIComponent(token)}`);
+
+  if (result.status === 'approved' && result.user) {
+    setStatus('Вход через Telegram выполнен. Добро пожаловать.');
+    await applyStandaloneAuth(result.user);
+    return 'approved';
+  }
+
+  if (result.status === 'expired') {
+    stopTelegramLoginPolling();
+    saveTelegramLoginToken('');
+    updateAuthPanel();
+    setStatus('Ссылка для входа устарела. Нажмите «Войти через Telegram» ещё раз.', 'error');
+    return 'expired';
+  }
+
+  return 'pending';
+}
+
+function startTelegramLoginPolling(token) {
+  const value = String(token || '').trim();
+  if (!value) return;
+
+  saveTelegramLoginToken(value);
+  stopTelegramLoginPolling();
+  updateAuthPanel();
+
+  const check = () => {
+    pollTelegramLoginStatus(value).catch(() => {});
+  };
+
+  check();
+  state.auth.pollTimer = window.setInterval(check, 2000);
 }
 
 function updateTabs() {

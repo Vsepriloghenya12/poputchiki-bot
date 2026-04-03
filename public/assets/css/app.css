@@ -5,6 +5,29 @@
   gap: 10px;
 }
 
+.auth-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(215, 225, 241, 0.95);
+  box-shadow: 0 10px 24px rgba(18, 41, 76, 0.08);
+}
+
+.auth-panel__title {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.auth-panel__text {
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .drawer-user {
   padding: 18px;
   border-radius: 22px;

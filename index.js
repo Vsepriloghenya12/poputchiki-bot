@@ -67,6 +67,8 @@ const CHANNEL_BRAND = (process.env.CHANNEL_BRAND || 'Попутчики').trim()
 const PUSH_ENABLED = !!(WEB_PUSH_PUBLIC_KEY && WEB_PUSH_PRIVATE_KEY);
 const HANDOFF_TTL_MS = Math.max(1, Number(process.env.SESSION_HANDOFF_TTL_MINUTES || 10)) * 60 * 1000;
 const sessionHandoffStore = new Map();
+const TELEGRAM_LOGIN_TTL_MS = Math.max(1, Number(process.env.TELEGRAM_LOGIN_TTL_MINUTES || 15)) * 60 * 1000;
+const telegramLoginStore = new Map();
 
 if (!BOT_TOKEN) {
   console.error('Ошибка: не задан BOT_TOKEN в .env или переменных окружения');
@@ -119,6 +121,52 @@ function consumeSessionHandoffToken(token) {
   return value;
 }
 
+function cleanupTelegramLoginStore() {
+  const now = Date.now();
+  for (const [token, entry] of telegramLoginStore.entries()) {
+    if (!entry || Number(entry.exp || 0) < now) {
+      telegramLoginStore.delete(token);
+    }
+  }
+}
+
+function createTelegramLoginToken() {
+  cleanupTelegramLoginStore();
+  const token = crypto.randomBytes(18).toString('base64url');
+  telegramLoginStore.set(token, {
+    status: 'pending',
+    telegram_id: '',
+    exp: Date.now() + TELEGRAM_LOGIN_TTL_MS,
+  });
+  return token;
+}
+
+function getTelegramLoginTokenState(token) {
+  cleanupTelegramLoginStore();
+  const entry = telegramLoginStore.get(String(token || ''));
+  if (!entry) return null;
+  return entry;
+}
+
+function approveTelegramLoginToken(token, telegramId) {
+  cleanupTelegramLoginStore();
+  const entry = telegramLoginStore.get(String(token || ''));
+  if (!entry || Number(entry.exp || 0) < Date.now()) {
+    telegramLoginStore.delete(String(token || ''));
+    return null;
+  }
+
+  entry.status = 'approved';
+  entry.telegram_id = String(telegramId || '');
+  entry.exp = Date.now() + Math.min(TELEGRAM_LOGIN_TTL_MS, 5 * 60 * 1000);
+  telegramLoginStore.set(String(token || ''), entry);
+  return entry;
+}
+
+function clearTelegramLoginToken(token) {
+  telegramLoginStore.delete(String(token || ''));
+}
+
 async function sendPushPayloadToUserIds(userIds, payload) {
   if (!PUSH_ENABLED || !Array.isArray(userIds) || !userIds.length || !payload) return;
 
@@ -169,6 +217,48 @@ function buildDeeplinkPrefix() {
 
 function buildDeeplink(startParam) {
   return buildDeeplinkPrefix() + encodeURIComponent(String(startParam || '').trim());
+}
+
+async function getBotUsernameRuntime() {
+  if (BOT_USERNAME_RUNTIME) return BOT_USERNAME_RUNTIME;
+  if (DISABLE_BOT) return '';
+
+  try {
+    const me = await bot.telegram.getMe();
+    if (me?.username) {
+      BOT_USERNAME_RUNTIME = String(me.username).replace('@', '').trim();
+    }
+  } catch (error) {
+    console.warn('getBotUsernameRuntime error:', error?.message || error);
+  }
+
+  return BOT_USERNAME_RUNTIME;
+}
+
+function getStartPayloadFromContext(ctx) {
+  const directPayload = String(ctx?.startPayload || '').trim();
+  if (directPayload) return directPayload;
+
+  const messageText = String(ctx?.message?.text || '').trim();
+  const match = messageText.match(/^\/start(?:@\w+)?(?:\s+(.+))?$/i);
+  return String(match?.[1] || '').trim();
+}
+
+async function handleTelegramStandaloneLogin(ctx, token) {
+  if (!token) {
+    return ctx.reply('Ссылка для входа не распознана. Вернитесь в приложение и нажмите «Войти через Telegram» ещё раз.');
+  }
+
+  const approved = approveTelegramLoginToken(token, ctx.from?.id);
+  if (!approved?.telegram_id) {
+    return ctx.reply('Ссылка для входа устарела. Вернитесь в приложение и запросите вход ещё раз.');
+  }
+
+  await upsertUserFromTelegram(ctx.from);
+  return ctx.reply(
+    'Вход подтверждён. Вернитесь в установленное приложение «Попутчики» — оно продолжит вход автоматически.',
+    webAppOpenKeyboard('Открыть попутчики')
+  );
 }
 
 function parseCookiesFromHeader(cookieHeader) {
@@ -348,7 +438,13 @@ app.get('/health', (req, res) => {
   res.status(200).json({ ok: true });
 });
 
-bot.start((ctx) => {
+bot.start(async (ctx) => {
+  const startPayload = getStartPayloadFromContext(ctx);
+  const loginMatch = startPayload.match(/^login_([A-Za-z0-9_-]+)$/i);
+  if (loginMatch) {
+    return handleTelegramStandaloneLogin(ctx, loginMatch[1]);
+  }
+
   if (WEBAPP_URL.startsWith('http://localhost')) {
     return ctx.reply(
       'Привет! Это бот "попутчики".\n' +
@@ -436,7 +532,13 @@ function applyTelegramIdentityToRequest(req, telegramId, telegramUser = null) {
 
 app.use('/api', (req, res, next) => {
   const isOwnerApi = req.path === '/owner/login' || req.path === '/owner/logout' || req.path === '/owner/session' || req.path.startsWith('/owner/');
-  const isPublicApi = req.path === '/session' || req.path === '/session/logout' || req.path === '/app-config' || req.path === '/push/public-key';
+  const isPublicApi =
+    req.path === '/session' ||
+    req.path === '/session/logout' ||
+    req.path === '/app-config' ||
+    req.path === '/push/public-key' ||
+    req.path === '/auth/telegram/start' ||
+    req.path === '/auth/telegram/status';
   if (isPublicApi) return next();
 
   if (isOwnerApi && (hasOwnerSessionFromRequest(req) || req.path === '/owner/login' || req.path === '/owner/session' || req.path === '/owner/logout')) {
@@ -781,6 +883,65 @@ app.post('/api/session/handoff', async (req, res) => {
   } catch (error) {
     console.error('Ошибка /api/session/handoff:', error);
     return res.status(500).json({ error: 'Не удалось подготовить переход в браузер' });
+  }
+});
+
+app.post('/api/auth/telegram/start', async (req, res) => {
+  try {
+    const botUsername = await getBotUsernameRuntime();
+    if (!botUsername) {
+      return res.status(503).json({ error: 'Telegram-бот сейчас недоступен. Попробуйте ещё раз чуть позже.' });
+    }
+
+    const token = createTelegramLoginToken();
+    const url = `https://t.me/${botUsername}?start=${encodeURIComponent(`login_${token}`)}`;
+
+    return res.json({
+      success: true,
+      token,
+      url,
+      expires_in_seconds: Math.round(TELEGRAM_LOGIN_TTL_MS / 1000),
+    });
+  } catch (error) {
+    console.error('Ошибка /api/auth/telegram/start:', error);
+    return res.status(500).json({ error: 'Не удалось подготовить вход через Telegram' });
+  }
+});
+
+app.get('/api/auth/telegram/status', async (req, res) => {
+  try {
+    const token = String(req.query.token || '').trim();
+    if (!token) {
+      return res.status(400).json({ error: 'Не передан токен входа' });
+    }
+
+    const authState = getTelegramLoginTokenState(token);
+    if (!authState) {
+      return res.json({ status: 'expired' });
+    }
+
+    if (authState.status !== 'approved' || !authState.telegram_id) {
+      return res.json({ status: 'pending' });
+    }
+
+    const user = await getUserByTelegramId(authState.telegram_id);
+    if (!user) {
+      clearTelegramLoginToken(token);
+      return res.json({ status: 'expired' });
+    }
+
+    setUserSessionCookie(req, res, user.telegram_id);
+    clearTelegramLoginToken(token);
+
+    return res.json({
+      status: 'approved',
+      user,
+      is_owner: isOwnerTelegramId(user.telegram_id),
+      push_enabled: PUSH_ENABLED,
+    });
+  } catch (error) {
+    console.error('Ошибка /api/auth/telegram/status:', error);
+    return res.status(500).json({ error: 'Не удалось проверить вход через Telegram' });
   }
 });
 
