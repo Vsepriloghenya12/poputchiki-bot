@@ -110,11 +110,37 @@ function buildWebAppUrl(startParam = '') {
   return withStartParamUrl(baseUrl, startParam);
 }
 
+function isLoopbackHostname(hostname) {
+  const normalized = String(hostname || '').trim().toLowerCase();
+  return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '::1';
+}
+
 function getRequestOrigin(req) {
   const forwardedProto = String(req?.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
   const protocol = forwardedProto || (req?.protocol || 'http');
   const host = req?.get ? req.get('host') : req?.headers?.host;
   return `${protocol}://${host}`;
+}
+
+function resolveWebAppBaseUrl(req = null) {
+  const configuredUrl = String(WEBAPP_URL || '').trim();
+
+  if (configuredUrl) {
+    try {
+      const parsed = new URL(configuredUrl);
+      if (req && isLoopbackHostname(parsed.hostname)) {
+        return getRequestOrigin(req);
+      }
+      return parsed.toString().replace(/\/$/, '');
+    } catch (_) {}
+  }
+
+  if (req) return getRequestOrigin(req);
+  return 'http://localhost:3000';
+}
+
+function buildResolvedWebAppUrl(req, startParam = '') {
+  return withStartParamUrl(resolveWebAppBaseUrl(req), startParam);
 }
 
 function createSessionHandoffToken(telegramId) {
@@ -224,8 +250,9 @@ function buildDeeplinkPrefix() {
   if (username) {
     return `https://t.me/${username}?startapp=`;
   }
-  const separator = WEBAPP_URL.includes('?') ? '&' : '?';
-  return `${WEBAPP_URL}${separator}startapp=`;
+  const fallbackUrl = resolveWebAppBaseUrl();
+  const separator = fallbackUrl.includes('?') ? '&' : '?';
+  return `${fallbackUrl}${separator}startapp=`;
 }
 
 function buildDeeplink(startParam) {
@@ -345,7 +372,7 @@ function hasOwnerSessionFromRequest(req) {
 }
 
 function webAppOpenKeyboard(label = 'Открыть мини-приложение', startParam = '') {
-  const url = withStartParamUrl(WEBAPP_URL, startParam);
+  const url = withStartParamUrl(resolveWebAppBaseUrl(), startParam);
   return {
     reply_markup: {
       inline_keyboard: [[{ text: label, web_app: { url } }]],
@@ -1046,7 +1073,7 @@ app.post('/api/session/handoff', async (req, res) => {
     const token = createSessionHandoffToken(user.telegram_id);
     let url;
     try {
-      const baseUrl = new URL(buildWebAppUrl());
+      const baseUrl = new URL(buildResolvedWebAppUrl(req));
       const handoffUrl = new URL('/handoff', baseUrl.origin);
       handoffUrl.searchParams.set('token', token);
       url = handoffUrl.toString();
@@ -1161,7 +1188,7 @@ app.get('/api/app-config', async (req, res) => {
       owner_telegram_id: OWNER_TELEGRAM_ID,
       pwa: {
         enabled: true,
-        start_url: buildWebAppUrl(),
+        start_url: buildResolvedWebAppUrl(req),
       },
       push: {
         enabled: PUSH_ENABLED,
