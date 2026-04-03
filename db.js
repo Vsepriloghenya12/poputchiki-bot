@@ -3,10 +3,9 @@ const fs = require('fs');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 
-const DEFAULT_DB_PATH = fs.existsSync(path.join(__dirname, 'poputchiki.db'))
-  ? path.join(__dirname, 'poputchiki.db')
-  : path.join(__dirname, 'app.sqlite');
-const DB_PATH = process.env.SQLITE_PATH || DEFAULT_DB_PATH;
+const DEFAULT_DB_PATH = path.join(__dirname, 'poputchiki.db');
+const DB_PATH = path.resolve(process.env.SQLITE_PATH || DEFAULT_DB_PATH);
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new sqlite3.Database(DB_PATH);
 
 function softMigrate(sql) {

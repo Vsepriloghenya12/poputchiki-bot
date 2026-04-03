@@ -82,6 +82,7 @@ const HANDOFF_TTL_MS = Math.max(1, Number(process.env.SESSION_HANDOFF_TTL_MINUTE
 const sessionHandoffStore = new Map();
 const TELEGRAM_LOGIN_TTL_MS = Math.max(1, Number(process.env.TELEGRAM_LOGIN_TTL_MINUTES || 15)) * 60 * 1000;
 const telegramLoginStore = new Map();
+let lastKnownPublicOrigin = '';
 
 if (!BOT_TOKEN) {
   console.error('Ошибка: не задан BOT_TOKEN в .env или переменных окружения');
@@ -117,6 +118,33 @@ function getRequestOrigin(req) {
   return `${protocol}://${host}`;
 }
 
+function normalizeOrigin(value) {
+  try {
+    const parsed = new URL(String(value || '').trim());
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch (_) {
+    return '';
+  }
+}
+
+function rememberPublicOrigin(origin) {
+  const normalized = normalizeOrigin(origin);
+  if (!normalized) return '';
+
+  try {
+    const parsed = new URL(normalized);
+    if (isLoopbackHostname(parsed.hostname)) return '';
+    lastKnownPublicOrigin = normalized.replace(/\/$/, '');
+    return lastKnownPublicOrigin;
+  } catch (_) {
+    return '';
+  }
+}
+
+function getPublicOriginFromRequest(req) {
+  return rememberPublicOrigin(getRequestOrigin(req));
+}
+
 function resolveWebAppBaseUrl(req = null) {
   const configuredUrl = WEBAPP_URL;
 
@@ -124,16 +152,18 @@ function resolveWebAppBaseUrl(req = null) {
     try {
       const parsed = new URL(configuredUrl);
       if (req && isLoopbackHostname(parsed.hostname)) {
-        return getRequestOrigin(req);
+        return getPublicOriginFromRequest(req) || getRequestOrigin(req);
       }
+      if (isLoopbackHostname(parsed.hostname) && lastKnownPublicOrigin) return lastKnownPublicOrigin;
       if (isLoopbackHostname(parsed.hostname)) {
         return `${parsed.protocol}//localhost:${PORT}`;
       }
-      return parsed.toString().replace(/\/$/, '');
+      return rememberPublicOrigin(parsed.toString()) || parsed.toString().replace(/\/$/, '');
     } catch (_) {}
   }
 
-  if (req) return getRequestOrigin(req);
+  if (req) return getPublicOriginFromRequest(req) || getRequestOrigin(req);
+  if (lastKnownPublicOrigin) return lastKnownPublicOrigin;
   return `http://localhost:${PORT}`;
 }
 
@@ -244,7 +274,7 @@ function withStartParamUrl(baseUrl, startParam) {
   return `${baseUrl}${separator}startapp=${encodeURIComponent(value)}`;
 }
 
-function buildDeeplinkPrefix() {
+function buildDeeplinkPrefix(req = null) {
   const username = (BOT_USERNAME_RUNTIME || '').replace('@', '').trim();
   if (username && WEBAPP_SHORTNAME) {
     return `https://t.me/${username}/${WEBAPP_SHORTNAME}?startapp=`;
@@ -252,13 +282,13 @@ function buildDeeplinkPrefix() {
   if (username) {
     return `https://t.me/${username}?startapp=`;
   }
-  const fallbackUrl = resolveWebAppBaseUrl();
+  const fallbackUrl = resolveWebAppBaseUrl(req);
   const separator = fallbackUrl.includes('?') ? '&' : '?';
   return `${fallbackUrl}${separator}startapp=`;
 }
 
-function buildDeeplink(startParam) {
-  return buildDeeplinkPrefix() + encodeURIComponent(String(startParam || '').trim());
+function buildDeeplink(startParam, req = null) {
+  return buildDeeplinkPrefix(req) + encodeURIComponent(String(startParam || '').trim());
 }
 
 async function getBotUsernameRuntime() {
@@ -373,8 +403,8 @@ function hasOwnerSessionFromRequest(req) {
   return hasValidOwnerSessionToken(token);
 }
 
-function webAppOpenKeyboard(label = 'Открыть мини-приложение', startParam = '') {
-  const url = withStartParamUrl(resolveWebAppBaseUrl(), startParam);
+function webAppOpenKeyboard(label = 'Открыть мини-приложение', startParam = '', req = null) {
+  const url = withStartParamUrl(resolveWebAppBaseUrl(req), startParam);
   return {
     reply_markup: {
       inline_keyboard: [[{ text: label, web_app: { url } }]],
@@ -595,24 +625,29 @@ function buildPlanPostHtml(plan) {
   return html;
 }
 
-async function autopostTripToChannel(trip) {
+async function autopostTripToChannel(trip, req = null) {
   if (!AUTOPOST_TRIPS || !trip) return;
   const html = buildTripPostHtml(trip);
-  const openUrl = buildDeeplink(`trip_${trip.id}`);
+  const openUrl = buildDeeplink(`trip_${trip.id}`, req);
   await sendToChannelsSafe(html, channelKeyboard(openUrl));
 }
 
-async function autopostPlanToChannel(plan) {
+async function autopostPlanToChannel(plan, req = null) {
   if (!AUTOPOST_PLANS || !plan) return;
   const html = buildPlanPostHtml(plan);
-  const openUrl = buildDeeplink(`plan_${plan.id}`);
+  const openUrl = buildDeeplink(`plan_${plan.id}`, req);
   await sendToChannelsSafe(html, channelKeyboard(openUrl));
 }
 
 const app = express();
+app.set('trust proxy', true);
 app.disable('etag');
 app.use(express.json({ limit: '1mb' }));
 app.use(express.urlencoded({ extended: true }));
+app.use((req, _res, next) => {
+  getPublicOriginFromRequest(req);
+  next();
+});
 
 app.get('/health', (req, res) => {
   res.status(200).json({ ok: true });
@@ -1185,7 +1220,7 @@ app.get('/api/app-config', async (req, res) => {
     const autopostTargets = await getAutopostTargets();
 
     return res.json({
-      deeplink_prefix: buildDeeplinkPrefix(),
+      deeplink_prefix: buildDeeplinkPrefix(req),
       bot_username: BOT_USERNAME_RUNTIME || null,
       webapp_shortname: WEBAPP_SHORTNAME || null,
       owner_telegram_id: OWNER_TELEGRAM_ID,
@@ -1205,7 +1240,7 @@ app.get('/api/app-config', async (req, res) => {
       },
     });
   } catch (_) {
-    return res.json({ deeplink_prefix: buildDeeplinkPrefix() });
+    return res.json({ deeplink_prefix: buildDeeplinkPrefix(req) });
   }
 });
 
@@ -1299,7 +1334,7 @@ app.post('/api/trips', async (req, res) => {
       note,
     });
 
-    autopostTripToChannel(trip).catch((error) => console.warn('autopost trip error:', error?.message || error));
+    autopostTripToChannel(trip, req).catch((error) => console.warn('autopost trip error:', error?.message || error));
 
     try {
       const plans = await getActivePassengerPlans(120);
@@ -1322,7 +1357,7 @@ app.post('/api/trips', async (req, res) => {
           `Время: ${trip.departure_time}\n` +
           `Цена: ${formatMoney(trip.price_per_seat)} ₽/место\n\n` +
           `Откройте мини-приложение и посмотрите детали.`;
-        await sendMessageSafe(plan.passenger_telegram_id, message, webAppOpenKeyboard('Открыть поездку', `trip_${trip.id}`));
+        await sendMessageSafe(plan.passenger_telegram_id, message, webAppOpenKeyboard('Открыть поездку', `trip_${trip.id}`, req));
         if (plan.passenger_id) matchedPassengerIds.add(Number(plan.passenger_id));
       }
 
@@ -1330,7 +1365,7 @@ app.post('/api/trips', async (req, res) => {
         title: 'Найдена поездка по вашему маршруту',
         body: `${trip.from_city} → ${trip.to_city} · ${trip.departure_time}`,
         tag: `trip-match-${trip.id}`,
-        url: buildWebAppUrl(`trip_${trip.id}`),
+        url: buildWebAppUrl(`trip_${trip.id}`, req),
         icon: '/assets/icons/icon-192.png',
         badge: '/assets/icons/badge-72.png',
       });
@@ -1538,14 +1573,14 @@ app.post('/api/bookings', async (req, res) => {
         `Выезд: ${tripFull.departure_time}\n` +
         `Пассажир: ${passengerName || 'без имени'} ${passengerUsername}\n` +
         `Мест забронировано: ${booking.seats_booked}`;
-      await sendMessageSafe(tripFull.driver_telegram_id, textForDriver, webAppOpenKeyboard('Открыть бронь', `trip_${tripFull.id}`));
+      await sendMessageSafe(tripFull.driver_telegram_id, textForDriver, webAppOpenKeyboard('Открыть бронь', `trip_${tripFull.id}`, req));
     }
 
     await sendPushPayloadToUserIds([tripFull?.driver_id], {
       title: 'Новая бронь',
       body: `${tripFull?.from_city || trip.from_city} → ${tripFull?.to_city || trip.to_city} · ${booking.seats_booked} мест`,
       tag: `booking-${booking.id}`,
-      url: buildWebAppUrl(`trip_${tripFull?.id || trip.id}`),
+      url: buildWebAppUrl(`trip_${tripFull?.id || trip.id}`, req),
       icon: '/assets/icons/icon-192.png',
       badge: '/assets/icons/badge-72.png',
     });
@@ -1586,7 +1621,7 @@ app.post('/api/bookings/cancel', async (req, res) => {
         `Выезд: ${tripFull.departure_time}\n` +
         `Пассажир: ${passengerName || 'без имени'} ${passengerUsername}\n` +
         `Освобождено мест: ${booking.seats_booked}`;
-      await sendMessageSafe(tripFull.driver_telegram_id, message, webAppOpenKeyboard('Открыть поездку', `trip_${tripFull.id}`));
+      await sendMessageSafe(tripFull.driver_telegram_id, message, webAppOpenKeyboard('Открыть поездку', `trip_${tripFull.id}`, req));
     }
 
     return res.json({ success: true, booking });
@@ -1676,7 +1711,7 @@ app.post('/api/passenger/plans', async (req, res) => {
       note,
     });
 
-    autopostPlanToChannel(plan).catch((error) => console.warn('autopost plan error:', error?.message || error));
+    autopostPlanToChannel(plan, req).catch((error) => console.warn('autopost plan error:', error?.message || error));
 
     try {
       const trips = await getLatestTrips(120);
@@ -1703,7 +1738,7 @@ app.post('/api/passenger/plans', async (req, res) => {
           `Время: ${plan.desired_time}\n` +
           `Нужно мест: ${plan.seats_needed}\n\n` +
           `Откройте мини-приложение и заберите заявку.`;
-        await sendMessageSafe(trip.driver_telegram_id, message, webAppOpenKeyboard('Открыть заявку', `plan_${plan.id}`));
+        await sendMessageSafe(trip.driver_telegram_id, message, webAppOpenKeyboard('Открыть заявку', `plan_${plan.id}`, req));
         if (trip.driver_id) matchedDriverIds.add(Number(trip.driver_id));
       }
 
@@ -1711,7 +1746,7 @@ app.post('/api/passenger/plans', async (req, res) => {
         title: 'Появилась новая заявка пассажира',
         body: `${plan.from_city} → ${plan.to_city} · ${plan.desired_time}`,
         tag: `plan-match-${plan.id}`,
-        url: buildWebAppUrl(`plan_${plan.id}`),
+        url: buildWebAppUrl(`plan_${plan.id}`, req),
         icon: '/assets/icons/icon-192.png',
         badge: '/assets/icons/badge-72.png',
       });
@@ -1827,14 +1862,14 @@ app.post('/api/driver/passenger-plans/take', async (req, res) => {
         `Время: ${plan.desired_time}\n` +
         `Водитель: ${(driverName || 'без имени').trim()} ${driverUsername}` +
         (carText ? `\nАвто: ${carText}` : '');
-      await sendMessageSafe(plan.passenger_telegram_id, message, webAppOpenKeyboard('Открыть заявку', `plan_${plan.id}`));
+      await sendMessageSafe(plan.passenger_telegram_id, message, webAppOpenKeyboard('Открыть заявку', `plan_${plan.id}`, req));
     }
 
     await sendPushPayloadToUserIds([plan?.passenger_id], {
       title: 'Водитель забрал вашу заявку',
       body: `${plan?.from_city || ''} → ${plan?.to_city || ''} · ${plan?.desired_time || ''}`.trim(),
       tag: `taken-plan-${plan.id}`,
-      url: buildWebAppUrl(`plan_${plan.id}`),
+      url: buildWebAppUrl(`plan_${plan.id}`, req),
       icon: '/assets/icons/icon-192.png',
       badge: '/assets/icons/badge-72.png',
     });
