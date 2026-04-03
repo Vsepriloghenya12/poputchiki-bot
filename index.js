@@ -47,7 +47,7 @@ const {
 } = require('./db');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
-const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:3000';
+const WEBAPP_URL = String(process.env.WEBAPP_URL || '').trim();
 const PORT = Number(process.env.PORT || 3000);
 const OWNER_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID || '504348666';
 const OWNER_PANEL_PASSWORD = (process.env.OWNER_PANEL_PASSWORD || process.env.ADMIN_PASSWORD || '').trim();
@@ -105,11 +105,6 @@ async function sendMessageSafe(telegramId, text, extra = undefined) {
   }
 }
 
-function buildWebAppUrl(startParam = '') {
-  const baseUrl = String(WEBAPP_URL || '').trim() || 'http://localhost:3000';
-  return withStartParamUrl(baseUrl, startParam);
-}
-
 function isLoopbackHostname(hostname) {
   const normalized = String(hostname || '').trim().toLowerCase();
   return normalized === 'localhost' || normalized === '127.0.0.1' || normalized === '0.0.0.0' || normalized === '::1';
@@ -123,7 +118,7 @@ function getRequestOrigin(req) {
 }
 
 function resolveWebAppBaseUrl(req = null) {
-  const configuredUrl = String(WEBAPP_URL || '').trim();
+  const configuredUrl = WEBAPP_URL;
 
   if (configuredUrl) {
     try {
@@ -131,12 +126,19 @@ function resolveWebAppBaseUrl(req = null) {
       if (req && isLoopbackHostname(parsed.hostname)) {
         return getRequestOrigin(req);
       }
+      if (isLoopbackHostname(parsed.hostname)) {
+        return `${parsed.protocol}//localhost:${PORT}`;
+      }
       return parsed.toString().replace(/\/$/, '');
     } catch (_) {}
   }
 
   if (req) return getRequestOrigin(req);
-  return 'http://localhost:3000';
+  return `http://localhost:${PORT}`;
+}
+
+function buildWebAppUrl(startParam = '', req = null) {
+  return withStartParamUrl(resolveWebAppBaseUrl(req), startParam);
 }
 
 function buildResolvedWebAppUrl(req, startParam = '') {
@@ -623,12 +625,13 @@ bot.start(async (ctx) => {
     return handleTelegramStandaloneLogin(ctx, loginMatch[1]);
   }
 
-  if (WEBAPP_URL.startsWith('http://localhost')) {
+  const resolvedBaseUrl = resolveWebAppBaseUrl();
+  if (resolvedBaseUrl.startsWith('http://localhost') || resolvedBaseUrl.startsWith('http://127.0.0.1')) {
     return ctx.reply(
       'Привет! Это бот "попутчики".\n' +
         'Сейчас бот запущен локально.\n\n' +
         'Мини-приложение можно открыть в браузере по адресу:\n' +
-        WEBAPP_URL
+        resolvedBaseUrl
     );
   }
 

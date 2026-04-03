@@ -2,3 +2,9 @@ node_modules
 .env
 poputchiki.db
 /uploads
+*.sqlite
+*.sqlite-journal
+*.db-journal
+tmp-*.db
+tmp-*.db-journal
+server-check*.log

@@ -27,7 +27,6 @@ db.serialize(() => {
       last_name TEXT,
       username TEXT,
       language_code TEXT,
-      is_premium INTEGER DEFAULT 0,
       no_show_count INTEGER DEFAULT 0,
       car_make TEXT,
       car_color TEXT,
@@ -62,8 +61,6 @@ db.serialize(() => {
       passenger_id INTEGER NOT NULL,
       seats_booked INTEGER NOT NULL,
       amount_total REAL NOT NULL,
-      driver_amount REAL NOT NULL DEFAULT 0,
-      app_fee REAL NOT NULL DEFAULT 0,
       status TEXT NOT NULL DEFAULT 'booked',
       created_at TEXT DEFAULT (datetime('now','localtime')),
       FOREIGN KEY (trip_id) REFERENCES trips(id),
@@ -81,8 +78,6 @@ db.serialize(() => {
       seats_needed INTEGER NOT NULL,
       price_per_seat REAL NOT NULL DEFAULT 0,
       amount_total REAL NOT NULL DEFAULT 0,
-      driver_amount REAL NOT NULL DEFAULT 0,
-      app_fee REAL NOT NULL DEFAULT 0,
       note TEXT,
       status TEXT NOT NULL DEFAULT 'active',
       driver_id INTEGER,
@@ -96,8 +91,6 @@ db.serialize(() => {
   [
     "ALTER TABLE passenger_plans ADD COLUMN price_per_seat REAL NOT NULL DEFAULT 0",
     "ALTER TABLE passenger_plans ADD COLUMN amount_total REAL NOT NULL DEFAULT 0",
-    "ALTER TABLE passenger_plans ADD COLUMN driver_amount REAL NOT NULL DEFAULT 0",
-    "ALTER TABLE passenger_plans ADD COLUMN app_fee REAL NOT NULL DEFAULT 0",
     "ALTER TABLE passenger_plans ADD COLUMN note TEXT",
     "ALTER TABLE passenger_plans ADD COLUMN driver_id INTEGER",
     "ALTER TABLE passenger_plans ADD COLUMN taken_at TEXT",
@@ -223,7 +216,6 @@ async function upsertUserFromTelegram(tgUser) {
     last_name,
     username,
     language_code,
-    is_premium,
   } = tgUser;
 
   const telegramId = String(id);
@@ -233,7 +225,7 @@ async function upsertUserFromTelegram(tgUser) {
     await runAsync(
       `
         UPDATE users
-        SET first_name = ?, last_name = ?, username = ?, language_code = ?, is_premium = ?
+        SET first_name = ?, last_name = ?, username = ?, language_code = ?
         WHERE telegram_id = ?
       `,
       [
@@ -241,7 +233,6 @@ async function upsertUserFromTelegram(tgUser) {
         last_name || null,
         username || null,
         language_code || null,
-        is_premium ? 1 : 0,
         telegramId,
       ]
     );
@@ -252,8 +243,8 @@ async function upsertUserFromTelegram(tgUser) {
   await runAsync(
     `
       INSERT INTO users (
-        telegram_id, first_name, last_name, username, language_code, is_premium
-      ) VALUES (?, ?, ?, ?, ?, ?)
+        telegram_id, first_name, last_name, username, language_code
+      ) VALUES (?, ?, ?, ?, ?)
     `,
     [
       telegramId,
@@ -261,7 +252,6 @@ async function upsertUserFromTelegram(tgUser) {
       last_name || null,
       username || null,
       language_code || null,
-      is_premium ? 1 : 0,
     ]
   );
 
@@ -524,8 +514,6 @@ async function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
   }
 
   const amountTotal = toNumber(trip.price_per_seat) * seatsNum;
-  const driverAmount = amountTotal;
-  const appFee = 0;
 
   return new Promise((resolve, reject) => {
     db.serialize(() => {
@@ -539,13 +527,11 @@ async function createBooking({ tripId, passengerTelegramId, seatsBooked }) {
               passenger_id,
               seats_booked,
               amount_total,
-              driver_amount,
-              app_fee,
               status,
               created_at
-            ) VALUES (?, ?, ?, ?, ?, ?, 'booked', datetime('now','localtime'))
+            ) VALUES (?, ?, ?, ?, 'booked', datetime('now','localtime'))
           `,
-          [trip.id, passenger.id, seatsNum, amountTotal, driverAmount, appFee],
+          [trip.id, passenger.id, seatsNum, amountTotal],
           function onInsert(insertErr) {
             if (insertErr) {
               db.run('ROLLBACK');
@@ -826,8 +812,6 @@ async function createPassengerPlan({
   }
 
   const amountTotal = priceNum * seatsNum;
-  const driverAmount = amountTotal;
-  const appFee = 0;
 
   await runAsync(
     `
@@ -839,12 +823,10 @@ async function createPassengerPlan({
         seats_needed,
         price_per_seat,
         amount_total,
-        driver_amount,
-        app_fee,
         note,
         status,
         created_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'active', datetime('now','localtime'))
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'active', datetime('now','localtime'))
     `,
     [
       Number(passengerId),
@@ -854,8 +836,6 @@ async function createPassengerPlan({
       seatsNum,
       priceNum,
       amountTotal,
-      driverAmount,
-      appFee,
       note ? String(note).trim() : null,
     ]
   );
