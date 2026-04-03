@@ -552,7 +552,9 @@ function renderFeed() {
       ? items.map((plan) => renderPlanCard(plan, { take: true })).join('')
       : emptyState(hasActiveFilters()
         ? 'По выбранным фильтрам заявок не найдено.'
-        : 'Пассажирских заявок пока нет. Смените вкладку или создайте новую заявку через кнопку +.');
+        : (state.user
+          ? 'Пассажирских заявок пока нет. Смените вкладку или создайте новую заявку через кнопку +.'
+          : 'Чтобы видеть заявки пассажиров и работать с ними, войдите через Telegram.'));
   }
 
   updateTabs();
@@ -775,6 +777,32 @@ async function handleInstallApp() {
     }
   } catch (error) {
     setStatus(error.message || 'Не удалось открыть сценарий установки.', 'error');
+  }
+}
+
+async function handleTelegramLogin() {
+  try {
+    refs.telegramLoginBtn.disabled = true;
+    setStatus('Готовлю вход через Telegram...');
+
+    const data = await apiRequest('/api/auth/telegram/start', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+
+    if (!data?.token || !data?.url) {
+      throw new Error('Не удалось подготовить ссылку для входа');
+    }
+
+    startTelegramLoginPolling(data.token);
+    setStatus('Открываю Telegram. Подтвердите вход у бота и вернитесь в приложение.');
+    openTelegramLoginUrl(data.url);
+  } catch (error) {
+    setStatus(error.message || 'Не удалось начать вход через Telegram.', 'error');
+  } finally {
+    refs.telegramLoginBtn.disabled = false;
+    updateAuthPanel();
   }
 }
 
@@ -1002,6 +1030,12 @@ async function bootstrap() {
   updatePwaActions();
   updateViews();
   const needsStandaloneHint = !state.user;
+  const savedTelegramLoginToken = !state.user ? loadSavedTelegramLoginToken() : '';
+  if (savedTelegramLoginToken) {
+    startTelegramLoginPolling(savedTelegramLoginToken);
+  } else {
+    updateAuthPanel();
+  }
 
   const initialFeed = state.pendingHighlight?.feed || 'driver-trips';
   await setFeed(initialFeed, true);
@@ -1016,6 +1050,8 @@ async function bootstrap() {
     setStatus('Браузер открылся, но вход не подтянулся. Вернитесь в Telegram и нажмите «Установить» ещё раз.', 'error');
   } else if (handoffState === 'expired') {
     setStatus('Ссылка для перехода в браузер устарела. Нажмите «Установить» ещё раз внутри Telegram.', 'error');
+  } else if (needsStandaloneHint && !tg) {
+    setStatus('Для установленной версии войдите через Telegram кнопкой ниже. После подтверждения ботом приложение продолжит работу уже от вашего имени.');
   } else if (needsStandaloneHint) {
     setStatus('Откройте приложение через Telegram хотя бы один раз. После этого его можно установить на телефон и запускать как обычное веб-приложение.');
   }
@@ -1038,6 +1074,7 @@ refs.bottomSearchBtn.addEventListener('click', openSearchFilters);
 refs.bottomActiveBtn.addEventListener('click', () => setView('active'));
 refs.bottomInstallBtn.addEventListener('click', handleInstallApp);
 refs.installAppBtn.addEventListener('click', handleInstallApp);
+refs.telegramLoginBtn.addEventListener('click', handleTelegramLogin);
 refs.pushToggleBtn.addEventListener('click', handlePushToggle);
 refs.composerForm.addEventListener('submit', submitComposer);
 refs.filterForm.addEventListener('submit', applyFilters);
@@ -1046,6 +1083,12 @@ document.addEventListener('click', handleActionClick);
 
 document.querySelectorAll('.drawer-link[data-view]').forEach((button) => {
   button.addEventListener('click', () => setView(button.dataset.view));
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.auth.pendingToken && !state.user) {
+    pollTelegramLoginStatus(state.auth.pendingToken).catch(() => {});
+  }
 });
 
 bootstrap();
