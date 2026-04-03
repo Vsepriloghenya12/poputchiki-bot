@@ -41,6 +41,9 @@ const {
   getPushSubscriptionsByUserIds,
   deletePushSubscriptionByEndpoint,
   deletePushSubscription,
+  registerAutopostChat,
+  deactivateAutopostChat,
+  getActiveAutopostChats,
 } = require('./db');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -384,11 +387,105 @@ function channelKeyboard(openUrl) {
   };
 }
 
+async function getAutopostTargets() {
+  const dbChats = await getActiveAutopostChats().catch(() => []);
+  const combinedTargets = [...new Set([
+    ...dbChats.map((row) => String(row.chat_id || '').trim()).filter(Boolean),
+    ...PUBLIC_CHANNELS,
+  ])];
+
+  return {
+    dbChats,
+    targets: combinedTargets,
+  };
+}
+
+function isGroupChat(ctx) {
+  return ctx?.chat?.type === 'group' || ctx?.chat?.type === 'supergroup';
+}
+
+function formatChatName(chat) {
+  const title = String(chat?.title || '').trim();
+  if (title) return title;
+  const username = String(chat?.username || '').trim().replace(/^@/, '');
+  if (username) return `@${username}`;
+  return String(chat?.id || 'эта группа');
+}
+
+async function isChatAdmin(ctx) {
+  const chatId = ctx?.chat?.id;
+  const userId = ctx?.from?.id;
+  if (!chatId || !userId) return false;
+
+  try {
+    const member = await ctx.getChatMember(userId);
+    return member?.status === 'creator' || member?.status === 'administrator';
+  } catch (error) {
+    console.warn('isChatAdmin error:', error?.message || error);
+    return false;
+  }
+}
+
+async function handleSetChannel(ctx) {
+  if (!isGroupChat(ctx)) {
+    return ctx.reply('Эту команду нужно отправлять прямо в той группе, куда бот должен публиковать поездки и заявки.');
+  }
+
+  const isAdmin = await isChatAdmin(ctx);
+  if (!isAdmin) {
+    return ctx.reply('Подключать группу может только администратор этой группы.');
+  }
+
+  const saved = await registerAutopostChat({
+    chatId: ctx.chat.id,
+    title: ctx.chat.title,
+    type: ctx.chat.type,
+    username: ctx.chat.username,
+    addedByTelegramId: ctx.from?.id,
+  });
+
+  return ctx.reply(
+    `Группа «${formatChatName(saved || ctx.chat)}» подключена.\nТеперь бот будет публиковать сюда новые поездки и заявки пассажиров.`
+  );
+}
+
+async function handleUnsetChannel(ctx) {
+  if (!isGroupChat(ctx)) {
+    return ctx.reply('Эту команду нужно отправлять прямо в группе, которую нужно отключить.');
+  }
+
+  const isAdmin = await isChatAdmin(ctx);
+  if (!isAdmin) {
+    return ctx.reply('Отключать группу может только администратор этой группы.');
+  }
+
+  await deactivateAutopostChat(ctx.chat.id);
+  return ctx.reply(`Группа «${formatChatName(ctx.chat)}» отключена от автопубликации.`);
+}
+
+async function handleChannelsList(ctx) {
+  const { dbChats, targets } = await getAutopostTargets();
+  if (!targets.length) {
+    return ctx.reply('Пока не подключено ни одной группы для автопубликации.');
+  }
+
+  const fromDb = new Set(dbChats.map((row) => String(row.chat_id)));
+  const lines = targets.map((target, index) => {
+    const chat = dbChats.find((row) => String(row.chat_id) === String(target));
+    const label = chat ? formatChatName(chat) : String(target);
+    const source = fromDb.has(String(target)) ? 'подключена командой' : 'из переменных окружения';
+    return `${index + 1}. ${label} — ${source}`;
+  });
+
+  return ctx.reply(`Подключённые группы для автопоста:\n\n${lines.join('\n')}`);
+}
+
 async function sendToChannelsSafe(html, keyboardExtra) {
-  if (!PUBLIC_CHANNELS.length || !AUTOPOST_ENABLED) return;
+  const { targets } = await getAutopostTargets();
+  if (!targets.length || !AUTOPOST_ENABLED) return;
 
   await Promise.allSettled(
-    PUBLIC_CHANNELS.map(async (target) => {
+    targets.map(async (target) => {
       try {
         await bot.telegram.sendMessage(target, html, {
           parse_mode: 'HTML',
@@ -474,6 +571,26 @@ bot.start(async (ctx) => {
     webAppOpenKeyboard('Открыть попутчики')
   );
 });
+
+bot.command('setchannel', (ctx) => handleSetChannel(ctx).catch((error) => {
+  console.warn('setchannel error:', error?.message || error);
+  return ctx.reply('Не удалось подключить группу. Проверьте, что бот имеет доступ к этой группе.');
+}));
+
+bot.command('setchanel', (ctx) => handleSetChannel(ctx).catch((error) => {
+  console.warn('setchanel error:', error?.message || error);
+  return ctx.reply('Не удалось подключить группу. Проверьте, что бот имеет доступ к этой группе.');
+}));
+
+bot.command('unsetchannel', (ctx) => handleUnsetChannel(ctx).catch((error) => {
+  console.warn('unsetchannel error:', error?.message || error);
+  return ctx.reply('Не удалось отключить группу от автопубликации.');
+}));
+
+bot.command('channels', (ctx) => handleChannelsList(ctx).catch((error) => {
+  console.warn('channels error:', error?.message || error);
+  return ctx.reply('Не удалось получить список подключённых групп.');
+}));
 
 if (!DISABLE_BOT) {
   bot.telegram
@@ -992,6 +1109,8 @@ app.get('/api/app-config', async (req, res) => {
       } catch (_) {}
     }
 
+    const autopostTargets = await getAutopostTargets();
+
     return res.json({
       deeplink_prefix: buildDeeplinkPrefix(),
       bot_username: BOT_USERNAME_RUNTIME || null,
@@ -1005,9 +1124,10 @@ app.get('/api/app-config', async (req, res) => {
         enabled: PUSH_ENABLED,
       },
       autopost: {
-        enabled: !!(PUBLIC_CHANNELS.length && AUTOPOST_ENABLED),
-        channel: PUBLIC_CHANNELS[0] || PUBLIC_CHANNEL || null,
-        channels: PUBLIC_CHANNELS,
+        enabled: !!(autopostTargets.targets.length && AUTOPOST_ENABLED),
+        channel: autopostTargets.targets[0] || PUBLIC_CHANNEL || null,
+        channels: autopostTargets.targets,
+        registered_chats: autopostTargets.dbChats,
         brand: CHANNEL_BRAND,
       },
     });

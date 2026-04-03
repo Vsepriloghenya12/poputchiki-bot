@@ -159,6 +159,25 @@ db.serialize(() => {
     CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id
     ON push_subscriptions (user_id)
   `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS autopost_chats (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      chat_id TEXT NOT NULL UNIQUE,
+      title TEXT,
+      type TEXT,
+      username TEXT,
+      is_active INTEGER NOT NULL DEFAULT 1,
+      added_by_telegram_id TEXT,
+      created_at TEXT DEFAULT (datetime('now','localtime')),
+      updated_at TEXT DEFAULT (datetime('now','localtime'))
+    )
+  `);
+
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_autopost_chats_active
+    ON autopost_chats (is_active, title)
+  `);
 });
 
 function runAsync(sql, params = []) {
@@ -1251,6 +1270,77 @@ function deletePushSubscription({ userId, endpoint }) {
   );
 }
 
+async function registerAutopostChat({ chatId, title, type, username, addedByTelegramId }) {
+  const normalizedChatId = String(chatId || '').trim();
+  if (!normalizedChatId) {
+    throw new Error('Не передан chat_id группы');
+  }
+
+  await runAsync(
+    `
+      INSERT INTO autopost_chats (
+        chat_id,
+        title,
+        type,
+        username,
+        is_active,
+        added_by_telegram_id,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, 1, ?, datetime('now','localtime'), datetime('now','localtime'))
+      ON CONFLICT(chat_id) DO UPDATE SET
+        title = excluded.title,
+        type = excluded.type,
+        username = excluded.username,
+        is_active = 1,
+        added_by_telegram_id = excluded.added_by_telegram_id,
+        updated_at = datetime('now','localtime')
+    `,
+    [
+      normalizedChatId,
+      title ? String(title).trim() : null,
+      type ? String(type).trim() : null,
+      username ? String(username).replace(/^@/, '').trim() : null,
+      addedByTelegramId ? String(addedByTelegramId).trim() : null,
+    ]
+  );
+
+  return getAsync(`SELECT * FROM autopost_chats WHERE chat_id = ?`, [normalizedChatId]);
+}
+
+async function deactivateAutopostChat(chatId) {
+  const normalizedChatId = String(chatId || '').trim();
+  if (!normalizedChatId) {
+    throw new Error('Не передан chat_id группы');
+  }
+
+  await runAsync(
+    `
+      UPDATE autopost_chats
+      SET is_active = 0,
+          updated_at = datetime('now','localtime')
+      WHERE chat_id = ?
+    `,
+    [normalizedChatId]
+  );
+
+  return getAsync(`SELECT * FROM autopost_chats WHERE chat_id = ?`, [normalizedChatId]);
+}
+
+function getActiveAutopostChats() {
+  return allAsync(
+    `
+      SELECT *
+      FROM autopost_chats
+      WHERE is_active = 1
+      ORDER BY
+        CASE WHEN title IS NULL OR trim(title) = '' THEN 1 ELSE 0 END,
+        title COLLATE NOCASE ASC,
+        id ASC
+    `
+  );
+}
+
 module.exports = {
   db,
   dbRun: runAsync,
@@ -1287,4 +1377,7 @@ module.exports = {
   getPushSubscriptionsByUserIds,
   deletePushSubscriptionByEndpoint,
   deletePushSubscription,
+  registerAutopostChat,
+  deactivateAutopostChat,
+  getActiveAutopostChats,
 };
