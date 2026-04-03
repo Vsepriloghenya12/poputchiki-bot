@@ -471,6 +471,8 @@ app.use((req, res, next) => {
 
 app.get('/handoff', (req, res) => {
   const payload = consumeSessionHandoffToken(req.query.token);
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
   if (!payload?.telegram_id) {
     return res.redirect('/?handoff=expired');
   }

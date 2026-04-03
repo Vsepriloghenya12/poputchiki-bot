@@ -1,5 +1,5 @@
 
-import { apiRequest, getStartParam, getTelegramUser, initUser, openChat, showAlert, tg } from './shared/api.js';
+import { apiRequest, getStartParam, getTelegramUser, initUser, loadUserSession, openChat, showAlert, tg } from './shared/api.js';
 import { escapeHtml, formatDateTime, formatMoney, formatName, getInitials, isUpcoming, statusBadge } from './shared/format.js';
 import { disablePushNotifications, enablePushNotifications, getPwaState, initPwa, promptInstall } from './shared/pwa.js';
 
@@ -135,8 +135,8 @@ function updatePwaActions() {
     : (state.pwa.installAvailable ? 'Установить приложение' : 'Как установить');
   refs.installAppBtn.disabled = false;
   refs.bottomInstallLabel.textContent = state.pwa.standalone
-    ? 'Готово'
-    : (state.pwa.installAvailable ? 'Уст.' : 'Уст.');
+    ? 'Установлено'
+    : 'Установить';
   refs.bottomInstallBtn.classList.toggle('is-complete', state.pwa.standalone);
 
   refs.pushToggleLabel.textContent = state.pwa.pushEnabled ? 'Выключить уведомления' : 'Включить уведомления';
@@ -170,10 +170,11 @@ function openExternalInstallUrl(url) {
     return;
   }
 
-  // Fallback for clients where openLink silently does nothing.
   window.setTimeout(() => {
-    window.location.assign(targetUrl);
-  }, 1200);
+    if (document.visibilityState === 'visible') {
+      setStatus('Если внешний браузер не открылся, нажмите «Установить» ещё раз.');
+    }
+  }, 1400);
 }
 
 function updateTabs() {
@@ -874,6 +875,14 @@ async function bootstrap() {
     setStatus(error.message || 'Не удалось определить пользователя.', 'error');
   }
 
+  if (!state.user && handoffState === 'ok') {
+    try {
+      await new Promise((resolve) => window.setTimeout(resolve, 250));
+      const session = await loadUserSession();
+      state.user = session.user || null;
+    } catch (_) {}
+  }
+
   await initPwa({
     onInstallAvailabilityChange: updatePwaActions,
     onPushStateChange: updatePwaActions,
@@ -887,8 +896,10 @@ async function bootstrap() {
   const initialFeed = state.pendingHighlight?.feed || 'driver-trips';
   await setFeed(initialFeed, true);
 
-  if (handoffState === 'ok') {
+  if (handoffState === 'ok' && state.user) {
     setStatus('Браузерная сессия готова. Теперь установите приложение на телефон через меню браузера или кнопку внизу.');
+  } else if (handoffState === 'ok') {
+    setStatus('Браузер открылся, но вход не подтянулся. Вернитесь в Telegram и нажмите «Установить» ещё раз.', 'error');
   } else if (handoffState === 'expired') {
     setStatus('Ссылка для перехода в браузер устарела. Нажмите «Установить» ещё раз внутри Telegram.', 'error');
   } else if (needsStandaloneHint) {
