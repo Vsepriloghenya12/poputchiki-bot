@@ -42,6 +42,10 @@ const BOT_TOKEN = process.env.BOT_TOKEN;
 const WEBAPP_URL = process.env.WEBAPP_URL || 'http://localhost:3000';
 const PORT = Number(process.env.PORT || 3000);
 const OWNER_TELEGRAM_ID = process.env.ADMIN_TELEGRAM_ID || '504348666';
+const OWNER_PANEL_PASSWORD = (process.env.OWNER_PANEL_PASSWORD || process.env.ADMIN_PASSWORD || '').trim();
+const OWNER_SESSION_SECRET = (process.env.OWNER_SESSION_SECRET || process.env.SESSION_SECRET || BOT_TOKEN || 'owner-session-secret').trim();
+const OWNER_SESSION_COOKIE = 'poputchiki_owner_session';
+const OWNER_SESSION_TTL_MS = Math.max(1, Number(process.env.OWNER_SESSION_TTL_HOURS || 12)) * 60 * 60 * 1000;
 const DISABLE_BOT = process.env.DISABLE_BOT === '1';
 
 const PUBLIC_CHANNEL = (process.env.PUBLIC_CHANNEL || '').trim();
@@ -321,13 +325,140 @@ function isOwnerTelegramId(telegramId) {
   return String(telegramId || '') === String(OWNER_TELEGRAM_ID);
 }
 
+function sha256Buffer(value) {
+  return crypto.createHash('sha256').update(String(value || ''), 'utf8').digest();
+}
+
+function isSameSecret(left, right) {
+  return crypto.timingSafeEqual(sha256Buffer(left), sha256Buffer(right));
+}
+
+function isSecureOwnerCookie(req) {
+  if (process.env.NODE_ENV !== 'production') return false;
+  if (req?.secure) return true;
+  const forwardedProto = String(req?.headers?.['x-forwarded-proto'] || '').toLowerCase();
+  return forwardedProto === 'https';
+}
+
+function parseCookies(req) {
+  const source = String(req.headers.cookie || '');
+  if (!source) return {};
+
+  return source.split(';').reduce((acc, part) => {
+    const [rawName, ...rest] = part.trim().split('=');
+    if (!rawName) return acc;
+    acc[rawName] = decodeURIComponent(rest.join('=') || '');
+    return acc;
+  }, {});
+}
+
+function signOwnerSessionPayload(encodedPayload) {
+  return crypto.createHmac('sha256', OWNER_SESSION_SECRET).update(String(encodedPayload || ''), 'utf8').digest('base64url');
+}
+
+function createOwnerSessionToken() {
+  const payload = Buffer.from(
+    JSON.stringify({
+      role: 'owner',
+      exp: Date.now() + OWNER_SESSION_TTL_MS,
+    }),
+    'utf8'
+  ).toString('base64url');
+
+  return `${payload}.${signOwnerSessionPayload(payload)}`;
+}
+
+function getOwnerSessionData(req) {
+  const token = parseCookies(req)[OWNER_SESSION_COOKIE];
+  if (!token || !token.includes('.')) return null;
+
+  const [encodedPayload, signature] = token.split('.');
+  const expectedSignature = signOwnerSessionPayload(encodedPayload);
+  if (!signature || !isSameSecret(signature, expectedSignature)) return null;
+
+  try {
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+    if (!payload || payload.role !== 'owner' || !payload.exp || Number(payload.exp) < Date.now()) {
+      return null;
+    }
+    return payload;
+  } catch (_) {
+    return null;
+  }
+}
+
+function hasOwnerSession(req) {
+  return !!getOwnerSessionData(req);
+}
+
+function setOwnerSessionCookie(req, res) {
+  res.cookie(OWNER_SESSION_COOKIE, createOwnerSessionToken(), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecureOwnerCookie(req),
+    path: '/',
+    maxAge: OWNER_SESSION_TTL_MS,
+  });
+}
+
+function clearOwnerSessionCookie(req, res) {
+  res.cookie(OWNER_SESSION_COOKIE, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecureOwnerCookie(req),
+    path: '/',
+    maxAge: 0,
+  });
+}
+
 function ensureOwnerAccess(req, res) {
+  if (hasOwnerSession(req)) {
+    return true;
+  }
+
   if (!isOwnerTelegramId(req.telegramId || req.query.telegram_id || req.body.telegram_id)) {
     res.status(403).json({ error: 'Нет доступа' });
     return false;
   }
   return true;
 }
+
+app.get('/api/owner/session', (req, res) => {
+  const authenticated = hasOwnerSession(req) || isOwnerTelegramId(req.telegramId || req.query.telegram_id);
+  return res.json({
+    authenticated,
+    password_configured: !!OWNER_PANEL_PASSWORD,
+  });
+});
+
+app.post('/api/owner/login', (req, res) => {
+  try {
+    if (!OWNER_PANEL_PASSWORD) {
+      return res.status(503).json({ error: 'Пароль панели владельца не настроен на сервере' });
+    }
+
+    const password = String(req.body.password || '');
+    if (!password) {
+      return res.status(400).json({ error: 'Введите пароль' });
+    }
+
+    if (!isSameSecret(password, OWNER_PANEL_PASSWORD)) {
+      return res.status(401).json({ error: 'Неверный пароль' });
+    }
+
+    setOwnerSessionCookie(req, res);
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Ошибка /api/owner/login:', error);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+app.post('/api/owner/logout', (req, res) => {
+  clearOwnerSessionCookie(req, res);
+  return res.json({ success: true });
+});
+
 app.post('/api/init-user', async (req, res) => {
   try {
     const user = req.body.user || req.telegramUser;

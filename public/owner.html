@@ -4,7 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Отчёты владельца • Попутчики</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -21,7 +20,8 @@
         </div>
         <div class="owner-topbar__actions">
           <a class="ghost-button" href="/">Открыть приложение</a>
-          <div class="badge success" id="ownerName">Владелец</div>
+          <button class="ghost-button hidden" type="button" id="logoutOwnerBtn">Выйти</button>
+          <div class="badge success hidden" id="ownerAuthBadge">Доступ открыт</div>
         </div>
       </header>
 
@@ -30,18 +30,18 @@
 
         <section class="desktop-access" id="desktopAccessPanel">
           <div>
-            <h2>Вход владельца</h2>
-            <p>Откройте панель на ПК по Telegram ID владельца. Доступ из мини-приложения больше не нужен.</p>
+            <h2>Вход по паролю</h2>
+            <p>Введите пароль панели владельца. После входа откроется полноценная desktop-страница управления.</p>
           </div>
           <form class="desktop-access__form" id="desktopAccessForm">
-            <input class="input" id="ownerTelegramIdInput" type="text" inputmode="numeric" placeholder="Telegram ID владельца" />
-            <button class="button" type="submit">Открыть панель</button>
+            <input class="input" id="ownerPasswordInput" type="password" autocomplete="current-password" placeholder="Пароль владельца" />
+            <button class="button" type="submit">Войти</button>
             <button class="ghost-button" type="button" id="clearDesktopAccessBtn">Очистить</button>
           </form>
         </section>
 
         <section class="access-card hidden" id="accessCard">
-          Нет доступа к панели владельца. Проверьте Telegram ID владельца или откройте страницу из owner-аккаунта.
+          Нет доступа к панели владельца. Проверьте пароль и повторите вход.
         </section>
 
         <div class="owner-content hidden" id="ownerContent">
