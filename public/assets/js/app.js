@@ -47,6 +47,10 @@ const refs = {
   authPanel: document.getElementById('authPanel'),
   authPanelText: document.getElementById('authPanelText'),
   telegramLoginBtn: document.getElementById('telegramLoginBtn'),
+  installGuide: document.getElementById('installGuide'),
+  installGuideTitle: document.getElementById('installGuideTitle'),
+  installGuideText: document.getElementById('installGuideText'),
+  installGuideSteps: document.getElementById('installGuideSteps'),
   viewFeed: document.getElementById('viewFeed'),
   viewActive: document.getElementById('viewActive'),
   viewHistory: document.getElementById('viewHistory'),
@@ -124,6 +128,72 @@ function setStatus(message = '', tone = '') {
   refs.statusBanner.classList.toggle('is-error', tone === 'error');
 }
 
+function detectInstallPlatform() {
+  const userAgent = String(window.navigator.userAgent || '').toLowerCase();
+  const platform = String(window.navigator.platform || '').toLowerCase();
+  const isIOS =
+    /iphone|ipad|ipod/.test(userAgent) ||
+    (/mac/.test(platform) && Number(window.navigator.maxTouchPoints || 0) > 1);
+  const isAndroid = /android/.test(userAgent);
+
+  if (isIOS) return 'ios';
+  if (isAndroid) return 'android';
+  return 'other';
+}
+
+function getInstallGuideContent() {
+  const platform = detectInstallPlatform();
+
+  if (platform === 'ios') {
+    return {
+      title: 'Как добавить на экран iPhone',
+      text: 'Откройте приложение в Safari и добавьте его на экран Домой.',
+      steps: [
+        'Внизу Safari нажмите кнопку «Поделиться».',
+        'Выберите пункт «На экран Домой».',
+        'Нажмите «Добавить» в правом верхнем углу.',
+      ],
+    };
+  }
+
+  if (platform === 'android') {
+    return {
+      title: 'Как добавить на экран Android',
+      text: 'Откройте меню браузера и установите приложение на главный экран.',
+      steps: [
+        'В Chrome нажмите меню браузера в правом верхнем углу.',
+        'Выберите «Установить приложение» или «Добавить на главный экран».',
+        'Подтвердите установку кнопкой «Установить» или «Добавить».',
+      ],
+    };
+  }
+
+  return {
+    title: 'Как добавить приложение на главный экран',
+    text: 'Откройте сайт в обычном браузере и добавьте его на главный экран через меню браузера.',
+    steps: [
+      'Откройте меню браузера.',
+      'Найдите пункт «Установить приложение» или «Добавить на главный экран».',
+      'Подтвердите добавление приложения.',
+    ],
+  };
+}
+
+function renderInstallGuide() {
+  const content = getInstallGuideContent();
+  refs.installGuideTitle.textContent = content.title;
+  refs.installGuideText.textContent = content.text;
+  refs.installGuideSteps.innerHTML = content.steps
+    .map((step) => `<li>${escapeHtml(step)}</li>`)
+    .join('');
+  refs.installGuide.classList.remove('hidden');
+}
+
+function hideInstallGuide() {
+  refs.installGuide.classList.add('hidden');
+  refs.installGuideSteps.innerHTML = '';
+}
+
 function saveTelegramLoginToken(token = '') {
   state.auth.pendingToken = String(token || '').trim();
   try {
@@ -191,6 +261,7 @@ function updatePwaActions() {
   refs.pushToggleLabel.textContent = state.pwa.pushEnabled ? 'Выключить уведомления' : 'Включить уведомления';
   refs.pushToggleBtn.disabled = !state.user || !state.pwa.pushSupported;
   refs.pushToggleBtn.classList.toggle('is-disabled', refs.pushToggleBtn.disabled);
+  if (state.pwa.standalone) hideInstallGuide();
   updateAuthPanel();
 }
 
@@ -746,7 +817,7 @@ async function handleInstallApp() {
       });
 
       if (handoff?.url) {
-        setStatus('Открываю приложение во внешнем браузере. Установите его там на телефон, и оно будет работать отдельно от Telegram.');
+        setStatus('Открываю приложение во внешнем браузере. Там появится инструкция, как добавить его на главный экран.');
         openExternalInstallUrl(handoff.url);
         return;
       }
@@ -756,23 +827,26 @@ async function handleInstallApp() {
     updatePwaActions();
 
     if (result?.outcome === 'accepted') {
+      hideInstallGuide();
       setStatus('Приложение добавлено на экран. Теперь его можно запускать как обычное приложение.');
       return;
     }
 
     if (result?.outcome === 'already-installed') {
+      hideInstallGuide();
       setStatus('Приложение уже установлено и готово к запуску с экрана телефона.');
       return;
     }
 
     if (result?.outcome === 'manual') {
-      setStatus('Автоустановка недоступна. Показываю, что сделать вручную.');
-      showAlert('Откройте сайт в обычном браузере Chrome или Safari и добавьте его на экран домой. Внутри Telegram полноценная установка PWA обычно недоступна.');
+      renderInstallGuide();
+      setStatus('Автоустановка недоступна. Ниже показана инструкция именно для вашего телефона.');
       return;
     }
 
     if (result?.outcome === 'dismissed') {
-      setStatus('Установка была закрыта. Можно нажать кнопку ещё раз.');
+      renderInstallGuide();
+      setStatus('Окно установки закрыто. Ниже оставил инструкцию, как добавить приложение на главный экран вручную.');
       return;
     }
   } catch (error) {
@@ -1029,6 +1103,7 @@ async function bootstrap() {
   updateUserCard();
   updatePwaActions();
   updateViews();
+  hideInstallGuide();
   const needsStandaloneHint = !state.user;
   const savedTelegramLoginToken = !state.user ? loadSavedTelegramLoginToken() : '';
   if (savedTelegramLoginToken) {
@@ -1041,13 +1116,16 @@ async function bootstrap() {
   await setFeed(initialFeed, true);
 
   if (launchState === 'ok' && state.user) {
+    hideInstallGuide();
     setStatus('Установленная версия готова. Теперь приложение будет открываться уже с выполненным входом.');
   } else if (launchState === 'expired') {
     setStatus('Сохранённый вход для установленной версии устарел. Откройте приложение в Telegram и нажмите «Установить» ещё раз.', 'error');
   } else if (handoffState === 'ok' && state.user) {
-    setStatus('Браузерная сессия готова. Теперь установите приложение на телефон через меню браузера или кнопку внизу.');
+    renderInstallGuide();
+    setStatus('Вы уже в браузере. Ниже показано, как добавить приложение на главный экран вашего телефона.');
   } else if (handoffState === 'ok') {
-    setStatus('Браузер открылся, но вход не подтянулся. Вернитесь в Telegram и нажмите «Установить» ещё раз.', 'error');
+    renderInstallGuide();
+    setStatus('Вы уже в браузере. Сначала войдите через Telegram ниже, затем добавьте приложение на главный экран по инструкции.', 'error');
   } else if (handoffState === 'expired') {
     setStatus('Ссылка для перехода в браузер устарела. Нажмите «Установить» ещё раз внутри Telegram.', 'error');
   } else if (needsStandaloneHint && !tg) {

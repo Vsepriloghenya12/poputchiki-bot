@@ -13,10 +13,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="manifest" href="/manifest.webmanifest?v=20260403d" />
+  <link rel="manifest" href="/manifest.webmanifest?v=20260403e" />
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png" />
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/assets/css/app.css?v=20260403d" />
+  <link rel="stylesheet" href="/assets/css/app.css?v=20260403e" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -158,6 +158,11 @@
           <div class="auth-panel__text" id="authPanelText">Авторизуйтесь через Telegram, чтобы видеть свои поездки, брони и историю.</div>
           <button class="button is-block" type="button" id="telegramLoginBtn">Войти через Telegram</button>
         </section>
+        <section class="install-guide hidden" id="installGuide">
+          <div class="install-guide__title" id="installGuideTitle">Как добавить приложение на главный экран</div>
+          <div class="install-guide__text" id="installGuideText">Откройте меню браузера и добавьте приложение на главный экран.</div>
+          <ol class="install-guide__steps" id="installGuideSteps"></ol>
+        </section>
 
         <section class="view is-active" id="viewFeed">
           <div class="cards-stack" id="feedList"></div>
@@ -221,6 +226,6 @@
     </div>
   </div>
 
-  <script type="module" src="/assets/js/app.js?v=20260403d"></script>
+  <script type="module" src="/assets/js/app.js?v=20260403e"></script>
 </body>
 </html>

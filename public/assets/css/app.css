@@ -28,6 +28,39 @@
   line-height: 1.45;
 }
 
+.install-guide {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(215, 225, 241, 0.95);
+  box-shadow: 0 10px 24px rgba(18, 41, 76, 0.08);
+}
+
+.install-guide__title {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+}
+
+.install-guide__text {
+  color: var(--color-muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.install-guide__steps {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+  color: var(--color-text);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
 .drawer-user {
   padding: 18px;
   border-radius: 22px;
