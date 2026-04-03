@@ -618,6 +618,7 @@ async function openSearchFilters() {
 async function handleInstallApp() {
   try {
     closeDrawer();
+    setStatus('Открываю установку...');
 
     if (tg && !state.pwa.standalone) {
       if (!state.user) {
@@ -653,7 +654,14 @@ async function handleInstallApp() {
     }
 
     if (result?.outcome === 'manual') {
+      setStatus('Автоустановка недоступна. Показываю, что сделать вручную.');
       showAlert('Откройте сайт в обычном браузере Chrome или Safari и добавьте его на экран домой. Внутри Telegram полноценная установка PWA обычно недоступна.');
+      return;
+    }
+
+    if (result?.outcome === 'dismissed') {
+      setStatus('Установка была закрыта. Можно нажать кнопку ещё раз.');
+      return;
     }
   } catch (error) {
     setStatus(error.message || 'Не удалось открыть сценарий установки.', 'error');
