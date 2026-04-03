@@ -400,8 +400,8 @@ async function getAutopostTargets() {
   };
 }
 
-function isGroupChat(ctx) {
-  return ctx?.chat?.type === 'group' || ctx?.chat?.type === 'supergroup';
+function isRegisterableChat(ctx) {
+  return ctx?.chat?.type === 'group' || ctx?.chat?.type === 'supergroup' || ctx?.chat?.type === 'channel';
 }
 
 function formatChatName(chat) {
@@ -415,6 +415,9 @@ function formatChatName(chat) {
 async function isChatAdmin(ctx) {
   const chatId = ctx?.chat?.id;
   const userId = ctx?.from?.id;
+  if (ctx?.chat?.type === 'channel' && !userId) {
+    return true;
+  }
   if (!chatId || !userId) return false;
 
   try {
@@ -427,13 +430,13 @@ async function isChatAdmin(ctx) {
 }
 
 async function handleSetChannel(ctx) {
-  if (!isGroupChat(ctx)) {
-    return ctx.reply('Эту команду нужно отправлять прямо в той группе, куда бот должен публиковать поездки и заявки.');
+  if (!isRegisterableChat(ctx)) {
+    return ctx.reply('Эту команду нужно отправлять прямо в той группе или канале, куда бот должен публиковать поездки и заявки.');
   }
 
   const isAdmin = await isChatAdmin(ctx);
   if (!isAdmin) {
-    return ctx.reply('Подключать группу может только администратор этой группы.');
+    return ctx.reply('Подключать группу или канал может только администратор.');
   }
 
   const saved = await registerAutopostChat({
@@ -445,22 +448,58 @@ async function handleSetChannel(ctx) {
   });
 
   return ctx.reply(
-    `Группа «${formatChatName(saved || ctx.chat)}» подключена.\nТеперь бот будет публиковать сюда новые поездки и заявки пассажиров.`
+    `Чат «${formatChatName(saved || ctx.chat)}» подключён.\nТеперь бот будет публиковать сюда новые поездки и заявки пассажиров.`
   );
 }
 
 async function handleUnsetChannel(ctx) {
-  if (!isGroupChat(ctx)) {
-    return ctx.reply('Эту команду нужно отправлять прямо в группе, которую нужно отключить.');
+  if (!isRegisterableChat(ctx)) {
+    return ctx.reply('Эту команду нужно отправлять прямо в группе или канале, который нужно отключить.');
   }
 
   const isAdmin = await isChatAdmin(ctx);
   if (!isAdmin) {
-    return ctx.reply('Отключать группу может только администратор этой группы.');
+    return ctx.reply('Отключать группу или канал может только администратор.');
   }
 
   await deactivateAutopostChat(ctx.chat.id);
-  return ctx.reply(`Группа «${formatChatName(ctx.chat)}» отключена от автопубликации.`);
+  return ctx.reply(`Чат «${formatChatName(ctx.chat)}» отключён от автопубликации.`);
+}
+
+function extractCommandText(ctx) {
+  const text = String(ctx?.message?.text || ctx?.channelPost?.text || ctx?.update?.channel_post?.text || '').trim();
+  return text;
+}
+
+function matchBotCommand(ctx, commandName) {
+  const text = extractCommandText(ctx);
+  if (!text) return false;
+
+  const escaped = String(commandName || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const username = String(BOT_USERNAME_RUNTIME || '').replace(/^@/, '').trim();
+  const pattern = username
+    ? new RegExp(`^/${escaped}(?:@${username})?(?:\\s|$)`, 'i')
+    : new RegExp(`^/${escaped}(?:@\\w+)?(?:\\s|$)`, 'i');
+
+  return pattern.test(text);
+}
+
+async function handleChannelPostCommand(ctx) {
+  if (!isRegisterableChat(ctx)) return;
+
+  if (matchBotCommand(ctx, 'setchannel') || matchBotCommand(ctx, 'setchanel')) {
+    await handleSetChannel(ctx);
+    return;
+  }
+
+  if (matchBotCommand(ctx, 'unsetchannel')) {
+    await handleUnsetChannel(ctx);
+    return;
+  }
+
+  if (matchBotCommand(ctx, 'channels')) {
+    await handleChannelsList(ctx);
+  }
 }
 
 async function handleChannelsList(ctx) {
@@ -590,6 +629,10 @@ bot.command('unsetchannel', (ctx) => handleUnsetChannel(ctx).catch((error) => {
 bot.command('channels', (ctx) => handleChannelsList(ctx).catch((error) => {
   console.warn('channels error:', error?.message || error);
   return ctx.reply('Не удалось получить список подключённых групп.');
+}));
+
+bot.on('channel_post', (ctx) => handleChannelPostCommand(ctx).catch((error) => {
+  console.warn('channel_post command error:', error?.message || error);
 }));
 
 if (!DISABLE_BOT) {
