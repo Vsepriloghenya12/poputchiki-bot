@@ -59,7 +59,17 @@ const WEB_PUSH_PRIVATE_KEY = (process.env.WEB_PUSH_PRIVATE_KEY || '').trim();
 const WEB_PUSH_SUBJECT = (process.env.WEB_PUSH_SUBJECT || 'mailto:admin@example.com').trim();
 const DISABLE_BOT = process.env.DISABLE_BOT === '1';
 
+function parseTelegramChatTargets(rawValue) {
+  return [...new Set(
+    String(rawValue || '')
+      .split(/[,\n;]/)
+      .map((value) => String(value || '').trim())
+      .filter(Boolean)
+  )];
+}
+
 const PUBLIC_CHANNEL = (process.env.PUBLIC_CHANNEL || '').trim();
+const PUBLIC_CHANNELS = parseTelegramChatTargets(process.env.PUBLIC_CHANNELS || PUBLIC_CHANNEL);
 const AUTOPOST_ENABLED = process.env.AUTOPOST_ENABLED !== '0';
 const AUTOPOST_TRIPS = process.env.AUTOPOST_TRIPS !== '0';
 const AUTOPOST_PLANS = process.env.AUTOPOST_PLANS !== '0';
@@ -374,17 +384,22 @@ function channelKeyboard(openUrl) {
   };
 }
 
-async function sendToChannelSafe(html, keyboardExtra) {
-  try {
-    if (!PUBLIC_CHANNEL || !AUTOPOST_ENABLED) return;
-    await bot.telegram.sendMessage(PUBLIC_CHANNEL, html, {
-      parse_mode: 'HTML',
-      disable_web_page_preview: true,
-      ...(keyboardExtra || {}),
-    });
-  } catch (error) {
-    console.warn('channel autopost error:', error?.message || error);
-  }
+async function sendToChannelsSafe(html, keyboardExtra) {
+  if (!PUBLIC_CHANNELS.length || !AUTOPOST_ENABLED) return;
+
+  await Promise.allSettled(
+    PUBLIC_CHANNELS.map(async (target) => {
+      try {
+        await bot.telegram.sendMessage(target, html, {
+          parse_mode: 'HTML',
+          disable_web_page_preview: true,
+          ...(keyboardExtra || {}),
+        });
+      } catch (error) {
+        console.warn(`channel autopost error for ${target}:`, error?.message || error);
+      }
+    })
+  );
 }
 
 function buildTripPostHtml(trip) {
@@ -419,14 +434,14 @@ async function autopostTripToChannel(trip) {
   if (!AUTOPOST_TRIPS || !trip) return;
   const html = buildTripPostHtml(trip);
   const openUrl = buildDeeplink(`trip_${trip.id}`);
-  await sendToChannelSafe(html, channelKeyboard(openUrl));
+  await sendToChannelsSafe(html, channelKeyboard(openUrl));
 }
 
 async function autopostPlanToChannel(plan) {
   if (!AUTOPOST_PLANS || !plan) return;
   const html = buildPlanPostHtml(plan);
   const openUrl = buildDeeplink(`plan_${plan.id}`);
-  await sendToChannelSafe(html, channelKeyboard(openUrl));
+  await sendToChannelsSafe(html, channelKeyboard(openUrl));
 }
 
 const app = express();
@@ -990,8 +1005,9 @@ app.get('/api/app-config', async (req, res) => {
         enabled: PUSH_ENABLED,
       },
       autopost: {
-        enabled: !!(PUBLIC_CHANNEL && AUTOPOST_ENABLED),
-        channel: PUBLIC_CHANNEL || null,
+        enabled: !!(PUBLIC_CHANNELS.length && AUTOPOST_ENABLED),
+        channel: PUBLIC_CHANNELS[0] || PUBLIC_CHANNEL || null,
+        channels: PUBLIC_CHANNELS,
         brand: CHANNEL_BRAND,
       },
     });
