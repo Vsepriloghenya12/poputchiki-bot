@@ -53,6 +53,7 @@ async function ensureRegistration() {
 
   state.registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
   await navigator.serviceWorker.ready;
+  state.registration.update().catch(() => {});
   return state.registration;
 }
 

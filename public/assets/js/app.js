@@ -135,8 +135,8 @@ function updatePwaActions() {
     : (state.pwa.installAvailable ? 'Установить приложение' : 'Как установить');
   refs.installAppBtn.disabled = false;
   refs.bottomInstallLabel.textContent = state.pwa.standalone
-    ? 'Установлено'
-    : (state.pwa.installAvailable ? 'Установить' : 'На телефон');
+    ? 'Готово'
+    : (state.pwa.installAvailable ? 'Уст.' : 'Уст.');
   refs.bottomInstallBtn.classList.toggle('is-complete', state.pwa.standalone);
 
   refs.pushToggleLabel.textContent = state.pwa.pushEnabled ? 'Выключить уведомления' : 'Включить уведомления';

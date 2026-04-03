@@ -1,14 +1,14 @@
-const CACHE_NAME = 'poputchiki-pwa-v1';
+const CACHE_NAME = 'poputchiki-pwa-v2';
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
-  '/assets/css/base.css',
-  '/assets/css/app.css',
-  '/assets/js/app.js',
-  '/assets/js/shared/api.js',
-  '/assets/js/shared/format.js',
-  '/assets/js/shared/pwa.js',
+  '/assets/css/base.css?v=20260403',
+  '/assets/css/app.css?v=20260403',
+  '/assets/js/app.js?v=20260403',
+  '/assets/js/shared/api.js?v=20260403',
+  '/assets/js/shared/format.js?v=20260403',
+  '/assets/js/shared/pwa.js?v=20260403',
   '/assets/icons/icon-192.png',
   '/assets/icons/icon-512.png',
   '/assets/icons/apple-touch-icon.png',
@@ -60,15 +60,13 @@ self.addEventListener('fetch', (event) => {
   if (!isStaticAsset) return;
 
   event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse;
-
-      return fetch(request).then((response) => {
+    fetch(request)
+      .then((response) => {
         const clone = response.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(request, clone)).catch(() => {});
         return response;
-      });
-    })
+      })
+      .catch(async () => (await caches.match(request)) || caches.match('/index.html'))
   );
 });
 
