@@ -1,9 +1,14 @@
 import { apiRequest, getTelegramUser, initUser } from './shared/api.js';
 import { escapeHtml, formatDateTime, formatName } from './shared/format.js';
 
+const OWNER_STORAGE_KEY = 'poputchiki.owner.telegram_id';
+
 const refs = {
-  backBtn: document.getElementById('backBtn'),
   statusBanner: document.getElementById('ownerStatusBanner'),
+  desktopAccessPanel: document.getElementById('desktopAccessPanel'),
+  desktopAccessForm: document.getElementById('desktopAccessForm'),
+  ownerTelegramIdInput: document.getElementById('ownerTelegramIdInput'),
+  clearDesktopAccessBtn: document.getElementById('clearDesktopAccessBtn'),
   accessCard: document.getElementById('accessCard'),
   ownerContent: document.getElementById('ownerContent'),
   ownerName: document.getElementById('ownerName'),
@@ -18,12 +23,83 @@ const refs = {
 const state = {
   user: null,
   isOwner: false,
+  ownerTelegramId: '',
 };
 
 function setStatus(message = '', tone = '') {
   refs.statusBanner.textContent = message;
   refs.statusBanner.classList.toggle('hidden', !message);
   refs.statusBanner.classList.toggle('is-error', tone === 'error');
+}
+
+function getStoredOwnerTelegramId() {
+  try {
+    const params = new URL(window.location.href).searchParams;
+    return params.get('telegram_id') || window.localStorage.getItem(OWNER_STORAGE_KEY) || '';
+  } catch (_) {
+    return '';
+  }
+}
+
+function saveOwnerTelegramId(value) {
+  try {
+    if (value) {
+      window.localStorage.setItem(OWNER_STORAGE_KEY, value);
+    } else {
+      window.localStorage.removeItem(OWNER_STORAGE_KEY);
+    }
+  } catch (_) {}
+}
+
+function setOwnerLabel() {
+  if (state.user) {
+    refs.ownerName.textContent = formatName(state.user.first_name, state.user.last_name, state.user.username);
+    return;
+  }
+
+  refs.ownerName.textContent = state.ownerTelegramId ? `ID ${state.ownerTelegramId}` : 'Владелец';
+}
+
+function setDesktopAccessVisible(visible) {
+  refs.desktopAccessPanel.classList.toggle('hidden', !visible);
+}
+
+function setOwnerContentVisible(visible) {
+  refs.ownerContent.classList.toggle('hidden', !visible);
+}
+
+function appendTelegramId(url, telegramId) {
+  const nextUrl = new URL(url, window.location.origin);
+  nextUrl.searchParams.set('telegram_id', telegramId);
+  return nextUrl.pathname + nextUrl.search;
+}
+
+async function ownerRequest(url, options = {}) {
+  const requestOptions = { ...options };
+  const hasTelegramSession = !!window.Telegram?.WebApp?.initData;
+  const desktopOwnerId = !hasTelegramSession ? String(state.ownerTelegramId || '').trim() : '';
+
+  if (!desktopOwnerId) {
+    return apiRequest(url, requestOptions);
+  }
+
+  const method = String(requestOptions.method || 'GET').toUpperCase();
+  if (method === 'GET') {
+    return apiRequest(appendTelegramId(url, desktopOwnerId), requestOptions);
+  }
+
+  let body = {};
+  if (requestOptions.body) {
+    try {
+      body = JSON.parse(requestOptions.body);
+    } catch (_) {
+      body = {};
+    }
+  }
+
+  requestOptions.headers = { ...(requestOptions.headers || {}), 'Content-Type': 'application/json' };
+  requestOptions.body = JSON.stringify({ ...body, telegram_id: desktopOwnerId });
+  return apiRequest(url, requestOptions);
 }
 
 function metricCard(label, value, hint) {
@@ -121,7 +197,7 @@ function renderDrivers(drivers) {
 }
 
 async function loadOverview() {
-  const data = await apiRequest('/api/owner/overview');
+  const data = await ownerRequest('/api/owner/overview');
   renderOverview(data.stats || {});
   renderRecentTrips(data.recent_trips || []);
   renderRecentPlans(data.recent_plans || []);
@@ -130,35 +206,67 @@ async function loadOverview() {
 async function loadDrivers() {
   const date = refs.driversDate.value;
   const url = date ? `/api/owner/drivers?date=${encodeURIComponent(date)}` : '/api/owner/drivers';
-  const data = await apiRequest(url);
+  const data = await ownerRequest(url);
   renderDrivers(data.drivers || []);
 }
 
+async function loadOwnerDashboard() {
+  await Promise.all([loadOverview(), loadDrivers()]);
+  setStatus('');
+  refs.accessCard.classList.add('hidden');
+  setDesktopAccessVisible(false);
+  setOwnerContentVisible(true);
+}
+
 async function bootstrap() {
+  refs.driversDate.value = new Date().toISOString().slice(0, 10);
+  state.ownerTelegramId = getStoredOwnerTelegramId();
+  refs.ownerTelegramIdInput.value = state.ownerTelegramId;
+
   try {
     const initData = await initUser();
     state.user = initData.user || getTelegramUser();
     state.isOwner = !!initData.is_owner;
   } catch (error) {
     state.user = getTelegramUser();
-    setStatus(error.message || 'Не удалось определить пользователя.', 'error');
+    if (state.user) {
+      setStatus(error.message || 'Не удалось определить пользователя.', 'error');
+    }
   }
 
-  refs.ownerName.textContent = state.user ? formatName(state.user.first_name, state.user.last_name, state.user.username) : 'Владелец';
+  setOwnerLabel();
 
-  if (!state.isOwner) {
-    refs.accessCard.classList.remove('hidden');
-    refs.ownerContent.classList.add('hidden');
+  if (state.isOwner) {
+    setDesktopAccessVisible(false);
+    setOwnerContentVisible(true);
+    refs.accessCard.classList.add('hidden');
+    try {
+      await loadOwnerDashboard();
+    } catch (error) {
+      setStatus(error.message || 'Не удалось загрузить отчёты.', 'error');
+    }
     return;
   }
 
-  refs.accessCard.classList.add('hidden');
-  refs.ownerContent.classList.remove('hidden');
+  setOwnerContentVisible(false);
+  setDesktopAccessVisible(true);
 
-  try {
-    await Promise.all([loadOverview(), loadDrivers()]);
-  } catch (error) {
-    setStatus(error.message || 'Не удалось загрузить отчёты.', 'error');
+  if (state.user && !state.isOwner) {
+    refs.accessCard.classList.remove('hidden');
+  } else {
+    refs.accessCard.classList.add('hidden');
+  }
+
+  if (state.ownerTelegramId) {
+    try {
+      await loadOwnerDashboard();
+      state.isOwner = true;
+    } catch (error) {
+      refs.accessCard.classList.remove('hidden');
+      setStatus(error.message || 'Не удалось открыть панель владельца.', 'error');
+      setOwnerContentVisible(false);
+      setDesktopAccessVisible(true);
+    }
   }
 }
 
@@ -166,15 +274,39 @@ refs.reloadDriversBtn.addEventListener('click', () => {
   loadDrivers().catch((error) => setStatus(error.message || 'Не удалось загрузить список водителей.', 'error'));
 });
 
-refs.backBtn.addEventListener('click', () => {
-  window.location.href = '/';
+refs.desktopAccessForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  state.ownerTelegramId = refs.ownerTelegramIdInput.value.trim();
+  saveOwnerTelegramId(state.ownerTelegramId);
+  setOwnerLabel();
+  loadOwnerDashboard()
+    .then(() => {
+      state.isOwner = true;
+    })
+    .catch((error) => {
+      refs.accessCard.classList.remove('hidden');
+      setStatus(error.message || 'Не удалось открыть панель владельца.', 'error');
+      setOwnerContentVisible(false);
+      setDesktopAccessVisible(true);
+    });
+});
+
+refs.clearDesktopAccessBtn.addEventListener('click', () => {
+  state.ownerTelegramId = '';
+  refs.ownerTelegramIdInput.value = '';
+  saveOwnerTelegramId('');
+  setOwnerLabel();
+  setOwnerContentVisible(false);
+  setDesktopAccessVisible(true);
+  refs.accessCard.classList.add('hidden');
+  setStatus('');
 });
 
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-action="toggle-driver-block"]');
   if (!button) return;
 
-  apiRequest('/api/owner/block-driver', {
+  ownerRequest('/api/owner/block-driver', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

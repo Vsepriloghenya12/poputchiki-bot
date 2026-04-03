@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
   <title>Отчёты владельца • Попутчики</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -10,42 +10,47 @@
   <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/assets/css/owner.css" />
 </head>
-<body>
+<body class="owner-page">
   <div class="owner-shell">
     <div class="owner-screen">
-      <header class="topbar">
-        <button class="icon-btn" type="button" id="backBtn" aria-label="Назад">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m14.7 5.3-1.4-1.4L5.2 12l8.1 8.1 1.4-1.4L8 12l6.7-6.7z"/></svg>
-        </button>
-        <div class="brand">
-          <div class="brand-mark" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M12 2 3 6v6c0 5 3.8 9.2 9 10 5.2-.8 9-5 9-10V6l-9-4zm0 4.2 5 2.2V12c0 3.8-2.6 7-5 7.8-2.4-.8-5-4-5-7.8V8.4l5-2.2z"/></svg>
-          </div>
-          <div>
-            <div class="brand-title">Отчёты владельца</div>
-            <div class="brand-subtitle">Управление сервисом без монетизации</div>
-          </div>
+      <header class="owner-topbar">
+        <div class="owner-topbar__intro">
+          <div class="owner-eyebrow">Панель управления</div>
+          <h1 class="owner-title">Панель владельца</h1>
+          <p class="owner-lead">Отдельная страница управления сервисом для работы с ПК.</p>
         </div>
-        <div class="icon-btn primary" aria-hidden="true">
-          <svg viewBox="0 0 24 24"><path d="M5 17h3V9H5v8zm5.5 0h3V5h-3v12zM16 17h3v-6h-3v6z"/></svg>
+        <div class="owner-topbar__actions">
+          <a class="ghost-button" href="/">Открыть приложение</a>
+          <div class="badge success" id="ownerName">Владелец</div>
         </div>
       </header>
 
       <main class="owner-body">
         <section class="status-banner hidden" id="ownerStatusBanner"></section>
 
-        <section class="access-card hidden" id="accessCard">
-          Эта страница доступна только владельцу сервиса. Откройте её из аккаунта владельца внутри Telegram Mini App.
+        <section class="desktop-access" id="desktopAccessPanel">
+          <div>
+            <h2>Вход владельца</h2>
+            <p>Откройте панель на ПК по Telegram ID владельца. Доступ из мини-приложения больше не нужен.</p>
+          </div>
+          <form class="desktop-access__form" id="desktopAccessForm">
+            <input class="input" id="ownerTelegramIdInput" type="text" inputmode="numeric" placeholder="Telegram ID владельца" />
+            <button class="button" type="submit">Открыть панель</button>
+            <button class="ghost-button" type="button" id="clearDesktopAccessBtn">Очистить</button>
+          </form>
         </section>
 
-        <div id="ownerContent">
+        <section class="access-card hidden" id="accessCard">
+          Нет доступа к панели владельца. Проверьте Telegram ID владельца или откройте страницу из owner-аккаунта.
+        </section>
+
+        <div class="owner-content hidden" id="ownerContent">
           <section class="owner-section">
             <div class="owner-section__head">
               <div>
                 <h2>Сводка</h2>
                 <p>Общая картина по пользователям, поездкам и заявкам.</p>
               </div>
-              <span class="badge success" id="ownerName">Владелец</span>
             </div>
             <div class="metrics-grid" id="metricsGrid"></div>
           </section>

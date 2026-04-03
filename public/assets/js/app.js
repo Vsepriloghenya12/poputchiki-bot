@@ -4,7 +4,6 @@ import { escapeHtml, formatDateTime, formatMoney, formatName, getInitials, isUpc
 
 const state = {
   user: null,
-  isOwner: false,
   currentView: 'feed',
   currentFeed: 'driver-trips',
   seatSelection: new Map(),
@@ -52,7 +51,6 @@ const refs = {
   drawerBackdrop: document.getElementById('drawerBackdrop'),
   drawerUserName: document.getElementById('drawerUserName'),
   drawerUserTag: document.getElementById('drawerUserTag'),
-  ownerDrawerItem: document.getElementById('ownerDrawerItem'),
   menuBtn: document.getElementById('menuBtn'),
   createBtn: document.getElementById('createBtn'),
   filterBackdrop: document.getElementById('filterBackdrop'),
@@ -100,7 +98,6 @@ function updateUserCard() {
   const user = state.user || getTelegramUser();
   refs.drawerUserName.textContent = user ? formatName(user.first_name, user.last_name, user.username) : 'Откройте через Telegram';
   refs.drawerUserTag.textContent = user?.username ? `@${user.username}` : 'Мини-приложение для поездок';
-  refs.ownerDrawerItem.classList.toggle('hidden', !state.isOwner);
 }
 
 function updateTabs() {
@@ -722,7 +719,6 @@ async function bootstrap() {
   try {
     const initData = await initUser();
     state.user = initData.user || getTelegramUser();
-    state.isOwner = !!initData.is_owner;
   } catch (error) {
     state.user = getTelegramUser();
     setStatus(error.message || 'Не удалось определить пользователя.', 'error');
@@ -757,10 +753,6 @@ document.addEventListener('click', handleActionClick);
 
 document.querySelectorAll('.drawer-link[data-view]').forEach((button) => {
   button.addEventListener('click', () => setView(button.dataset.view));
-});
-
-refs.ownerDrawerItem?.addEventListener('click', () => {
-  window.location.href = '/owner.html';
 });
 
 bootstrap();
