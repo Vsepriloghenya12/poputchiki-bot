@@ -136,20 +136,30 @@
   min-height: 46px;
   padding: 8px 10px;
   border-radius: 14px;
-  display: grid;
-  justify-items: center;
-  gap: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   color: var(--color-muted);
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 700;
   line-height: 1.15;
   text-align: center;
+  white-space: nowrap;
 }
 
 .bottom-nav__item svg {
-  width: 22px;
-  height: 22px;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
   fill: currentColor;
+}
+
+.bottom-nav__item span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .bottom-nav__item.is-active {
@@ -215,6 +225,7 @@
   }
 
   .bottom-nav__item {
-    font-size: 10px;
+    font-size: 9px;
+    gap: 5px;
   }
 }

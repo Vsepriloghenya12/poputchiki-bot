@@ -698,7 +698,16 @@ app.post('/api/session/handoff', async (req, res) => {
     }
 
     const token = createSessionHandoffToken(user.telegram_id);
-    const url = `${getRequestOrigin(req)}/handoff?token=${encodeURIComponent(token)}`;
+    let url;
+    try {
+      const baseUrl = new URL(buildWebAppUrl());
+      const handoffUrl = new URL('/handoff', baseUrl.origin);
+      handoffUrl.searchParams.set('token', token);
+      url = handoffUrl.toString();
+    } catch (_) {
+      url = `${getRequestOrigin(req)}/handoff?token=${encodeURIComponent(token)}`;
+    }
+
     return res.json({ success: true, url });
   } catch (error) {
     console.error('Ошибка /api/session/handoff:', error);

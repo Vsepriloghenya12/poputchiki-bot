@@ -152,6 +152,30 @@ function getCurrentTelegramId() {
   return '';
 }
 
+function openExternalInstallUrl(url) {
+  const targetUrl = String(url || '').trim();
+  if (!targetUrl) return;
+
+  let openedByTelegram = false;
+
+  if (tg?.openLink) {
+    try {
+      tg.openLink(targetUrl);
+      openedByTelegram = true;
+    } catch (_) {}
+  }
+
+  if (!openedByTelegram) {
+    window.location.assign(targetUrl);
+    return;
+  }
+
+  // Fallback for clients where openLink silently does nothing.
+  window.setTimeout(() => {
+    window.location.assign(targetUrl);
+  }, 1200);
+}
+
 function updateTabs() {
   refs.feedDriverBtn.classList.toggle('is-active', state.currentFeed === 'driver-trips');
   refs.feedPlansBtn.classList.toggle('is-active', state.currentFeed === 'passenger-requests');
@@ -596,6 +620,12 @@ async function handleInstallApp() {
     closeDrawer();
 
     if (tg && !state.pwa.standalone) {
+      if (!state.user) {
+        showAlert('Сначала откройте приложение через Telegram и дождитесь загрузки профиля, потом нажмите «Установить» ещё раз.');
+        return;
+      }
+
+      setStatus('Готовлю переход во внешний браузер для установки...');
       const handoff = await apiRequest('/api/session/handoff', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -603,9 +633,8 @@ async function handleInstallApp() {
       });
 
       if (handoff?.url) {
-        if (tg.openLink) tg.openLink(handoff.url);
-        else window.open(handoff.url, '_blank', 'noopener');
-        setStatus('Открыл приложение во внешнем браузере. Установите его там на телефон, и оно будет работать как отдельное веб-приложение.');
+        setStatus('Открываю приложение во внешнем браузере. Установите его там на телефон, и оно будет работать отдельно от Telegram.');
+        openExternalInstallUrl(handoff.url);
         return;
       }
     }
