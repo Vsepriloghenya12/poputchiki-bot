@@ -38,6 +38,12 @@
   color: var(--color-primary-strong);
 }
 
+.drawer-link:disabled,
+.drawer-link.is-disabled {
+  opacity: 0.48;
+  cursor: default;
+}
+
 .block-list {
   display: grid;
   gap: 0;

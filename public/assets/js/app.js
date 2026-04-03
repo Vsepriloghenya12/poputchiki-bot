@@ -1,6 +1,7 @@
 
 import { apiRequest, getStartParam, getTelegramUser, initUser, openChat, showAlert } from './shared/api.js';
 import { escapeHtml, formatDateTime, formatMoney, formatName, getInitials, isUpcoming, statusBadge } from './shared/format.js';
+import { disablePushNotifications, enablePushNotifications, getPwaState, initPwa, promptInstall } from './shared/pwa.js';
 
 const state = {
   user: null,
@@ -13,6 +14,12 @@ const state = {
     date: '',
     time: '',
     seats: '',
+  },
+  pwa: {
+    installAvailable: false,
+    pushSupported: false,
+    pushEnabled: false,
+    standalone: false,
   },
   data: {
     feedTrips: [],
@@ -53,6 +60,10 @@ const refs = {
   drawerUserTag: document.getElementById('drawerUserTag'),
   menuBtn: document.getElementById('menuBtn'),
   createBtn: document.getElementById('createBtn'),
+  installAppBtn: document.getElementById('installAppBtn'),
+  installAppLabel: document.getElementById('installAppLabel'),
+  pushToggleBtn: document.getElementById('pushToggleBtn'),
+  pushToggleLabel: document.getElementById('pushToggleLabel'),
   filterBackdrop: document.getElementById('filterBackdrop'),
   closeFilterBtn: document.getElementById('closeFilterBtn'),
   filterForm: document.getElementById('filterForm'),
@@ -98,6 +109,33 @@ function updateUserCard() {
   const user = state.user || getTelegramUser();
   refs.drawerUserName.textContent = user ? formatName(user.first_name, user.last_name, user.username) : 'Откройте через Telegram';
   refs.drawerUserTag.textContent = user?.username ? `@${user.username}` : 'Мини-приложение для поездок';
+}
+
+function updatePwaActions() {
+  const pwaState = getPwaState();
+  state.pwa = {
+    installAvailable: Boolean(pwaState.installAvailable),
+    pushSupported: Boolean(pwaState.pushSupported),
+    pushEnabled: Boolean(pwaState.pushEnabled),
+    standalone: Boolean(pwaState.standalone),
+  };
+
+  refs.installAppLabel.textContent = state.pwa.standalone
+    ? 'Приложение установлено'
+    : (state.pwa.installAvailable ? 'Установить приложение' : 'Как установить');
+  refs.installAppBtn.disabled = false;
+
+  refs.pushToggleLabel.textContent = state.pwa.pushEnabled ? 'Выключить уведомления' : 'Включить уведомления';
+  refs.pushToggleBtn.disabled = !state.user || !state.pwa.pushSupported;
+  refs.pushToggleBtn.classList.toggle('is-disabled', refs.pushToggleBtn.disabled);
+}
+
+function getCurrentTelegramId() {
+  const telegramUser = getTelegramUser();
+  if (telegramUser?.id) return String(telegramUser.id);
+  if (state.user?.telegram_id) return String(state.user.telegram_id);
+  if (state.user?.id) return String(state.user.id);
+  return '';
 }
 
 function updateTabs() {
@@ -419,7 +457,7 @@ async function loadFeed() {
       if (!state.user) {
         state.data.feedPlans = [];
       } else {
-        const data = await apiRequest(`/api/driver/passenger-plans?telegram_id=${encodeURIComponent(String(state.user.id))}`);
+        const data = await apiRequest(`/api/driver/passenger-plans?telegram_id=${encodeURIComponent(getCurrentTelegramId())}`);
         state.data.feedPlans = data.plans || [];
       }
     }
@@ -438,9 +476,9 @@ async function loadActiveView() {
 
   try {
     const [driverTripData, passengerBookingsData, takenPlansData] = await Promise.all([
-      apiRequest(`/api/driver/active-trip?telegram_id=${encodeURIComponent(String(state.user.id))}`),
-      apiRequest(`/api/passenger/active-bookings?telegram_id=${encodeURIComponent(String(state.user.id))}`),
-      apiRequest(`/api/driver/taken-plans?telegram_id=${encodeURIComponent(String(state.user.id))}`),
+      apiRequest(`/api/driver/active-trip?telegram_id=${encodeURIComponent(getCurrentTelegramId())}`),
+      apiRequest(`/api/passenger/active-bookings?telegram_id=${encodeURIComponent(getCurrentTelegramId())}`),
+      apiRequest(`/api/driver/taken-plans?telegram_id=${encodeURIComponent(getCurrentTelegramId())}`),
     ]);
 
     state.data.activeDriverTrip = driverTripData.trip || null;
@@ -449,7 +487,7 @@ async function loadActiveView() {
 
     if (state.data.activeDriverTrip) {
       const driverBookingsData = await apiRequest(
-        `/api/driver/trip-bookings?telegram_id=${encodeURIComponent(String(state.user.id))}&trip_id=${encodeURIComponent(String(state.data.activeDriverTrip.id))}`
+        `/api/driver/trip-bookings?telegram_id=${encodeURIComponent(getCurrentTelegramId())}&trip_id=${encodeURIComponent(String(state.data.activeDriverTrip.id))}`
       );
       state.data.activeDriverBookings = driverBookingsData.bookings || [];
     } else {
@@ -470,10 +508,10 @@ async function loadHistoryView() {
 
   try {
     const [driverTripsData, passengerBookingsData, passengerPlansData, takenPlansData] = await Promise.all([
-      apiRequest(`/api/driver/trips?telegram_id=${encodeURIComponent(String(state.user.id))}`),
-      apiRequest(`/api/passenger/bookings?telegram_id=${encodeURIComponent(String(state.user.id))}`),
-      apiRequest(`/api/passenger/plans?telegram_id=${encodeURIComponent(String(state.user.id))}`),
-      apiRequest(`/api/driver/taken-plans?telegram_id=${encodeURIComponent(String(state.user.id))}`),
+      apiRequest(`/api/driver/trips?telegram_id=${encodeURIComponent(getCurrentTelegramId())}`),
+      apiRequest(`/api/passenger/bookings?telegram_id=${encodeURIComponent(getCurrentTelegramId())}`),
+      apiRequest(`/api/passenger/plans?telegram_id=${encodeURIComponent(getCurrentTelegramId())}`),
+      apiRequest(`/api/driver/taken-plans?telegram_id=${encodeURIComponent(getCurrentTelegramId())}`),
     ]);
 
     state.data.historyDriverTrips = driverTripsData.trips || [];
@@ -537,6 +575,49 @@ async function openSearchFilters() {
     updateViews();
   }
   openFilterSheet();
+}
+
+async function handleInstallApp() {
+  try {
+    const result = await promptInstall();
+    updatePwaActions();
+
+    if (result?.outcome === 'accepted') {
+      setStatus('Приложение добавлено на экран. Теперь его можно запускать как обычное приложение.');
+      return;
+    }
+
+    if (result?.outcome === 'already-installed') {
+      setStatus('Приложение уже установлено и готово к запуску с экрана телефона.');
+      return;
+    }
+
+    if (result?.outcome === 'manual') {
+      showAlert('Откройте сайт в браузере Chrome или Safari и добавьте его на экран домой. После этого приложение будет запускаться отдельно от Telegram.');
+    }
+  } catch (error) {
+    setStatus(error.message || 'Не удалось открыть сценарий установки.', 'error');
+  }
+}
+
+async function handlePushToggle() {
+  if (!state.user) {
+    showAlert('Сначала откройте приложение через Telegram хотя бы один раз. После этого установленная версия сможет работать отдельно.');
+    return;
+  }
+
+  try {
+    if (state.pwa.pushEnabled) {
+      await disablePushNotifications();
+      setStatus('Push-уведомления выключены.');
+    } else {
+      await enablePushNotifications();
+      setStatus('Push-уведомления включены. Новые события будут приходить прямо на телефон.');
+    }
+    updatePwaActions();
+  } catch (error) {
+    setStatus(error.message || 'Не удалось изменить настройки уведомлений.', 'error');
+  }
 }
 
 async function submitComposer(event) {
@@ -718,17 +799,28 @@ async function bootstrap() {
 
   try {
     const initData = await initUser();
-    state.user = initData.user || getTelegramUser();
+    state.user = getTelegramUser() || initData.user || null;
   } catch (error) {
-    state.user = getTelegramUser();
+    state.user = getTelegramUser() || null;
     setStatus(error.message || 'Не удалось определить пользователя.', 'error');
   }
 
+  await initPwa({
+    onInstallAvailabilityChange: updatePwaActions,
+    onPushStateChange: updatePwaActions,
+  });
+
   updateUserCard();
+  updatePwaActions();
   updateViews();
+  const needsStandaloneHint = !state.user;
 
   const initialFeed = state.pendingHighlight?.feed || 'driver-trips';
   await setFeed(initialFeed, true);
+
+  if (needsStandaloneHint) {
+    setStatus('Откройте приложение через Telegram хотя бы один раз. После этого его можно установить на телефон и запускать как обычное веб-приложение.');
+  }
 }
 
 refs.menuBtn.addEventListener('click', openDrawer);
@@ -746,6 +838,8 @@ refs.feedDriverBtn.addEventListener('click', () => setFeed('driver-trips', true)
 refs.feedPlansBtn.addEventListener('click', () => setFeed('passenger-requests', true));
 refs.bottomSearchBtn.addEventListener('click', openSearchFilters);
 refs.bottomActiveBtn.addEventListener('click', () => setView('active'));
+refs.installAppBtn.addEventListener('click', handleInstallApp);
+refs.pushToggleBtn.addEventListener('click', handlePushToggle);
 refs.composerForm.addEventListener('submit', submitComposer);
 refs.filterForm.addEventListener('submit', applyFilters);
 refs.clearFilterBtn.addEventListener('click', clearFilters);

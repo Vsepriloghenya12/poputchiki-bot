@@ -32,6 +32,7 @@ export function getStartParam() {
 export async function apiFetch(url, options = {}) {
   const requestOptions = { ...options };
   requestOptions.headers = { ...(requestOptions.headers || {}) };
+  if (!requestOptions.credentials) requestOptions.credentials = 'same-origin';
 
   if (tg?.initData) {
     requestOptions.headers['x-telegram-init-data'] = tg.initData;
@@ -56,9 +57,18 @@ export async function loadAppConfig() {
   return appConfigPromise;
 }
 
+export async function loadUserSession() {
+  return apiRequest('/api/session').catch(() => ({
+    authenticated: false,
+    user: null,
+    is_owner: false,
+    push_enabled: false,
+  }));
+}
+
 export async function initUser() {
   const user = getTelegramUser();
-  if (!user) return { user: null, is_owner: false };
+  if (!user) return loadUserSession();
 
   return apiRequest('/api/init-user', {
     method: 'POST',

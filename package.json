@@ -6,7 +6,8 @@
   "type": "commonjs",
   "scripts": {
     "start": "node index.js",
-    "dev": "nodemon index.js"
+    "dev": "nodemon index.js",
+    "push:keys": "node scripts/generate-vapid-keys.js"
   },
   "engines": {
     "node": ">=18 <21"
@@ -18,7 +19,8 @@
     "multer": "^2.0.2",
     "path": "^0.12.7",
     "sqlite3": "^5.1.7",
-    "telegraf": "^4.16.3"
+    "telegraf": "^4.16.3",
+    "web-push": "^3.6.7"
   },
   "devDependencies": {
     "nodemon": "^3.1.11"

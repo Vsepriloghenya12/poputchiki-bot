@@ -140,6 +140,25 @@ db.serialize(() => {
   `);
 
   db.run(`CREATE INDEX IF NOT EXISTS idx_reviews_to_user ON reviews(to_user_id)`);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      endpoint TEXT NOT NULL UNIQUE,
+      subscription_json TEXT NOT NULL,
+      user_agent TEXT,
+      platform TEXT,
+      created_at TEXT DEFAULT (datetime('now','localtime')),
+      updated_at TEXT DEFAULT (datetime('now','localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
+    )
+  `);
+
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_push_subscriptions_user_id
+    ON push_subscriptions (user_id)
+  `);
 });
 
 function runAsync(sql, params = []) {
@@ -232,6 +251,10 @@ async function upsertUserFromTelegram(tgUser) {
 
 function getUserByTelegramId(telegramId) {
   return getAsync(`SELECT * FROM users WHERE telegram_id = ?`, [String(telegramId)]);
+}
+
+function getUserById(userId) {
+  return getAsync(`SELECT * FROM users WHERE id = ?`, [Number(userId)]);
 }
 
 async function getDriverProfileByTelegramId(telegramId) {
@@ -1161,12 +1184,80 @@ async function getOwnerRecentPassengerPlans(limit = 6) {
   );
 }
 
+async function savePushSubscription({ userId, subscription, userAgent, platform }) {
+  if (!subscription || !subscription.endpoint) {
+    throw new Error('Некорректная push-подписка');
+  }
+
+  const endpoint = String(subscription.endpoint).trim();
+  if (!endpoint) {
+    throw new Error('У push-подписки отсутствует endpoint');
+  }
+
+  await runAsync(
+    `
+      INSERT INTO push_subscriptions (
+        user_id,
+        endpoint,
+        subscription_json,
+        user_agent,
+        platform,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, datetime('now','localtime'), datetime('now','localtime'))
+      ON CONFLICT(endpoint) DO UPDATE SET
+        user_id = excluded.user_id,
+        subscription_json = excluded.subscription_json,
+        user_agent = excluded.user_agent,
+        platform = excluded.platform,
+        updated_at = datetime('now','localtime')
+    `,
+    [
+      Number(userId),
+      endpoint,
+      JSON.stringify(subscription),
+      userAgent ? String(userAgent).slice(0, 400) : null,
+      platform ? String(platform).slice(0, 120) : null,
+    ]
+  );
+
+  return getAsync(`SELECT * FROM push_subscriptions WHERE endpoint = ?`, [endpoint]);
+}
+
+async function getPushSubscriptionsByUserIds(userIds = []) {
+  const ids = [...new Set(userIds.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0))];
+  if (!ids.length) return [];
+
+  const placeholders = ids.map(() => '?').join(', ');
+  return allAsync(
+    `
+      SELECT *
+      FROM push_subscriptions
+      WHERE user_id IN (${placeholders})
+      ORDER BY id DESC
+    `,
+    ids
+  );
+}
+
+function deletePushSubscriptionByEndpoint(endpoint) {
+  return runAsync(`DELETE FROM push_subscriptions WHERE endpoint = ?`, [String(endpoint || '')]);
+}
+
+function deletePushSubscription({ userId, endpoint }) {
+  return runAsync(
+    `DELETE FROM push_subscriptions WHERE user_id = ? AND endpoint = ?`,
+    [Number(userId), String(endpoint || '')]
+  );
+}
+
 module.exports = {
   db,
   dbRun: runAsync,
   dbGet: getAsync,
   dbAll: allAsync,
   upsertUserFromTelegram,
+  getUserById,
   getUserByTelegramId,
   getDriverProfileByTelegramId,
   updateDriverCarProfile,
@@ -1192,4 +1283,8 @@ module.exports = {
   getOwnerDriverActivity,
   getOwnerRecentTrips,
   getOwnerRecentPassengerPlans,
+  savePushSubscription,
+  getPushSubscriptionsByUserIds,
+  deletePushSubscriptionByEndpoint,
+  deletePushSubscription,
 };

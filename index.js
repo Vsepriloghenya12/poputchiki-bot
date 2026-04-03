@@ -5,6 +5,7 @@ const path = require('path');
 const crypto = require('crypto');
 const express = require('express');
 const { Telegraf } = require('telegraf');
+const webpush = require('web-push');
 
 const {
   dbRun,
@@ -36,6 +37,10 @@ const {
   getOwnerDriverActivity,
   getOwnerRecentTrips,
   getOwnerRecentPassengerPlans,
+  savePushSubscription,
+  getPushSubscriptionsByUserIds,
+  deletePushSubscriptionByEndpoint,
+  deletePushSubscription,
 } = require('./db');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -46,6 +51,12 @@ const OWNER_PANEL_PASSWORD = (process.env.OWNER_PANEL_PASSWORD || process.env.AD
 const OWNER_SESSION_SECRET = (process.env.OWNER_SESSION_SECRET || process.env.SESSION_SECRET || BOT_TOKEN || 'owner-session-secret').trim();
 const OWNER_SESSION_COOKIE = 'poputchiki_owner_session';
 const OWNER_SESSION_TTL_MS = Math.max(1, Number(process.env.OWNER_SESSION_TTL_HOURS || 12)) * 60 * 60 * 1000;
+const USER_SESSION_SECRET = (process.env.USER_SESSION_SECRET || process.env.SESSION_SECRET || OWNER_SESSION_SECRET || BOT_TOKEN || 'user-session-secret').trim();
+const USER_SESSION_COOKIE = 'poputchiki_user_session';
+const USER_SESSION_TTL_MS = Math.max(1, Number(process.env.USER_SESSION_TTL_DAYS || 180)) * 24 * 60 * 60 * 1000;
+const WEB_PUSH_PUBLIC_KEY = (process.env.WEB_PUSH_PUBLIC_KEY || '').trim();
+const WEB_PUSH_PRIVATE_KEY = (process.env.WEB_PUSH_PRIVATE_KEY || '').trim();
+const WEB_PUSH_SUBJECT = (process.env.WEB_PUSH_SUBJECT || 'mailto:admin@example.com').trim();
 const DISABLE_BOT = process.env.DISABLE_BOT === '1';
 
 const PUBLIC_CHANNEL = (process.env.PUBLIC_CHANNEL || '').trim();
@@ -53,6 +64,7 @@ const AUTOPOST_ENABLED = process.env.AUTOPOST_ENABLED !== '0';
 const AUTOPOST_TRIPS = process.env.AUTOPOST_TRIPS !== '0';
 const AUTOPOST_PLANS = process.env.AUTOPOST_PLANS !== '0';
 const CHANNEL_BRAND = (process.env.CHANNEL_BRAND || 'Попутчики').trim();
+const PUSH_ENABLED = !!(WEB_PUSH_PUBLIC_KEY && WEB_PUSH_PRIVATE_KEY);
 
 if (!BOT_TOKEN) {
   console.error('Ошибка: не задан BOT_TOKEN в .env или переменных окружения');
@@ -63,12 +75,50 @@ const bot = new Telegraf(BOT_TOKEN);
 let BOT_USERNAME_RUNTIME = (process.env.BOT_USERNAME || '').replace('@', '').trim();
 const WEBAPP_SHORTNAME = (process.env.WEBAPP_SHORTNAME || '').trim();
 
+if (PUSH_ENABLED) {
+  webpush.setVapidDetails(WEB_PUSH_SUBJECT, WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY);
+}
+
 async function sendMessageSafe(telegramId, text, extra = undefined) {
   try {
     if (!telegramId) return;
     await bot.telegram.sendMessage(String(telegramId), String(text).slice(0, 3500), extra);
   } catch (error) {
     console.warn('sendMessageSafe error:', error?.message || error);
+  }
+}
+
+function buildWebAppUrl(startParam = '') {
+  const baseUrl = String(WEBAPP_URL || '').trim() || 'http://localhost:3000';
+  return withStartParamUrl(baseUrl, startParam);
+}
+
+async function sendPushPayloadToUserIds(userIds, payload) {
+  if (!PUSH_ENABLED || !Array.isArray(userIds) || !userIds.length || !payload) return;
+
+  const ids = [...new Set(userIds.map((value) => Number(value)).filter((value) => Number.isFinite(value) && value > 0))];
+  if (!ids.length) return;
+
+  try {
+    const subscriptions = await getPushSubscriptionsByUserIds(ids);
+    if (!subscriptions.length) return;
+
+    await Promise.allSettled(
+      subscriptions.map(async (row) => {
+        try {
+          await webpush.sendNotification(JSON.parse(row.subscription_json), JSON.stringify(payload));
+        } catch (error) {
+          const statusCode = Number(error?.statusCode || 0);
+          if (statusCode === 404 || statusCode === 410) {
+            await deletePushSubscriptionByEndpoint(row.endpoint).catch(() => {});
+            return;
+          }
+          console.warn('push send error:', error?.message || error);
+        }
+      })
+    );
+  } catch (error) {
+    console.warn('push broadcast error:', error?.message || error);
   }
 }
 
@@ -107,8 +157,16 @@ function parseCookiesFromHeader(cookieHeader) {
   }, {});
 }
 
+function signSessionPayload(secret, encodedPayload) {
+  return crypto.createHmac('sha256', String(secret || '')).update(String(encodedPayload || ''), 'utf8').digest('base64url');
+}
+
 function signOwnerSessionPayload(encodedPayload) {
-  return crypto.createHmac('sha256', OWNER_SESSION_SECRET).update(String(encodedPayload || ''), 'utf8').digest('base64url');
+  return signSessionPayload(OWNER_SESSION_SECRET, encodedPayload);
+}
+
+function signUserSessionPayload(encodedPayload) {
+  return signSessionPayload(USER_SESSION_SECRET, encodedPayload);
 }
 
 function hasValidOwnerSessionToken(token) {
@@ -121,6 +179,21 @@ function hasValidOwnerSessionToken(token) {
   try {
     const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
     return !!(payload && payload.role === 'owner' && payload.exp && Number(payload.exp) >= Date.now());
+  } catch (_) {
+    return false;
+  }
+}
+
+function hasValidUserSessionToken(token) {
+  if (!token || !String(token).includes('.')) return false;
+
+  const [encodedPayload, signature] = String(token).split('.');
+  const expectedSignature = signUserSessionPayload(encodedPayload);
+  if (!signature || !isSameSecret(signature, expectedSignature)) return false;
+
+  try {
+    const payload = JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+    return !!(payload && payload.role === 'user' && payload.telegram_id && payload.exp && Number(payload.exp) >= Date.now());
   } catch (_) {
     return false;
   }
@@ -308,9 +381,34 @@ function validateTelegramInitData(initData, botToken, maxAgeSec) {
   }
 }
 
+function applyTelegramIdentityToRequest(req, telegramId, telegramUser = null) {
+  req.telegramId = String(telegramId || '');
+  if (telegramUser) {
+    req.telegramUser = telegramUser;
+  }
+
+  if (req.body && typeof req.body === 'object') {
+    req.body.telegram_id = req.telegramId;
+    if (!req.body.user && req.path === '/init-user' && telegramUser) req.body.user = telegramUser;
+  }
+
+  if (req.query && typeof req.query === 'object' && !req.query.telegram_id) {
+    req.query.telegram_id = req.telegramId;
+  }
+}
+
 app.use('/api', (req, res, next) => {
   const isOwnerApi = req.path === '/owner/login' || req.path === '/owner/logout' || req.path === '/owner/session' || req.path.startsWith('/owner/');
+  const isPublicApi = req.path === '/session' || req.path === '/session/logout' || req.path === '/app-config' || req.path === '/push/public-key';
+  if (isPublicApi) return next();
+
   if (isOwnerApi && (hasOwnerSessionFromRequest(req) || req.path === '/owner/login' || req.path === '/owner/session' || req.path === '/owner/logout')) {
+    return next();
+  }
+
+  const userSession = getUserSessionData(req);
+  if (userSession?.telegram_id) {
+    applyTelegramIdentityToRequest(req, userSession.telegram_id, userSession.user || null);
     return next();
   }
 
@@ -331,23 +429,12 @@ app.use('/api', (req, res, next) => {
     return res.status(401).json({ error: 'initData не прошёл проверку' });
   }
 
-  req.telegramUser = validation.user;
-  req.telegramId = String(validation.user.id);
-
-  if (req.body && typeof req.body === 'object') {
-    req.body.telegram_id = req.telegramId;
-    if (!req.body.user && req.path === '/init-user') req.body.user = validation.user;
-  }
-
-  if (req.query && typeof req.query === 'object' && !req.query.telegram_id) {
-    req.query.telegram_id = req.telegramId;
-  }
-
+  applyTelegramIdentityToRequest(req, validation.user.id, validation.user);
   next();
 });
 
 app.use((req, res, next) => {
-  if (req.method === 'GET' && (req.path === '/' || req.path === '/owner' || req.path.endsWith('.html'))) {
+  if (req.method === 'GET' && (req.path === '/' || req.path === '/owner' || req.path.endsWith('.html') || req.path === '/sw.js' || req.path === '/manifest.webmanifest')) {
     res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
     res.setHeader('Pragma', 'no-cache');
     res.setHeader('Expires', '0');
@@ -429,6 +516,51 @@ function clearOwnerSessionCookie(req, res) {
   });
 }
 
+function createUserSessionToken(telegramId) {
+  const payload = Buffer.from(
+    JSON.stringify({
+      role: 'user',
+      telegram_id: String(telegramId || ''),
+      exp: Date.now() + USER_SESSION_TTL_MS,
+    }),
+    'utf8'
+  ).toString('base64url');
+
+  return `${payload}.${signUserSessionPayload(payload)}`;
+}
+
+function getUserSessionData(req) {
+  const token = parseCookies(req)[USER_SESSION_COOKIE];
+  if (!hasValidUserSessionToken(token)) return null;
+
+  const [encodedPayload] = String(token).split('.');
+  return JSON.parse(Buffer.from(encodedPayload, 'base64url').toString('utf8'));
+}
+
+function hasUserSession(req) {
+  return !!getUserSessionData(req);
+}
+
+function setUserSessionCookie(req, res, telegramId) {
+  res.cookie(USER_SESSION_COOKIE, createUserSessionToken(telegramId), {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecureOwnerCookie(req),
+    path: '/',
+    maxAge: USER_SESSION_TTL_MS,
+  });
+}
+
+function clearUserSessionCookie(req, res) {
+  res.cookie(USER_SESSION_COOKIE, '', {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure: isSecureOwnerCookie(req),
+    path: '/',
+    maxAge: 0,
+  });
+}
+
 function ensureOwnerAccess(req, res) {
   if (hasOwnerSession(req)) {
     return true;
@@ -477,6 +609,46 @@ app.post('/api/owner/logout', (req, res) => {
   return res.json({ success: true });
 });
 
+app.get('/api/session', async (req, res) => {
+  try {
+    const session = getUserSessionData(req);
+    if (!session?.telegram_id) {
+      return res.json({
+        authenticated: false,
+        user: null,
+        is_owner: false,
+        push_enabled: PUSH_ENABLED,
+      });
+    }
+
+    const user = await getUserByTelegramId(session.telegram_id);
+    if (!user) {
+      clearUserSessionCookie(req, res);
+      return res.json({
+        authenticated: false,
+        user: null,
+        is_owner: false,
+        push_enabled: PUSH_ENABLED,
+      });
+    }
+
+    return res.json({
+      authenticated: true,
+      user,
+      is_owner: isOwnerTelegramId(user.telegram_id),
+      push_enabled: PUSH_ENABLED,
+    });
+  } catch (error) {
+    console.error('Ошибка /api/session:', error);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+app.post('/api/session/logout', (req, res) => {
+  clearUserSessionCookie(req, res);
+  return res.json({ success: true });
+});
+
 app.post('/api/init-user', async (req, res) => {
   try {
     const user = req.body.user || req.telegramUser;
@@ -485,9 +657,12 @@ app.post('/api/init-user', async (req, res) => {
     }
 
     const dbUser = await upsertUserFromTelegram(user);
+    setUserSessionCookie(req, res, dbUser.telegram_id);
     return res.json({
       user: dbUser,
       is_owner: isOwnerTelegramId(dbUser.telegram_id),
+      standalone_enabled: true,
+      push_enabled: PUSH_ENABLED,
     });
   } catch (error) {
     console.error('Ошибка /api/init-user:', error);
@@ -511,6 +686,13 @@ app.get('/api/app-config', async (req, res) => {
       bot_username: BOT_USERNAME_RUNTIME || null,
       webapp_shortname: WEBAPP_SHORTNAME || null,
       owner_telegram_id: OWNER_TELEGRAM_ID,
+      pwa: {
+        enabled: true,
+        start_url: buildWebAppUrl(),
+      },
+      push: {
+        enabled: PUSH_ENABLED,
+      },
       autopost: {
         enabled: !!(PUBLIC_CHANNEL && AUTOPOST_ENABLED),
         channel: PUBLIC_CHANNEL || null,
@@ -519,6 +701,73 @@ app.get('/api/app-config', async (req, res) => {
     });
   } catch (_) {
     return res.json({ deeplink_prefix: buildDeeplinkPrefix() });
+  }
+});
+
+app.get('/api/push/public-key', (req, res) => {
+  return res.json({
+    enabled: PUSH_ENABLED,
+    public_key: PUSH_ENABLED ? WEB_PUSH_PUBLIC_KEY : null,
+  });
+});
+
+app.post('/api/push/subscribe', async (req, res) => {
+  try {
+    if (!PUSH_ENABLED) {
+      return res.status(503).json({ error: 'Push-уведомления ещё не настроены на сервере' });
+    }
+
+    const telegramId = req.telegramId || req.body.telegram_id;
+    if (!telegramId) {
+      return res.status(401).json({ error: 'Сначала войдите через Telegram и откройте установленное приложение заново' });
+    }
+
+    const user = await getUserByTelegramId(telegramId);
+    if (!user) {
+      return res.status(400).json({ error: 'Пользователь не найден. Сначала откройте приложение через Telegram.' });
+    }
+
+    const subscription = req.body.subscription;
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: 'Не передана push-подписка браузера' });
+    }
+
+    await savePushSubscription({
+      userId: user.id,
+      subscription,
+      userAgent: req.headers['user-agent'] || '',
+      platform: req.body.platform || '',
+    });
+
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Ошибка /api/push/subscribe:', error);
+    return res.status(500).json({ error: 'Не удалось сохранить push-подписку' });
+  }
+});
+
+app.post('/api/push/unsubscribe', async (req, res) => {
+  try {
+    const telegramId = req.telegramId || req.body.telegram_id;
+    if (!telegramId) {
+      return res.json({ success: true });
+    }
+
+    const user = await getUserByTelegramId(telegramId);
+    if (!user) {
+      return res.json({ success: true });
+    }
+
+    const endpoint = String(req.body.endpoint || '').trim();
+    if (!endpoint) {
+      return res.json({ success: true });
+    }
+
+    await deletePushSubscription({ userId: user.id, endpoint });
+    return res.json({ success: true });
+  } catch (error) {
+    console.error('Ошибка /api/push/unsubscribe:', error);
+    return res.status(500).json({ error: 'Не удалось удалить push-подписку' });
   }
 });
 
@@ -551,6 +800,7 @@ app.post('/api/trips', async (req, res) => {
       const plans = await getActivePassengerPlans(120);
       const departureTs = Date.parse(departure_time);
       const timeWindow = 4 * 60 * 60 * 1000;
+      const matchedPassengerIds = new Set();
 
       for (const plan of plans) {
         if (String(plan.from_city).trim().toLowerCase() !== String(from_city).trim().toLowerCase()) continue;
@@ -568,7 +818,17 @@ app.post('/api/trips', async (req, res) => {
           `Цена: ${formatMoney(trip.price_per_seat)} ₽/место\n\n` +
           `Откройте мини-приложение и посмотрите детали.`;
         await sendMessageSafe(plan.passenger_telegram_id, message, webAppOpenKeyboard('Открыть поездку', `trip_${trip.id}`));
+        if (plan.passenger_id) matchedPassengerIds.add(Number(plan.passenger_id));
       }
+
+      await sendPushPayloadToUserIds([...matchedPassengerIds], {
+        title: 'Найдена поездка по вашему маршруту',
+        body: `${trip.from_city} → ${trip.to_city} · ${trip.departure_time}`,
+        tag: `trip-match-${trip.id}`,
+        url: buildWebAppUrl(`trip_${trip.id}`),
+        icon: '/assets/icons/icon-192.png',
+        badge: '/assets/icons/badge-72.png',
+      });
     } catch (error) {
       console.warn('notify matching plans error:', error?.message || error);
     }
@@ -776,6 +1036,15 @@ app.post('/api/bookings', async (req, res) => {
       await sendMessageSafe(tripFull.driver_telegram_id, textForDriver, webAppOpenKeyboard('Открыть бронь', `trip_${tripFull.id}`));
     }
 
+    await sendPushPayloadToUserIds([tripFull?.driver_id], {
+      title: 'Новая бронь',
+      body: `${tripFull?.from_city || trip.from_city} → ${tripFull?.to_city || trip.to_city} · ${booking.seats_booked} мест`,
+      tag: `booking-${booking.id}`,
+      url: buildWebAppUrl(`trip_${tripFull?.id || trip.id}`),
+      icon: '/assets/icons/icon-192.png',
+      badge: '/assets/icons/badge-72.png',
+    });
+
     return res.json({ booking, trip });
   } catch (error) {
     console.error('Ошибка /api/bookings:', error);
@@ -909,6 +1178,7 @@ app.post('/api/passenger/plans', async (req, res) => {
       const planTs = Date.parse(plan.desired_time);
       const timeWindow = 4 * 60 * 60 * 1000;
       const seen = new Set();
+      const matchedDriverIds = new Set();
 
       for (const trip of trips) {
         if (String(trip.from_city).trim().toLowerCase() !== String(plan.from_city).trim().toLowerCase()) continue;
@@ -929,7 +1199,17 @@ app.post('/api/passenger/plans', async (req, res) => {
           `Нужно мест: ${plan.seats_needed}\n\n` +
           `Откройте мини-приложение и заберите заявку.`;
         await sendMessageSafe(trip.driver_telegram_id, message, webAppOpenKeyboard('Открыть заявку', `plan_${plan.id}`));
+        if (trip.driver_id) matchedDriverIds.add(Number(trip.driver_id));
       }
+
+      await sendPushPayloadToUserIds([...matchedDriverIds], {
+        title: 'Появилась новая заявка пассажира',
+        body: `${plan.from_city} → ${plan.to_city} · ${plan.desired_time}`,
+        tag: `plan-match-${plan.id}`,
+        url: buildWebAppUrl(`plan_${plan.id}`),
+        icon: '/assets/icons/icon-192.png',
+        badge: '/assets/icons/badge-72.png',
+      });
     } catch (error) {
       console.warn('notify matching trips error:', error?.message || error);
     }
@@ -1044,6 +1324,15 @@ app.post('/api/driver/passenger-plans/take', async (req, res) => {
         (carText ? `\nАвто: ${carText}` : '');
       await sendMessageSafe(plan.passenger_telegram_id, message, webAppOpenKeyboard('Открыть заявку', `plan_${plan.id}`));
     }
+
+    await sendPushPayloadToUserIds([plan?.passenger_id], {
+      title: 'Водитель забрал вашу заявку',
+      body: `${plan?.from_city || ''} → ${plan?.to_city || ''} · ${plan?.desired_time || ''}`.trim(),
+      tag: `taken-plan-${plan.id}`,
+      url: buildWebAppUrl(`plan_${plan.id}`),
+      icon: '/assets/icons/icon-192.png',
+      badge: '/assets/icons/badge-72.png',
+    });
 
     return res.json({ success: true, plan });
   } catch (error) {

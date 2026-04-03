@@ -3,11 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#1f66d6" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Попутчики" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <title>Попутчики</title>
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
   <link rel="stylesheet" href="/assets/css/app.css" />
 </head>
 <body class="app-page">
@@ -28,6 +36,14 @@
           <button class="drawer-link" type="button" data-view="history">
             <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3a9 9 0 1 0 8.95 10h-2.02A7 7 0 1 1 13 5v4l5-5-5-5v4zm-1 5h2v6h-5v-2h3V8z"/></svg>
             Моя история
+          </button>
+          <button class="drawer-link" type="button" id="installAppBtn">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 7 8h3v6h4V8h3l-5-5zm-7 12h3v4h8v-4h3v6H5v-6z"/></svg>
+            <span id="installAppLabel">Установить приложение</span>
+          </button>
+          <button class="drawer-link" type="button" id="pushToggleBtn">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm6-6v-5a6 6 0 1 0-12 0v5L4 18v1h16v-1l-2-2z"/></svg>
+            <span id="pushToggleLabel">Включить уведомления</span>
           </button>
         </nav>
       </div>
