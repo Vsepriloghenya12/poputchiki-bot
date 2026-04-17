@@ -1,6 +1,7 @@
 
 const fs = require('fs');
 const path = require('path');
+const crypto = require('crypto');
 const sqlite3 = require('sqlite3').verbose();
 
 const DEFAULT_DB_PATH = path.join(__dirname, 'poputchiki.db');
@@ -31,9 +32,23 @@ db.serialize(() => {
       car_color TEXT,
       car_plate TEXT,
       is_blocked INTEGER DEFAULT 0,
+      auth_provider TEXT NOT NULL DEFAULT 'telegram',
+      contact_phone TEXT,
       rating_sum INTEGER NOT NULL DEFAULT 0,
       rating_count INTEGER NOT NULL DEFAULT 0,
       rating_avg REAL NOT NULL DEFAULT 0
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS standalone_accounts (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL UNIQUE,
+      phone TEXT NOT NULL UNIQUE,
+      password_hash TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now','localtime')),
+      updated_at TEXT DEFAULT (datetime('now','localtime')),
+      FOREIGN KEY (user_id) REFERENCES users(id)
     )
   `);
 
@@ -93,10 +108,18 @@ db.serialize(() => {
     "ALTER TABLE passenger_plans ADD COLUMN note TEXT",
     "ALTER TABLE passenger_plans ADD COLUMN driver_id INTEGER",
     "ALTER TABLE passenger_plans ADD COLUMN taken_at TEXT",
+    "ALTER TABLE users ADD COLUMN auth_provider TEXT NOT NULL DEFAULT 'telegram'",
+    "ALTER TABLE users ADD COLUMN contact_phone TEXT",
     "ALTER TABLE users ADD COLUMN rating_sum INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN rating_count INTEGER NOT NULL DEFAULT 0",
     "ALTER TABLE users ADD COLUMN rating_avg REAL NOT NULL DEFAULT 0"
   ].forEach(softMigrate);
+
+  db.run(`
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_users_contact_phone
+    ON users (contact_phone)
+    WHERE contact_phone IS NOT NULL AND trim(contact_phone) <> ''
+  `);
 
   db.run(`
     CREATE INDEX IF NOT EXISTS idx_passenger_plans_status_time
@@ -204,6 +227,40 @@ function toNumber(value) {
   return Number.isFinite(num) ? num : 0;
 }
 
+function normalizePhone(phone) {
+  const digits = String(phone || '').replace(/\D/g, '');
+  if (!digits) return '';
+
+  if (digits.length === 11 && digits.startsWith('8')) {
+    return `+7${digits.slice(1)}`;
+  }
+
+  if (digits.length === 10) {
+    return `+7${digits}`;
+  }
+
+  if (digits.length >= 11 && digits.length <= 15) {
+    return `+${digits}`;
+  }
+
+  return '';
+}
+
+function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
+  const derived = crypto.scryptSync(String(password || ''), salt, 64).toString('hex');
+  return `${salt}:${derived}`;
+}
+
+function verifyPassword(password, storedHash) {
+  const [salt, hash] = String(storedHash || '').split(':');
+  if (!salt || !hash) return false;
+
+  const derived = crypto.scryptSync(String(password || ''), salt, 64).toString('hex');
+  const left = Buffer.from(derived, 'hex');
+  const right = Buffer.from(hash, 'hex');
+  return left.length === right.length && crypto.timingSafeEqual(left, right);
+}
+
 async function upsertUserFromTelegram(tgUser) {
   if (!tgUser || !tgUser.id) {
     throw new Error('Некорректные данные пользователя Telegram');
@@ -224,7 +281,7 @@ async function upsertUserFromTelegram(tgUser) {
     await runAsync(
       `
         UPDATE users
-        SET first_name = ?, last_name = ?, username = ?, language_code = ?
+        SET first_name = ?, last_name = ?, username = ?, language_code = ?, auth_provider = 'telegram'
         WHERE telegram_id = ?
       `,
       [
@@ -242,8 +299,8 @@ async function upsertUserFromTelegram(tgUser) {
   await runAsync(
     `
       INSERT INTO users (
-        telegram_id, first_name, last_name, username, language_code
-      ) VALUES (?, ?, ?, ?, ?)
+        telegram_id, first_name, last_name, username, language_code, auth_provider
+      ) VALUES (?, ?, ?, ?, ?, 'telegram')
     `,
     [
       telegramId,
@@ -255,6 +312,109 @@ async function upsertUserFromTelegram(tgUser) {
   );
 
   return getAsync(`SELECT * FROM users WHERE telegram_id = ?`, [telegramId]);
+}
+
+async function createStandaloneUser({ firstName, lastName, phone, password }) {
+  const normalizedPhone = normalizePhone(phone);
+  const passwordValue = String(password || '');
+
+  if (!String(firstName || '').trim()) {
+    const error = new Error('Введите имя');
+    error.code = 'BAD_INPUT';
+    throw error;
+  }
+
+  if (!normalizedPhone) {
+    const error = new Error('Введите корректный номер телефона');
+    error.code = 'BAD_INPUT';
+    throw error;
+  }
+
+  if (passwordValue.length < 6) {
+    const error = new Error('Пароль должен быть не короче 6 символов');
+    error.code = 'BAD_INPUT';
+    throw error;
+  }
+
+  const existing = await getAsync(
+    `
+      SELECT u.*
+      FROM standalone_accounts s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.phone = ?
+    `,
+    [normalizedPhone]
+  );
+  if (existing) {
+    const error = new Error('Аккаунт с таким номером уже существует');
+    error.code = 'PHONE_EXISTS';
+    throw error;
+  }
+
+  const accountId = `app_${crypto.randomBytes(12).toString('hex')}`;
+  const passwordHash = hashPassword(passwordValue);
+
+  await runAsync(
+    `
+      INSERT INTO users (
+        telegram_id,
+        first_name,
+        last_name,
+        auth_provider,
+        contact_phone
+      ) VALUES (?, ?, ?, 'standalone', ?)
+    `,
+    [
+      accountId,
+      String(firstName || '').trim(),
+      String(lastName || '').trim() || null,
+      normalizedPhone,
+    ]
+  );
+
+  const user = await getAsync(`SELECT * FROM users WHERE telegram_id = ?`, [accountId]);
+  if (!user?.id) {
+    throw new Error('Не удалось создать пользователя');
+  }
+
+  await runAsync(
+    `
+      INSERT INTO standalone_accounts (
+        user_id,
+        phone,
+        password_hash,
+        created_at,
+        updated_at
+      ) VALUES (?, ?, ?, datetime('now','localtime'), datetime('now','localtime'))
+    `,
+    [user.id, normalizedPhone, passwordHash]
+  );
+
+  return getAsync(`SELECT * FROM users WHERE id = ?`, [user.id]);
+}
+
+async function authenticateStandaloneUser({ phone, password }) {
+  const normalizedPhone = normalizePhone(phone);
+  if (!normalizedPhone || !String(password || '')) return null;
+
+  const row = await getAsync(
+    `
+      SELECT
+        u.*,
+        s.password_hash
+      FROM standalone_accounts s
+      JOIN users u ON u.id = s.user_id
+      WHERE s.phone = ?
+    `,
+    [normalizedPhone]
+  );
+
+  if (!row?.password_hash || !verifyPassword(password, row.password_hash)) {
+    return null;
+  }
+
+  delete row.password_hash;
+  return row;
 }
 
 function getUserByTelegramId(telegramId) {
@@ -1326,6 +1486,8 @@ module.exports = {
   dbGet: getAsync,
   dbAll: allAsync,
   upsertUserFromTelegram,
+  createStandaloneUser,
+  authenticateStandaloneUser,
   getUserById,
   getUserByTelegramId,
   getDriverProfileByTelegramId,

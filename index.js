@@ -12,6 +12,8 @@ const {
   dbGet,
   dbAll,
   upsertUserFromTelegram,
+  createStandaloneUser,
+  authenticateStandaloneUser,
   getUserByTelegramId,
   getDriverProfileByTelegramId,
   updateDriverCarProfile,
@@ -92,6 +94,9 @@ if (!BOT_TOKEN) {
 const bot = new Telegraf(BOT_TOKEN);
 let BOT_USERNAME_RUNTIME = (process.env.BOT_USERNAME || '').replace('@', '').trim();
 const WEBAPP_SHORTNAME = (process.env.WEBAPP_SHORTNAME || '').trim();
+const SUPPORT_URL = (process.env.SUPPORT_URL || '').trim();
+const SUPPORT_LABEL = (process.env.SUPPORT_LABEL || 'Поддержка').trim() || 'Поддержка';
+const SUPPORT_TEXT = (process.env.SUPPORT_TEXT || 'Если что-то не работает или нужен ответ по поездке, напишите в поддержку сервиса.').trim();
 
 if (PUSH_ENABLED) {
   webpush.setVapidDetails(WEB_PUSH_SUBJECT, WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY);
@@ -99,11 +104,17 @@ if (PUSH_ENABLED) {
 
 async function sendMessageSafe(telegramId, text, extra = undefined) {
   try {
-    if (!telegramId) return;
+    if (!telegramId || !/^-?\d+$/.test(String(telegramId).trim())) return;
     await bot.telegram.sendMessage(String(telegramId), String(text).slice(0, 3500), extra);
   } catch (error) {
     console.warn('sendMessageSafe error:', error?.message || error);
   }
+}
+
+function buildSupportUrl() {
+  if (SUPPORT_URL) return SUPPORT_URL;
+  if (BOT_USERNAME_RUNTIME) return `https://t.me/${BOT_USERNAME_RUNTIME}`;
+  return '';
 }
 
 function isLoopbackHostname(hostname) {
@@ -777,6 +788,8 @@ app.use('/api', (req, res, next) => {
     req.path === '/session/logout' ||
     req.path === '/app-config' ||
     req.path === '/push/public-key' ||
+    req.path === '/auth/register' ||
+    req.path === '/auth/login' ||
     req.path === '/auth/telegram/start' ||
     req.path === '/auth/telegram/status';
   if (isPublicApi) return next();
@@ -799,7 +812,7 @@ app.use('/api', (req, res, next) => {
 
   if (!initData) {
     if (!REQUIRE_INIT_DATA) return next();
-    return res.status(401).json({ error: 'Нет initData. Откройте мини-приложение из Telegram.' });
+    return res.status(401).json({ error: 'Нет активной сессии. Откройте приложение через Telegram или войдите в standalone-версию.' });
   }
 
   const validation = validateTelegramInitData(String(initData), BOT_TOKEN, INIT_DATA_MAX_AGE_SEC);
@@ -1008,6 +1021,29 @@ function clearUserSessionCookie(req, res) {
   });
 }
 
+function presentUser(user) {
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    telegram_id: user.telegram_id,
+    first_name: user.first_name || '',
+    last_name: user.last_name || '',
+    username: user.username || '',
+    language_code: user.language_code || '',
+    no_show_count: Number(user.no_show_count || 0),
+    car_make: user.car_make || '',
+    car_color: user.car_color || '',
+    car_plate: user.car_plate || '',
+    is_blocked: Number(user.is_blocked || 0),
+    auth_provider: user.auth_provider || 'telegram',
+    contact_phone: user.contact_phone || '',
+    rating_sum: Number(user.rating_sum || 0),
+    rating_count: Number(user.rating_count || 0),
+    rating_avg: Number(user.rating_avg || 0),
+  };
+}
+
 function ensureOwnerAccess(req, res) {
   if (hasOwnerSession(req)) {
     return true;
@@ -1081,7 +1117,7 @@ app.get('/api/session', async (req, res) => {
 
     return res.json({
       authenticated: true,
-      user,
+      user: presentUser(user),
       is_owner: isOwnerTelegramId(user.telegram_id),
       push_enabled: PUSH_ENABLED,
     });
@@ -1096,16 +1132,72 @@ app.post('/api/session/logout', (req, res) => {
   return res.json({ success: true });
 });
 
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const user = await createStandaloneUser({
+      firstName: req.body.first_name,
+      lastName: req.body.last_name,
+      phone: req.body.phone,
+      password: req.body.password,
+    });
+
+    setUserSessionCookie(req, res, user.telegram_id);
+    return res.json({
+      authenticated: true,
+      user: presentUser(user),
+      is_owner: isOwnerTelegramId(user.telegram_id),
+      push_enabled: PUSH_ENABLED,
+    });
+  } catch (error) {
+    if (error.code === 'BAD_INPUT' || error.code === 'PHONE_EXISTS') {
+      return res.status(400).json({ error: error.message });
+    }
+
+    console.error('Ошибка /api/auth/register:', error);
+    return res.status(500).json({ error: 'Не удалось создать аккаунт' });
+  }
+});
+
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const phone = String(req.body.phone || '').trim();
+    const password = String(req.body.password || '');
+    if (!phone || !password) {
+      return res.status(400).json({ error: 'Введите номер телефона и пароль' });
+    }
+
+    const user = await authenticateStandaloneUser({ phone, password });
+    if (!user) {
+      return res.status(401).json({ error: 'Неверный номер телефона или пароль' });
+    }
+
+    if (Number(user.is_blocked || 0)) {
+      return res.status(403).json({ error: 'Ваш аккаунт заблокирован владельцем сервиса.' });
+    }
+
+    setUserSessionCookie(req, res, user.telegram_id);
+    return res.json({
+      authenticated: true,
+      user: presentUser(user),
+      is_owner: isOwnerTelegramId(user.telegram_id),
+      push_enabled: PUSH_ENABLED,
+    });
+  } catch (error) {
+    console.error('Ошибка /api/auth/login:', error);
+    return res.status(500).json({ error: 'Не удалось выполнить вход' });
+  }
+});
+
 app.post('/api/session/handoff', async (req, res) => {
   try {
     const telegramId = req.telegramId || req.body.telegram_id;
     if (!telegramId) {
-      return res.status(401).json({ error: 'Сначала откройте приложение через Telegram' });
+      return res.status(401).json({ error: 'Сначала войдите в приложение' });
     }
 
     const user = await getUserByTelegramId(telegramId);
     if (!user) {
-      return res.status(400).json({ error: 'Пользователь не найден. Сначала откройте приложение через Telegram.' });
+      return res.status(400).json({ error: 'Пользователь не найден. Войдите в приложение заново.' });
     }
 
     const token = createSessionHandoffToken(user.telegram_id);
@@ -1175,7 +1267,7 @@ app.get('/api/auth/telegram/status', async (req, res) => {
 
     return res.json({
       status: 'approved',
-      user,
+      user: presentUser(user),
       is_owner: isOwnerTelegramId(user.telegram_id),
       push_enabled: PUSH_ENABLED,
     });
@@ -1195,7 +1287,7 @@ app.post('/api/init-user', async (req, res) => {
     const dbUser = await upsertUserFromTelegram(user);
     setUserSessionCookie(req, res, dbUser.telegram_id);
     return res.json({
-      user: dbUser,
+      user: presentUser(dbUser),
       is_owner: isOwnerTelegramId(dbUser.telegram_id),
       standalone_enabled: true,
       push_enabled: PUSH_ENABLED,
@@ -1227,6 +1319,13 @@ app.get('/api/app-config', async (req, res) => {
       pwa: {
         enabled: true,
         start_url: buildResolvedWebAppUrl(req),
+        install_url: `${resolveWebAppBaseUrl(req)}/?install=guide`,
+      },
+      support: {
+        enabled: !!(buildSupportUrl() || SUPPORT_TEXT),
+        label: SUPPORT_LABEL,
+        text: SUPPORT_TEXT,
+        url: buildSupportUrl() || null,
       },
       push: {
         enabled: PUSH_ENABLED,
@@ -1259,12 +1358,12 @@ app.post('/api/push/subscribe', async (req, res) => {
 
     const telegramId = req.telegramId || req.body.telegram_id;
     if (!telegramId) {
-      return res.status(401).json({ error: 'Сначала войдите через Telegram и откройте установленное приложение заново' });
+      return res.status(401).json({ error: 'Сначала войдите или зарегистрируйтесь в приложении' });
     }
 
     const user = await getUserByTelegramId(telegramId);
     if (!user) {
-      return res.status(400).json({ error: 'Пользователь не найден. Сначала откройте приложение через Telegram.' });
+      return res.status(400).json({ error: 'Пользователь не найден. Войдите в приложение заново.' });
     }
 
     const subscription = req.body.subscription;

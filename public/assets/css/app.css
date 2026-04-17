@@ -28,6 +28,31 @@
   line-height: 1.45;
 }
 
+.auth-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.auth-switch__btn {
+  min-height: 42px;
+  border-radius: 14px;
+  background: #eef4ff;
+  color: var(--color-muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.auth-switch__btn.is-active {
+  background: rgba(31, 102, 214, 0.14);
+  color: var(--color-primary-strong);
+}
+
+.auth-form {
+  display: grid;
+  gap: 10px;
+}
+
 .install-guide {
   display: grid;
   gap: 10px;

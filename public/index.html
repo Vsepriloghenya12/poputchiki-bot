@@ -45,6 +45,10 @@
             <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 22a2.5 2.5 0 0 0 2.45-2h-4.9A2.5 2.5 0 0 0 12 22zm6-6v-5a6 6 0 1 0-12 0v5L4 18v1h16v-1l-2-2z"/></svg>
             <span id="pushToggleLabel">Включить уведомления</span>
           </button>
+          <button class="drawer-link" type="button" id="supportBtn">
+            <svg class="nav-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a8 8 0 0 0-8 8c0 2.1.82 4.02 2.17 5.45L5 21l4.78-1.13A8 8 0 1 0 12 3zm0 2a6 6 0 0 1 4.64 9.8l-.3.35-.29.37.49 2.05-2.09-.49-.36.23A6 6 0 1 1 12 5zm-2.2 4.5c-.6 0-1.1.48-1.1 1.08 0 .31.13.6.37.8l1.56 1.34c.21.18.33.45.33.73V15h2v-1.55c0-.87-.38-1.7-1.04-2.27l-.96-.82c.5-.06.98-.27 1.36-.62.35-.33.92-.33 1.27 0 .37.36.38.95.01 1.32l-.99.99 1.41 1.41 1-1a2.87 2.87 0 0 0-.02-4.05 2.9 2.9 0 0 0-4.07 0 .9.9 0 0 1-1.13.14.95.95 0 0 0-.51-.14zM11 17h2v2h-2v-2z"/></svg>
+            <span id="supportBtnLabel">Поддержка</span>
+          </button>
         </nav>
       </div>
     </aside>
@@ -154,9 +158,24 @@
       <main class="page-body">
         <section class="status-banner hidden" id="statusBanner"></section>
         <section class="auth-panel hidden" id="authPanel">
-          <div class="auth-panel__title">Вход через Telegram</div>
-          <div class="auth-panel__text" id="authPanelText">Авторизуйтесь через Telegram, чтобы видеть свои поездки, брони и историю.</div>
-          <button class="button is-block" type="button" id="telegramLoginBtn">Войти через Telegram</button>
+          <div class="auth-panel__title">Вход в приложение</div>
+          <div class="auth-panel__text" id="authPanelText">Зарегистрируйтесь в приложении или войдите по номеру телефона. После этого установленная версия будет работать без Telegram.</div>
+          <div class="auth-switch" id="authSwitch">
+            <button class="auth-switch__btn is-active" type="button" id="registerModeBtn">Регистрация</button>
+            <button class="auth-switch__btn" type="button" id="loginModeBtn">Вход</button>
+          </div>
+          <form class="auth-form" id="registerForm">
+            <input class="input" id="registerFirstName" type="text" autocomplete="given-name" placeholder="Имя" required />
+            <input class="input" id="registerLastName" type="text" autocomplete="family-name" placeholder="Фамилия" />
+            <input class="input" id="registerPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+7 999 123-45-67" required />
+            <input class="input" id="registerPassword" type="password" autocomplete="new-password" placeholder="Пароль" required />
+            <button class="button is-block" type="submit" id="registerSubmitBtn">Создать аккаунт</button>
+          </form>
+          <form class="auth-form hidden" id="loginForm">
+            <input class="input" id="loginPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+7 999 123-45-67" required />
+            <input class="input" id="loginPassword" type="password" autocomplete="current-password" placeholder="Пароль" required />
+            <button class="button is-block" type="submit" id="loginSubmitBtn">Войти</button>
+          </form>
         </section>
         <section class="install-guide hidden" id="installGuide">
           <div class="install-guide__title" id="installGuideTitle">Как добавить приложение на главный экран</div>

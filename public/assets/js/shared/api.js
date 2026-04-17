@@ -107,14 +107,14 @@ export function openChat(username, telegramId) {
     return;
   }
 
-  if (telegramId) {
+  if (telegramId && /^-?\d+$/.test(String(telegramId))) {
     const url = 'tg://user?id=' + encodeURIComponent(String(telegramId));
     if (tg?.openTelegramLink) tg.openTelegramLink(url);
     else window.location.href = url;
     return;
   }
 
-  showAlert('У пользователя нет username, чат открыть не удалось.');
+  showAlert('У этого пользователя не привязан Telegram-контакт. Свяжитесь с ним другим способом.');
 }
 
 export function showAlert(message) {
