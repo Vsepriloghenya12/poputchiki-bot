@@ -163,6 +163,12 @@ db.serialize(() => {
   `);
 
   db.run(`
+    CREATE INDEX IF NOT EXISTS idx_users_username_lower
+    ON users (lower(username))
+    WHERE username IS NOT NULL AND trim(username) <> ''
+  `);
+
+  db.run(`
     CREATE INDEX IF NOT EXISTS idx_passenger_plans_status_time
     ON passenger_plans (status, desired_time)
   `);
@@ -287,6 +293,13 @@ function normalizePhone(phone) {
   return '';
 }
 
+function normalizeTelegramUsername(username) {
+  const value = String(username || '').trim().replace(/^@/, '');
+  if (!value) return '';
+  if (!/^[a-zA-Z][a-zA-Z0-9_]{4,31}$/.test(value)) return '';
+  return value;
+}
+
 function hashPassword(password, salt = crypto.randomBytes(16).toString('hex')) {
   const derived = crypto.scryptSync(String(password || ''), salt, 64).toString('hex');
   return `${salt}:${derived}`;
@@ -316,6 +329,7 @@ async function upsertUserFromTelegram(tgUser) {
   } = tgUser;
 
   const telegramId = String(id);
+  const normalizedUsername = normalizeTelegramUsername(username);
   const existing = await getAsync(`SELECT * FROM users WHERE telegram_id = ?`, [telegramId]);
 
   if (existing) {
@@ -328,13 +342,52 @@ async function upsertUserFromTelegram(tgUser) {
       [
         first_name || null,
         last_name || null,
-        username || null,
+        normalizedUsername || null,
         language_code || null,
         telegramId,
       ]
     );
 
     return getAsync(`SELECT * FROM users WHERE telegram_id = ?`, [telegramId]);
+  }
+
+  const standaloneMatch = normalizedUsername
+    ? await getAsync(
+      `
+        SELECT *
+        FROM users
+        WHERE lower(username) = lower(?)
+          AND auth_provider = 'standalone'
+          AND telegram_id LIKE 'app_%'
+        LIMIT 1
+      `,
+      [normalizedUsername]
+    )
+    : null;
+
+  if (standaloneMatch?.id) {
+    await runAsync(
+      `
+        UPDATE users
+        SET telegram_id = ?,
+          first_name = ?,
+          last_name = ?,
+          username = ?,
+          language_code = ?,
+          auth_provider = 'telegram'
+        WHERE id = ?
+      `,
+      [
+        telegramId,
+        first_name || standaloneMatch.first_name || null,
+        last_name || standaloneMatch.last_name || null,
+        normalizedUsername,
+        language_code || null,
+        standaloneMatch.id,
+      ]
+    );
+
+    return getAsync(`SELECT * FROM users WHERE id = ?`, [standaloneMatch.id]);
   }
 
   await runAsync(
@@ -347,7 +400,7 @@ async function upsertUserFromTelegram(tgUser) {
       telegramId,
       first_name || null,
       last_name || null,
-      username || null,
+      normalizedUsername || null,
       language_code || null,
     ]
   );
@@ -355,8 +408,9 @@ async function upsertUserFromTelegram(tgUser) {
   return getAsync(`SELECT * FROM users WHERE telegram_id = ?`, [telegramId]);
 }
 
-async function createStandaloneUser({ firstName, lastName, phone, password }) {
+async function createStandaloneUser({ firstName, lastName, username, phone, password }) {
   const normalizedPhone = normalizePhone(phone);
+  const normalizedUsername = normalizeTelegramUsername(username);
   const passwordValue = String(password || '');
 
   if (!String(firstName || '').trim()) {
@@ -367,6 +421,12 @@ async function createStandaloneUser({ firstName, lastName, phone, password }) {
 
   if (!normalizedPhone) {
     const error = new Error('Введите корректный номер телефона');
+    error.code = 'BAD_INPUT';
+    throw error;
+  }
+
+  if (!normalizedUsername) {
+    const error = new Error('Введите Telegram username в формате @username');
     error.code = 'BAD_INPUT';
     throw error;
   }
@@ -392,8 +452,77 @@ async function createStandaloneUser({ firstName, lastName, phone, password }) {
     throw error;
   }
 
+  const existingUsername = await getAsync(
+    `
+      SELECT
+        u.*,
+        s.id AS standalone_account_id
+      FROM users u
+      LEFT JOIN standalone_accounts s ON s.user_id = u.id
+      WHERE lower(u.username) = lower(?)
+      LIMIT 1
+    `,
+    [normalizedUsername]
+  );
+
+  const existingContactPhone = await getAsync(
+    `
+      SELECT *
+      FROM users
+      WHERE contact_phone = ?
+      LIMIT 1
+    `,
+    [normalizedPhone]
+  );
+  if (existingContactPhone && Number(existingContactPhone.id) !== Number(existingUsername?.id || 0)) {
+    const error = new Error('Аккаунт с таким номером уже существует');
+    error.code = 'PHONE_EXISTS';
+    throw error;
+  }
+
   const accountId = `app_${crypto.randomBytes(12).toString('hex')}`;
   const passwordHash = hashPassword(passwordValue);
+
+  if (existingUsername?.standalone_account_id) {
+    const error = new Error('Аккаунт с таким Telegram username уже существует');
+    error.code = 'USERNAME_EXISTS';
+    throw error;
+  }
+
+  if (existingUsername?.id) {
+    await runAsync(
+      `
+        UPDATE users
+        SET first_name = COALESCE(NULLIF(first_name, ''), ?),
+          last_name = COALESCE(NULLIF(last_name, ''), ?),
+          username = ?,
+          contact_phone = ?
+        WHERE id = ?
+      `,
+      [
+        String(firstName || '').trim(),
+        String(lastName || '').trim() || null,
+        normalizedUsername,
+        normalizedPhone,
+        existingUsername.id,
+      ]
+    );
+
+    await runAsync(
+      `
+        INSERT INTO standalone_accounts (
+          user_id,
+          phone,
+          password_hash,
+          created_at,
+          updated_at
+        ) VALUES (?, ?, ?, datetime('now','localtime'), datetime('now','localtime'))
+      `,
+      [existingUsername.id, normalizedPhone, passwordHash]
+    );
+
+    return getAsync(`SELECT * FROM users WHERE id = ?`, [existingUsername.id]);
+  }
 
   await runAsync(
     `
@@ -401,14 +530,16 @@ async function createStandaloneUser({ firstName, lastName, phone, password }) {
         telegram_id,
         first_name,
         last_name,
+        username,
         auth_provider,
         contact_phone
-      ) VALUES (?, ?, ?, 'standalone', ?)
+      ) VALUES (?, ?, ?, ?, 'standalone', ?)
     `,
     [
       accountId,
       String(firstName || '').trim(),
       String(lastName || '').trim() || null,
+      normalizedUsername,
       normalizedPhone,
     ]
   );

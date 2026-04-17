@@ -71,6 +71,7 @@ const refs = {
   loginForm: document.getElementById('loginForm'),
   registerFirstName: document.getElementById('registerFirstName'),
   registerLastName: document.getElementById('registerLastName'),
+  registerUsername: document.getElementById('registerUsername'),
   registerPhone: document.getElementById('registerPhone'),
   registerPassword: document.getElementById('registerPassword'),
   registerSubmitBtn: document.getElementById('registerSubmitBtn'),
@@ -246,7 +247,7 @@ function updateAuthPanel() {
   if (!needsStandaloneAuth) return;
 
   refs.authPanelText.textContent = state.auth.mode === 'register'
-    ? 'Создайте аккаунт в приложении. После этого установленная версия будет входить сама по номеру телефона и паролю.'
+    ? 'Создайте аккаунт в приложении. Telegram username связывает установленную версию с аккаунтом в Telegram.'
     : 'Войдите по номеру телефона и паролю, которые вы указали при регистрации.';
   setAuthMode(state.auth.mode);
 }
@@ -280,8 +281,11 @@ function updatePwaActions() {
     : 'Установить';
   refs.bottomInstallBtn.classList.toggle('is-complete', state.pwa.standalone);
 
+  const pushMissing = Array.isArray(state.config?.push?.missing)
+    ? state.config.push.missing
+    : [];
   refs.pushToggleLabel.textContent = !pushServerEnabled
-    ? 'Уведомления не настроены'
+    ? (pushMissing.length ? 'Нет push-ключей' : 'Уведомления не настроены')
     : (state.pwa.pushEnabled ? 'Выключить уведомления' : 'Включить уведомления');
   refs.pushToggleBtn.disabled = !pushServerEnabled || !state.user || !state.pwa.pushSupported;
   refs.pushToggleBtn.classList.toggle('is-disabled', refs.pushToggleBtn.disabled);
@@ -954,6 +958,7 @@ async function handleRegister(event) {
       body: JSON.stringify({
         first_name: refs.registerFirstName.value.trim(),
         last_name: refs.registerLastName.value.trim(),
+        username: refs.registerUsername.value.trim(),
         phone: refs.registerPhone.value.trim(),
         password: refs.registerPassword.value,
       }),
@@ -1247,7 +1252,7 @@ async function bootstrap() {
   try {
     const session = await loadUserSession();
     if (session?.user) {
-      if (standaloneAuthOnly && session.user.auth_provider !== 'standalone') {
+      if (standaloneAuthOnly && session.user.auth_provider !== 'standalone' && !session.user.contact_phone) {
         await apiRequest('/api/session/logout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

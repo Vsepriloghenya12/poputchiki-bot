@@ -61,9 +61,18 @@ const OWNER_SESSION_TTL_MS = Math.max(1, Number(process.env.OWNER_SESSION_TTL_HO
 const USER_SESSION_SECRET = (process.env.USER_SESSION_SECRET || process.env.SESSION_SECRET || OWNER_SESSION_SECRET || BOT_TOKEN || 'user-session-secret').trim();
 const USER_SESSION_COOKIE = 'poputchiki_user_session';
 const USER_SESSION_TTL_MS = Math.max(1, Number(process.env.USER_SESSION_TTL_DAYS || 180)) * 24 * 60 * 60 * 1000;
-const WEB_PUSH_PUBLIC_KEY = (process.env.WEB_PUSH_PUBLIC_KEY || '').trim();
-const WEB_PUSH_PRIVATE_KEY = (process.env.WEB_PUSH_PRIVATE_KEY || '').trim();
-const WEB_PUSH_SUBJECT = (process.env.WEB_PUSH_SUBJECT || 'mailto:admin@example.com').trim();
+
+function readEnvValue(...names) {
+  for (const name of names) {
+    const value = String(process.env[name] || '').trim();
+    if (value) return value;
+  }
+  return '';
+}
+
+const WEB_PUSH_PUBLIC_KEY = readEnvValue('WEB_PUSH_PUBLIC_KEY', 'VAPID_PUBLIC_KEY', 'PUBLIC_VAPID_KEY');
+const WEB_PUSH_PRIVATE_KEY = readEnvValue('WEB_PUSH_PRIVATE_KEY', 'VAPID_PRIVATE_KEY', 'PRIVATE_VAPID_KEY');
+const WEB_PUSH_SUBJECT = readEnvValue('WEB_PUSH_SUBJECT', 'VAPID_SUBJECT') || 'mailto:admin@example.com';
 const DISABLE_BOT = process.env.DISABLE_BOT === '1';
 
 function parseTelegramChatTargets(rawValue) {
@@ -82,6 +91,10 @@ const AUTOPOST_TRIPS = process.env.AUTOPOST_TRIPS !== '0';
 const AUTOPOST_PLANS = process.env.AUTOPOST_PLANS !== '0';
 const CHANNEL_BRAND = (process.env.CHANNEL_BRAND || 'Попутчики').trim();
 const PUSH_ENABLED = !!(WEB_PUSH_PUBLIC_KEY && WEB_PUSH_PRIVATE_KEY);
+const PUSH_MISSING_ENV = [
+  ...(!WEB_PUSH_PUBLIC_KEY ? ['WEB_PUSH_PUBLIC_KEY или VAPID_PUBLIC_KEY'] : []),
+  ...(!WEB_PUSH_PRIVATE_KEY ? ['WEB_PUSH_PRIVATE_KEY или VAPID_PRIVATE_KEY'] : []),
+];
 const TELEGRAM_LOGIN_TTL_MS = Math.max(1, Number(process.env.TELEGRAM_LOGIN_TTL_MINUTES || 15)) * 60 * 1000;
 const telegramLoginStore = new Map();
 let lastKnownPublicOrigin = '';
@@ -100,6 +113,8 @@ const SUPPORT_TEXT = (process.env.SUPPORT_TEXT || 'Если что-то не р�
 
 if (PUSH_ENABLED) {
   webpush.setVapidDetails(WEB_PUSH_SUBJECT, WEB_PUSH_PUBLIC_KEY, WEB_PUSH_PRIVATE_KEY);
+} else {
+  console.warn(`Push-уведомления выключены: не заданы ${PUSH_MISSING_ENV.join(', ')}`);
 }
 
 async function sendMessageSafe(telegramId, text, extra = undefined) {
@@ -119,13 +134,33 @@ function isSupportedContactUrl(value) {
   return /^(https?:\/\/|tg:\/\/|mailto:|tel:)/i.test(contact);
 }
 
+function normalizeSupportUrl(value) {
+  const contact = String(value || '').trim();
+  if (!contact) return '';
+  const telegramUsername = contact.match(/^@([a-zA-Z][a-zA-Z0-9_]{4,31})$/);
+  if (telegramUsername) return `https://t.me/${telegramUsername[1]}`;
+  if (/^t\.me\/[a-zA-Z][a-zA-Z0-9_]{4,31}(?:[/?#].*)?$/i.test(contact)) return `https://${contact}`;
+  return contact;
+}
+
+function isGenericTelegramPlaceholder(value) {
+  try {
+    const parsed = new URL(String(value || '').trim());
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    return host === 'telegram.org' || (host === 't.me' && !parsed.pathname.replace(/\//g, '').trim());
+  } catch (_) {
+    return false;
+  }
+}
+
 async function getSupportSettings() {
   const storedSettings = await getAppSettings(SUPPORT_SETTING_KEYS).catch(() => ({}));
   const hasStoredUrl = Object.prototype.hasOwnProperty.call(storedSettings, 'support_url');
   const hasStoredText = Object.prototype.hasOwnProperty.call(storedSettings, 'support_text');
   const label = String(storedSettings.support_label || SUPPORT_LABEL || 'Поддержка').trim() || 'Поддержка';
   const text = String(hasStoredText ? storedSettings.support_text : SUPPORT_TEXT || '').trim();
-  const supportUrl = String(hasStoredUrl ? (storedSettings.support_url || '') : SUPPORT_URL).trim();
+  const configuredUrl = normalizeSupportUrl(hasStoredUrl ? (storedSettings.support_url || '') : SUPPORT_URL);
+  const supportUrl = isGenericTelegramPlaceholder(configuredUrl) ? '' : configuredUrl;
 
   return {
     enabled: !!(supportUrl || text),
@@ -1121,6 +1156,7 @@ app.post('/api/auth/register', async (req, res) => {
     const user = await createStandaloneUser({
       firstName: req.body.first_name,
       lastName: req.body.last_name,
+      username: req.body.username,
       phone: req.body.phone,
       password: req.body.password,
     });
@@ -1133,7 +1169,7 @@ app.post('/api/auth/register', async (req, res) => {
       push_enabled: PUSH_ENABLED,
     });
   } catch (error) {
-    if (error.code === 'BAD_INPUT' || error.code === 'PHONE_EXISTS') {
+    if (error.code === 'BAD_INPUT' || error.code === 'PHONE_EXISTS' || error.code === 'USERNAME_EXISTS') {
       return res.status(400).json({ error: error.message });
     }
 
@@ -1290,6 +1326,7 @@ app.get('/api/app-config', async (req, res) => {
       support,
       push: {
         enabled: PUSH_ENABLED,
+        missing: PUSH_ENABLED ? [] : PUSH_MISSING_ENV,
       },
       autopost: {
         enabled: !!(autopostTargets.targets.length && AUTOPOST_ENABLED),
@@ -1308,6 +1345,7 @@ app.get('/api/push/public-key', (req, res) => {
   return res.json({
     enabled: PUSH_ENABLED,
     public_key: PUSH_ENABLED ? WEB_PUSH_PUBLIC_KEY : null,
+    missing: PUSH_ENABLED ? [] : PUSH_MISSING_ENV,
   });
 });
 
@@ -2451,11 +2489,11 @@ app.post('/api/owner/support', async (req, res) => {
     if (!ensureOwnerAccess(req, res)) return;
 
     const supportLabel = String(req.body.support_label || req.body.label || '').trim() || 'Поддержка';
-    const supportUrl = String(req.body.support_url || req.body.url || '').trim();
+    const supportUrl = normalizeSupportUrl(req.body.support_url || req.body.url || '');
     const supportText = String(req.body.support_text || req.body.text || '').trim();
 
     if (!isSupportedContactUrl(supportUrl)) {
-      return res.status(400).json({ error: 'Ссылка поддержки должна начинаться с http://, https://, tg://, mailto: или tel:.' });
+      return res.status(400).json({ error: 'Введите ссылку поддержки или Telegram username в формате @username.' });
     }
 
     await setAppSettings({

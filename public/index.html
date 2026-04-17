@@ -13,10 +13,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="manifest" href="/manifest.webmanifest?v=20260417e" />
+  <link rel="manifest" href="/manifest.webmanifest?v=20260417g" />
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png" />
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/assets/css/app.css?v=20260417e" />
+  <link rel="stylesheet" href="/assets/css/app.css?v=20260417g" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -178,7 +178,7 @@
         <section class="status-banner hidden" id="statusBanner"></section>
         <section class="auth-panel hidden" id="authPanel">
           <div class="auth-panel__title">Вход в приложение</div>
-          <div class="auth-panel__text" id="authPanelText">Зарегистрируйтесь в приложении или войдите по номеру телефона. После этого установленная версия будет работать без Telegram.</div>
+          <div class="auth-panel__text" id="authPanelText">Зарегистрируйтесь в приложении или войдите по номеру телефона. Telegram username нужен, чтобы установленная версия и Telegram-версия работали как один аккаунт.</div>
           <div class="auth-switch" id="authSwitch">
             <button class="auth-switch__btn is-active" type="button" id="registerModeBtn">Регистрация</button>
             <button class="auth-switch__btn" type="button" id="loginModeBtn">Вход</button>
@@ -186,6 +186,7 @@
           <form class="auth-form" id="registerForm">
             <input class="input" id="registerFirstName" type="text" autocomplete="given-name" placeholder="Имя" required />
             <input class="input" id="registerLastName" type="text" autocomplete="family-name" placeholder="Фамилия" />
+            <input class="input" id="registerUsername" type="text" autocomplete="username" placeholder="@telegram_username" required />
             <input class="input" id="registerPhone" type="tel" autocomplete="tel" inputmode="tel" placeholder="+7 999 123-45-67" required />
             <input class="input" id="registerPassword" type="password" autocomplete="new-password" placeholder="Пароль" required />
             <button class="button is-block" type="submit" id="registerSubmitBtn">Создать аккаунт</button>
@@ -264,6 +265,6 @@
     </div>
   </div>
 
-  <script type="module" src="/assets/js/app.js?v=20260417e"></script>
+  <script type="module" src="/assets/js/app.js?v=20260417g"></script>
 </body>
 </html>

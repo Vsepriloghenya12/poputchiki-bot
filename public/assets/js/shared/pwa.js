@@ -14,6 +14,11 @@ const listeners = {
   push: new Set(),
 };
 
+const hadServiceWorkerControllerAtLoad = Boolean(navigator.serviceWorker?.controller);
+let serviceWorkerUpdateListenerBound = false;
+let serviceWorkerUpdateTimer = null;
+let reloadingForServiceWorkerUpdate = false;
+
 function emit(type) {
   const snapshot = { ...state };
   listeners[type].forEach((listener) => {
@@ -40,6 +45,29 @@ function detectStandaloneMode() {
   return Boolean(window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true);
 }
 
+function bindServiceWorkerAutoReload() {
+  if (serviceWorkerUpdateListenerBound || !('serviceWorker' in navigator)) return;
+  serviceWorkerUpdateListenerBound = true;
+
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!hadServiceWorkerControllerAtLoad || reloadingForServiceWorkerUpdate) return;
+    reloadingForServiceWorkerUpdate = true;
+    window.location.reload();
+  });
+}
+
+function scheduleServiceWorkerUpdateChecks(registration) {
+  if (!registration || serviceWorkerUpdateTimer) return;
+
+  const checkForUpdate = () => registration.update().catch(() => {});
+  checkForUpdate();
+  serviceWorkerUpdateTimer = window.setInterval(checkForUpdate, 30 * 60 * 1000);
+
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') checkForUpdate();
+  });
+}
+
 async function ensureRegistration() {
   if (!window.isSecureContext) {
     throw new Error('Для установки и push нужен HTTPS-домен или localhost');
@@ -49,11 +77,12 @@ async function ensureRegistration() {
     throw new Error('Service Worker не поддерживается в этом браузере');
   }
 
+  bindServiceWorkerAutoReload();
   if (state.registration) return state.registration;
 
   state.registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
   await navigator.serviceWorker.ready;
-  state.registration.update().catch(() => {});
+  scheduleServiceWorkerUpdateChecks(state.registration);
   return state.registration;
 }
 
@@ -149,7 +178,10 @@ export async function promptInstall() {
 export async function enablePushNotifications() {
   const config = await apiRequest('/api/push/public-key');
   if (!config.enabled || !config.public_key) {
-    throw new Error('Push-уведомления ещё не настроены на сервере');
+    const missing = Array.isArray(config.missing) && config.missing.length
+      ? `: ${config.missing.join(', ')}`
+      : '';
+    throw new Error(`Push-уведомления ещё не настроены на сервере${missing}`);
   }
 
   state.pushSupported = Boolean(window.isSecureContext && 'serviceWorker' in navigator && 'PushManager' in window && 'Notification' in window);
