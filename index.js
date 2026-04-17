@@ -1970,8 +1970,15 @@ async function getRideParticipants(contextType, contextId) {
           p.passenger_id,
           p.driver_id,
           p.status,
+          p.from_city,
+          p.to_city,
+          p.desired_time AS ride_time,
           pu.telegram_id AS passenger_telegram_id,
           du.telegram_id AS driver_telegram_id,
+          pu.first_name AS passenger_first_name,
+          pu.last_name AS passenger_last_name,
+          du.first_name AS driver_first_name,
+          du.last_name AS driver_last_name,
           pu.username AS passenger_username,
           du.username AS driver_username
         FROM passenger_plans p
@@ -1989,10 +1996,18 @@ async function getRideParticipants(contextType, contextId) {
         SELECT
           b.id,
           b.status,
+          b.trip_id,
           b.passenger_id,
           t.driver_id,
+          t.from_city,
+          t.to_city,
+          t.departure_time AS ride_time,
           pu.telegram_id AS passenger_telegram_id,
           du.telegram_id AS driver_telegram_id,
+          pu.first_name AS passenger_first_name,
+          pu.last_name AS passenger_last_name,
+          du.first_name AS driver_first_name,
+          du.last_name AS driver_last_name,
           pu.username AS passenger_username,
           du.username AS driver_username
         FROM bookings b
@@ -2007,6 +2022,234 @@ async function getRideParticipants(contextType, contextId) {
 
   return null;
 }
+
+function normalizeChatContextType(value) {
+  const normalized = String(value || '').trim().toLowerCase();
+  return normalized === 'booking' || normalized === 'plan' ? normalized : '';
+}
+
+function formatChatPerson(firstName, lastName, username, fallback = 'Собеседник') {
+  const fullName = `${firstName || ''} ${lastName || ''}`.trim();
+  if (fullName) return fullName;
+  if (username) return `@${String(username).replace('@', '')}`;
+  return fallback;
+}
+
+async function getChatAccess({ telegramId, contextType, contextId }) {
+  const type = normalizeChatContextType(contextType);
+  if (!type) {
+    const error = new Error('Некорректный тип чата');
+    error.code = 'BAD_CONTEXT';
+    throw error;
+  }
+
+  const me = await getUserByTelegramId(telegramId);
+  if (!me) {
+    const error = new Error('Пользователь не найден');
+    error.code = 'USER_NOT_FOUND';
+    throw error;
+  }
+
+  const participants = await getRideParticipants(type, Number(contextId));
+  if (!participants) {
+    const error = new Error('Поездка не найдена');
+    error.code = 'CONTEXT_NOT_FOUND';
+    throw error;
+  }
+
+  let role = '';
+  if (participants.driver_id && Number(me.id) === Number(participants.driver_id)) role = 'driver';
+  if (participants.passenger_id && Number(me.id) === Number(participants.passenger_id)) role = 'passenger';
+  if (!role) {
+    const error = new Error('Нет доступа к этому чату');
+    error.code = 'FORBIDDEN';
+    throw error;
+  }
+
+  if (type === 'plan' && participants.status !== 'taken') {
+    const error = new Error('Чат откроется после того, как водитель заберёт заявку');
+    error.code = 'CHAT_NOT_READY';
+    throw error;
+  }
+
+  if (type === 'booking' && (participants.status === 'cancelled' || participants.status === 'no_show')) {
+    const error = new Error('Чат по этой броне уже недоступен');
+    error.code = 'CHAT_CLOSED';
+    throw error;
+  }
+
+  const otherId = role === 'driver' ? participants.passenger_id : participants.driver_id;
+  if (!otherId) {
+    const error = new Error('Собеседник пока не назначен');
+    error.code = 'CHAT_NOT_READY';
+    throw error;
+  }
+
+  const otherName = role === 'driver'
+    ? formatChatPerson(participants.passenger_first_name, participants.passenger_last_name, participants.passenger_username, 'Пассажир')
+    : formatChatPerson(participants.driver_first_name, participants.driver_last_name, participants.driver_username, 'Водитель');
+  const route = `${participants.from_city || ''} → ${participants.to_city || ''}`.trim();
+
+  return {
+    me,
+    role,
+    otherId: Number(otherId),
+    otherTelegramId: role === 'driver' ? participants.passenger_telegram_id : participants.driver_telegram_id,
+    otherName,
+    thread: {
+      context_type: type,
+      context_id: Number(contextId),
+      title: otherName,
+      subtitle: route,
+      ride_time: participants.ride_time || '',
+      role,
+    },
+    participants,
+  };
+}
+
+function normalizeChatMessage(value) {
+  return String(value || '').replace(/\s+/g, ' ').trim();
+}
+
+function mapChatMessage(row) {
+  return {
+    id: Number(row.id),
+    context_type: row.context_type,
+    context_id: Number(row.context_id),
+    sender_id: Number(row.sender_id),
+    recipient_id: Number(row.recipient_id),
+    text: row.message_text || '',
+    created_at: row.created_at || '',
+    read_at: row.read_at || '',
+    sender_first_name: row.sender_first_name || '',
+    sender_last_name: row.sender_last_name || '',
+    sender_username: row.sender_username || '',
+  };
+}
+
+app.get('/api/chat/messages', async (req, res) => {
+  try {
+    const { telegram_id, context_type, context_id } = req.query;
+    if (!telegram_id) return res.status(400).json({ error: 'Не указан telegram_id' });
+    if (!context_type || !context_id) return res.status(400).json({ error: 'Не указан чат' });
+
+    const access = await getChatAccess({ telegramId: telegram_id, contextType: context_type, contextId: context_id });
+
+    await dbRun(
+      `
+        UPDATE chat_messages
+        SET read_at = COALESCE(read_at, datetime('now','localtime'))
+        WHERE context_type = ?
+          AND context_id = ?
+          AND recipient_id = ?
+          AND read_at IS NULL
+      `,
+      [access.thread.context_type, access.thread.context_id, access.me.id]
+    );
+
+    const messages = await dbAll(
+      `
+        SELECT *
+        FROM (
+          SELECT
+            m.*,
+            u.first_name AS sender_first_name,
+            u.last_name AS sender_last_name,
+            u.username AS sender_username
+          FROM chat_messages m
+          JOIN users u ON u.id = m.sender_id
+          WHERE m.context_type = ?
+            AND m.context_id = ?
+          ORDER BY m.id DESC
+          LIMIT 80
+        )
+        ORDER BY id ASC
+      `,
+      [access.thread.context_type, access.thread.context_id]
+    );
+
+    return res.json({
+      thread: access.thread,
+      me: { id: access.me.id },
+      messages: messages.map(mapChatMessage),
+    });
+  } catch (error) {
+    console.error('Ошибка /api/chat/messages:', error);
+    if (['BAD_CONTEXT', 'USER_NOT_FOUND', 'CONTEXT_NOT_FOUND', 'CHAT_NOT_READY', 'CHAT_CLOSED'].includes(error.code)) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (error.code === 'FORBIDDEN') return res.status(403).json({ error: error.message });
+    return res.status(500).json({ error: 'Не удалось загрузить чат' });
+  }
+});
+
+app.post('/api/chat/messages', async (req, res) => {
+  try {
+    const { telegram_id, context_type, context_id } = req.body;
+    if (!telegram_id) return res.status(400).json({ error: 'Не указан telegram_id' });
+    if (!context_type || !context_id) return res.status(400).json({ error: 'Не указан чат' });
+
+    const text = normalizeChatMessage(req.body.message || req.body.text);
+    if (!text) return res.status(400).json({ error: 'Введите сообщение' });
+    if (text.length > 800) return res.status(400).json({ error: 'Сообщение слишком длинное' });
+
+    const access = await getChatAccess({ telegramId: telegram_id, contextType: context_type, contextId: context_id });
+    const insert = await dbRun(
+      `
+        INSERT INTO chat_messages (
+          context_type,
+          context_id,
+          sender_id,
+          recipient_id,
+          message_text,
+          created_at
+        ) VALUES (?, ?, ?, ?, ?, datetime('now','localtime'))
+      `,
+      [access.thread.context_type, access.thread.context_id, access.me.id, access.otherId, text]
+    );
+
+    const row = await dbGet(
+      `
+        SELECT
+          m.*,
+          u.first_name AS sender_first_name,
+          u.last_name AS sender_last_name,
+          u.username AS sender_username
+        FROM chat_messages m
+        JOIN users u ON u.id = m.sender_id
+        WHERE m.id = ?
+      `,
+      [insert.lastID]
+    );
+
+    const openParam = access.thread.context_type === 'plan'
+      ? `plan_${access.thread.context_id}`
+      : `trip_${access.participants.trip_id || access.thread.context_id}`;
+
+    await sendPushPayloadToUserIds([access.otherId], {
+      title: `Новое сообщение: ${formatChatPerson(access.me.first_name, access.me.last_name, access.me.username, 'Попутчики')}`,
+      body: text,
+      tag: `chat-${access.thread.context_type}-${access.thread.context_id}`,
+      url: buildWebAppUrl(openParam, req),
+      icon: '/assets/icons/icon-192.png',
+      badge: '/assets/icons/badge-72.png',
+    });
+
+    return res.json({
+      success: true,
+      thread: access.thread,
+      message: mapChatMessage(row),
+    });
+  } catch (error) {
+    console.error('Ошибка /api/chat/messages POST:', error);
+    if (['BAD_CONTEXT', 'USER_NOT_FOUND', 'CONTEXT_NOT_FOUND', 'CHAT_NOT_READY', 'CHAT_CLOSED'].includes(error.code)) {
+      return res.status(400).json({ error: error.message });
+    }
+    if (error.code === 'FORBIDDEN') return res.status(403).json({ error: error.message });
+    return res.status(500).json({ error: 'Не удалось отправить сообщение' });
+  }
+});
 
 app.get('/api/rides/confirmation', async (req, res) => {
   try {

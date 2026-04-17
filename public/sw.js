@@ -1,13 +1,13 @@
-const CACHE_NAME = 'poputchiki-pwa-v20260417b';
+const CACHE_NAME = 'poputchiki-pwa-v20260417c';
 const APP_SHELL = [
   '/',
   '/index.html',
-  '/assets/css/base.css?v=20260417b',
-  '/assets/css/app.css?v=20260417b',
-  '/assets/js/app.js?v=20260417b',
-  '/assets/js/shared/api.js?v=20260417b',
-  '/assets/js/shared/format.js?v=20260417b',
-  '/assets/js/shared/pwa.js?v=20260417b',
+  '/assets/css/base.css?v=20260417c',
+  '/assets/css/app.css?v=20260417c',
+  '/assets/js/app.js?v=20260417c',
+  '/assets/js/shared/api.js?v=20260417c',
+  '/assets/js/shared/format.js?v=20260417c',
+  '/assets/js/shared/pwa.js?v=20260417c',
   '/assets/icons/icon-192.png',
   '/assets/icons/icon-512.png',
   '/assets/icons/apple-touch-icon.png',

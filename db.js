@@ -61,6 +61,39 @@ db.serialize(() => {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS app_kv_settings (
+      setting_key TEXT PRIMARY KEY,
+      setting_value TEXT,
+      updated_at TEXT DEFAULT (datetime('now','localtime'))
+    )
+  `);
+
+  db.run(`
+    CREATE TABLE IF NOT EXISTS chat_messages (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      context_type TEXT NOT NULL,
+      context_id INTEGER NOT NULL,
+      sender_id INTEGER NOT NULL,
+      recipient_id INTEGER NOT NULL,
+      message_text TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now','localtime')),
+      read_at TEXT,
+      FOREIGN KEY (sender_id) REFERENCES users(id),
+      FOREIGN KEY (recipient_id) REFERENCES users(id)
+    )
+  `);
+
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_context
+    ON chat_messages (context_type, context_id, id)
+  `);
+
+  db.run(`
+    CREATE INDEX IF NOT EXISTS idx_chat_messages_recipient
+    ON chat_messages (recipient_id, read_at)
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS trips (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       driver_id INTEGER NOT NULL,
@@ -1490,9 +1523,9 @@ function getActiveAutopostChats() {
 
 function ensureAppSettingsTable() {
   return runAsync(`
-    CREATE TABLE IF NOT EXISTS app_settings (
-      "key" TEXT PRIMARY KEY,
-      value TEXT,
+    CREATE TABLE IF NOT EXISTS app_kv_settings (
+      setting_key TEXT PRIMARY KEY,
+      setting_value TEXT,
       updated_at TEXT DEFAULT (datetime('now','localtime'))
     )
   `);
@@ -1508,13 +1541,13 @@ async function getAppSettings(keys = []) {
   const rows = normalizedKeys.length
     ? await allAsync(
         `
-          SELECT "key" AS key, value
-          FROM app_settings
-          WHERE "key" IN (${normalizedKeys.map(() => '?').join(',')})
+          SELECT setting_key AS key, setting_value AS value
+          FROM app_kv_settings
+          WHERE setting_key IN (${normalizedKeys.map(() => '?').join(',')})
         `,
         normalizedKeys
       )
-    : await allAsync(`SELECT "key" AS key, value FROM app_settings`);
+    : await allAsync(`SELECT setting_key AS key, setting_value AS value FROM app_kv_settings`);
 
   return rows.reduce((acc, row) => {
     acc[row.key] = row.value || '';
@@ -1532,10 +1565,10 @@ async function setAppSettings(settings = {}) {
   for (const [key, value] of entries) {
     const result = await runAsync(
       `
-        UPDATE app_settings
-        SET value = ?,
+        UPDATE app_kv_settings
+        SET setting_value = ?,
           updated_at = datetime('now','localtime')
-        WHERE "key" = ?
+        WHERE setting_key = ?
       `,
       [value, key]
     );
@@ -1543,7 +1576,7 @@ async function setAppSettings(settings = {}) {
     if (!result.changes) {
       await runAsync(
         `
-          INSERT INTO app_settings ("key", value, updated_at)
+          INSERT INTO app_kv_settings (setting_key, setting_value, updated_at)
           VALUES (?, ?, datetime('now','localtime'))
         `,
         [key, value]

@@ -99,24 +99,6 @@ export async function shareText(text, urlOverride = '') {
   else window.open(telegramShareUrl, '_blank', 'noopener');
 }
 
-export function openChat(username, telegramId) {
-  if (username) {
-    const url = 'https://t.me/' + String(username).replace('@', '');
-    if (tg?.openTelegramLink) tg.openTelegramLink(url);
-    else window.open(url, '_blank', 'noopener');
-    return;
-  }
-
-  if (telegramId && /^-?\d+$/.test(String(telegramId))) {
-    const url = 'tg://user?id=' + encodeURIComponent(String(telegramId));
-    if (tg?.openTelegramLink) tg.openTelegramLink(url);
-    else window.location.href = url;
-    return;
-  }
-
-  showAlert('У этого пользователя не привязан Telegram-контакт. Свяжитесь с ним другим способом.');
-}
-
 export function showAlert(message) {
   if (tg?.showAlert) tg.showAlert(String(message));
   else window.alert(String(message));

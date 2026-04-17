@@ -13,10 +13,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="manifest" href="/manifest.webmanifest?v=20260417b" />
+  <link rel="manifest" href="/manifest.webmanifest?v=20260417c" />
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png" />
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/assets/css/app.css?v=20260417b" />
+  <link rel="stylesheet" href="/assets/css/app.css?v=20260417c" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -134,6 +134,25 @@
       </section>
     </div>
 
+    <div class="sheet-backdrop" id="chatBackdrop">
+      <section class="sheet chat-sheet">
+        <div class="chat-head">
+          <div>
+            <h2 class="sheet-title" id="chatTitle">Чат</h2>
+            <p class="sheet-subtitle" id="chatSubtitle">Сообщения внутри приложения</p>
+          </div>
+          <button class="icon-btn close" type="button" id="closeChatBtn" aria-label="Закрыть чат">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7 2.9 18.3 9.2 12 2.9 5.7 4.3 4.3l6.3 6.3 6.3-6.3z"/></svg>
+          </button>
+        </div>
+        <div class="chat-messages" id="chatMessages"></div>
+        <form class="chat-form" id="chatForm">
+          <textarea class="chat-input" id="chatInput" rows="1" maxlength="800" placeholder="Напишите сообщение..."></textarea>
+          <button class="chat-send" type="submit" id="chatSendBtn">Отпр.</button>
+        </form>
+      </section>
+    </div>
+
     <div class="screen">
       <header class="topbar">
         <button class="icon-btn" type="button" id="menuBtn" aria-label="Открыть меню">
@@ -245,6 +264,6 @@
     </div>
   </div>
 
-  <script type="module" src="/assets/js/app.js?v=20260417b"></script>
+  <script type="module" src="/assets/js/app.js?v=20260417c"></script>
 </body>
 </html>

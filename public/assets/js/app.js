@@ -1,5 +1,5 @@
 
-import { apiRequest, getStartParam, getTelegramUser, initUser, loadAppConfig, loadUserSession, openChat, showAlert, tg } from './shared/api.js';
+import { apiRequest, getStartParam, getTelegramUser, initUser, loadAppConfig, loadUserSession, showAlert, tg } from './shared/api.js';
 import { escapeHtml, formatDateTime, formatMoney, formatName, getInitials, isUpcoming, statusBadge } from './shared/format.js';
 import { disablePushNotifications, enablePushNotifications, getPwaState, initPwa, promptInstall } from './shared/pwa.js';
 
@@ -29,6 +29,14 @@ const state = {
     date: '',
     time: '',
     seats: '',
+  },
+  chat: {
+    contextType: '',
+    contextId: null,
+    messages: [],
+    thread: null,
+    pollTimer: null,
+    loading: false,
   },
   pwa: {
     installAvailable: false,
@@ -109,6 +117,14 @@ const refs = {
   filterTime: document.getElementById('filterTime'),
   filterSeats: document.getElementById('filterSeats'),
   clearFilterBtn: document.getElementById('clearFilterBtn'),
+  chatBackdrop: document.getElementById('chatBackdrop'),
+  closeChatBtn: document.getElementById('closeChatBtn'),
+  chatTitle: document.getElementById('chatTitle'),
+  chatSubtitle: document.getElementById('chatSubtitle'),
+  chatMessages: document.getElementById('chatMessages'),
+  chatForm: document.getElementById('chatForm'),
+  chatInput: document.getElementById('chatInput'),
+  chatSendBtn: document.getElementById('chatSendBtn'),
   sheetBackdrop: document.getElementById('sheetBackdrop'),
   closeComposerBtn: document.getElementById('closeComposerBtn'),
   composerTitle: document.getElementById('composerTitle'),
@@ -375,6 +391,7 @@ function closeDrawer() {
 
 function openComposer() {
   closeFilterSheet();
+  closeChatSheet();
   const isTripMode = state.currentFeed === 'driver-trips';
   refs.composerTitle.textContent = isTripMode ? 'Создать поездку' : 'Создать заявку пассажира';
   refs.composerSubtitle.textContent = isTripMode
@@ -399,6 +416,7 @@ function syncFilterForm() {
 
 function openFilterSheet() {
   closeComposer();
+  closeChatSheet();
   closeDrawer();
   syncFilterForm();
   refs.filterBackdrop.classList.add('is-open');
@@ -406,6 +424,117 @@ function openFilterSheet() {
 
 function closeFilterSheet() {
   refs.filterBackdrop.classList.remove('is-open');
+}
+
+function formatChatTime(value) {
+  const date = new Date(String(value || '').replace(' ', 'T'));
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+}
+
+function scrollChatToBottom() {
+  requestAnimationFrame(() => {
+    refs.chatMessages.scrollTop = refs.chatMessages.scrollHeight;
+  });
+}
+
+function renderChatMessages() {
+  if (!state.chat.messages.length) {
+    refs.chatMessages.innerHTML = '<div class="chat-empty">Сообщений пока нет. Напишите первым: где встретиться, какой ориентир или удобное время.</div>';
+    return;
+  }
+
+  refs.chatMessages.innerHTML = state.chat.messages.map((message) => {
+    const isOwn = Number(message.sender_id) === Number(state.user?.id);
+    return `
+      <div class="chat-bubble ${isOwn ? 'is-own' : ''}">
+        <div class="chat-bubble__text">${escapeHtml(message.text || '')}</div>
+        <div class="chat-bubble__time">${escapeHtml(formatChatTime(message.created_at))}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function loadChatMessages({ silent = false } = {}) {
+  if (!state.chat.contextType || !state.chat.contextId) return;
+  if (!silent) {
+    state.chat.loading = true;
+    refs.chatMessages.innerHTML = '<div class="chat-empty">Загружаю чат...</div>';
+  }
+
+  try {
+    const data = await apiRequest(
+      `/api/chat/messages?telegram_id=${encodeURIComponent(getCurrentTelegramId())}&context_type=${encodeURIComponent(state.chat.contextType)}&context_id=${encodeURIComponent(String(state.chat.contextId))}`
+    );
+
+    state.chat.thread = data.thread || null;
+    state.chat.messages = data.messages || [];
+    refs.chatTitle.textContent = state.chat.thread?.title || 'Чат';
+    refs.chatSubtitle.textContent = [state.chat.thread?.subtitle, formatDateTime(state.chat.thread?.ride_time)].filter(Boolean).join(' · ') || 'Сообщения внутри приложения';
+    renderChatMessages();
+    scrollChatToBottom();
+  } catch (error) {
+    if (!silent) refs.chatMessages.innerHTML = `<div class="chat-empty">${escapeHtml(error.message || 'Не удалось загрузить чат')}</div>`;
+  } finally {
+    state.chat.loading = false;
+  }
+}
+
+async function openInternalChat(contextType, contextId) {
+  closeDrawer();
+  closeComposer();
+  closeFilterSheet();
+
+  state.chat.contextType = contextType;
+  state.chat.contextId = Number(contextId);
+  state.chat.messages = [];
+  state.chat.thread = null;
+  refs.chatInput.value = '';
+  refs.chatBackdrop.classList.add('is-open');
+
+  await loadChatMessages();
+  clearInterval(state.chat.pollTimer);
+  state.chat.pollTimer = setInterval(() => loadChatMessages({ silent: true }).catch(() => {}), 7000);
+}
+
+function closeChatSheet() {
+  refs.chatBackdrop.classList.remove('is-open');
+  clearInterval(state.chat.pollTimer);
+  state.chat.pollTimer = null;
+}
+
+async function sendChatMessage(event) {
+  event.preventDefault();
+  const message = refs.chatInput.value.trim();
+  if (!message || !state.chat.contextType || !state.chat.contextId) return;
+
+  refs.chatSendBtn.disabled = true;
+  try {
+    const data = await apiRequest('/api/chat/messages', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        telegram_id: getCurrentTelegramId(),
+        context_type: state.chat.contextType,
+        context_id: state.chat.contextId,
+        message,
+      }),
+    });
+
+    refs.chatInput.value = '';
+    if (data.message) {
+      state.chat.messages = [...state.chat.messages, data.message];
+      renderChatMessages();
+      scrollChatToBottom();
+    } else {
+      await loadChatMessages({ silent: true });
+    }
+  } catch (error) {
+    showAlert(error.message || 'Не удалось отправить сообщение');
+  } finally {
+    refs.chatSendBtn.disabled = false;
+    refs.chatInput.focus();
+  }
 }
 
 function emptyState(text) {
@@ -543,6 +672,7 @@ function renderPlanCard(plan, options = {}) {
 function renderBookingCard(booking, options = {}) {
   const badge = statusBadge(booking.status);
   const driverName = formatName(booking.driver_first_name, booking.driver_last_name, booking.driver_username);
+  const showChat = options.chat !== false && booking.status === 'booked';
   return `
     <article class="ride-card" data-booking-id="${booking.id}">
       <div class="feed-topline">
@@ -563,7 +693,7 @@ function renderBookingCard(booking, options = {}) {
         <div class="meta-item"><div class="meta-label">Статус</div><div class="meta-value">${escapeHtml(badge.label)}</div></div>
       </div>
       <div class="card-actions">
-        <button class="ghost-button" type="button" data-action="chat-booking-driver" data-booking-id="${booking.id}">Чат</button>
+        ${showChat ? `<button class="ghost-button" type="button" data-action="chat-booking-driver" data-booking-id="${booking.id}">Чат</button>` : ''}
         ${options.cancel ? `<button class="danger-button" type="button" data-action="cancel-booking" data-booking-id="${booking.id}">Отменить бронь</button>` : ''}
       </div>
     </article>
@@ -571,6 +701,7 @@ function renderBookingCard(booking, options = {}) {
 }
 
 function renderDriverPassengerCard(booking) {
+  const showChat = booking.status === 'booked';
   return `
     <div class="mini-card" data-driver-booking-id="${booking.id}">
       <div class="mini-card__head">
@@ -579,7 +710,7 @@ function renderDriverPassengerCard(booking) {
       </div>
       <div class="mini-card__meta">Неявок у пассажира: ${escapeHtml(String(booking.passenger_no_show_count || 0))}</div>
       <div class="block-actions">
-        <button class="ghost-button" type="button" data-action="chat-driver-passenger" data-booking-id="${booking.id}">Чат</button>
+        ${showChat ? `<button class="ghost-button" type="button" data-action="chat-driver-passenger" data-booking-id="${booking.id}">Чат</button>` : ''}
         <button class="danger-button" type="button" data-action="mark-no-show" data-booking-id="${booking.id}">Не приехал</button>
       </div>
     </div>
@@ -648,7 +779,7 @@ function renderHistoryView() {
     : emptyState('История бронирований пассажира пока пуста.');
 
   refs.historyPassengerPlansList.innerHTML = state.data.historyPassengerPlans.length
-    ? state.data.historyPassengerPlans.map((plan) => renderPlanCard(plan, { cancel: plan.status === 'active' && isUpcoming(plan.desired_time, 0), chat: !!plan.driver_username, chatAction: 'chat-plan-driver' })).join('')
+    ? state.data.historyPassengerPlans.map((plan) => renderPlanCard(plan, { cancel: plan.status === 'active' && isUpcoming(plan.desired_time, 0), chat: plan.status === 'taken' && !!plan.driver_id, chatAction: 'chat-plan-driver' })).join('')
     : emptyState('Вы ещё не создавали заявки пассажира.');
 
   refs.historyTakenPlansList.innerHTML = state.data.historyTakenPlans.length
@@ -771,6 +902,7 @@ async function setView(view) {
   state.currentView = view;
   updateViews();
   closeDrawer();
+  closeChatSheet();
   if (view !== 'feed') closeFilterSheet();
   if (view === 'feed') await loadFeed();
   if (view === 'active') await loadActiveView();
@@ -1086,23 +1218,23 @@ function handleActionClick(event) {
 
       if (action === 'chat-plan-passenger') {
         const plan = findPlanById(target.dataset.planId);
-        if (plan) openChat(plan.passenger_username, plan.passenger_telegram_id);
+        if (plan) return openInternalChat('plan', plan.id);
       }
 
       if (action === 'chat-plan-driver') {
         const plan = findPlanById(target.dataset.planId);
-        if (plan) openChat(plan.driver_username, plan.driver_telegram_id);
+        if (plan) return openInternalChat('plan', plan.id);
       }
 
       if (action === 'chat-booking-driver') {
         const booking = findBookingById(target.dataset.bookingId);
-        if (booking) openChat(booking.driver_username, booking.driver_telegram_id);
+        if (booking) return openInternalChat('booking', booking.id);
       }
 
       if (action === 'chat-driver-passenger') {
         const bookingId = Number(target.dataset.bookingId);
         const booking = state.data.activeDriverBookings.find((item) => Number(item.id) === bookingId);
-        if (booking) openChat(booking.passenger_username, booking.passenger_telegram_id);
+        if (booking) return openInternalChat('booking', booking.id);
       }
     })
     .catch((error) => setStatus(error.message || 'Не удалось выполнить действие.', 'error'));
@@ -1198,6 +1330,15 @@ refs.sheetBackdrop.addEventListener('click', (event) => {
 refs.closeFilterBtn.addEventListener('click', closeFilterSheet);
 refs.filterBackdrop.addEventListener('click', (event) => {
   if (event.target === refs.filterBackdrop) closeFilterSheet();
+});
+refs.closeChatBtn.addEventListener('click', closeChatSheet);
+refs.chatBackdrop.addEventListener('click', (event) => {
+  if (event.target === refs.chatBackdrop) closeChatSheet();
+});
+refs.chatForm.addEventListener('submit', sendChatMessage);
+refs.chatInput.addEventListener('input', () => {
+  refs.chatInput.style.height = 'auto';
+  refs.chatInput.style.height = `${Math.min(refs.chatInput.scrollHeight, 112)}px`;
 });
 refs.feedDriverBtn.addEventListener('click', () => setFeed('driver-trips', true));
 refs.feedPlansBtn.addEventListener('click', () => setFeed('passenger-requests', true));
