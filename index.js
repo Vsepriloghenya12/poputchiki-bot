@@ -1209,6 +1209,24 @@ app.post('/api/auth/login', async (req, res) => {
   }
 });
 
+function explainLinkTelegramUsernameError(error) {
+  const message = String(error?.message || '');
+
+  if (error?.code === 'SQLITE_IOERR') {
+    return 'База данных сейчас недоступна для записи. Проверьте SQLITE_PATH или подключённый volume.';
+  }
+
+  if (message.includes('no such table: standalone_accounts')) {
+    return 'База данных не обновилась до новой схемы. Перезапустите сервер с writable SQLite-файлом.';
+  }
+
+  if (error?.code === 'SQLITE_CONSTRAINT' && (message.includes('idx_users_contact_phone') || message.includes('users.contact_phone'))) {
+    return 'Не удалось объединить аккаунты из-за конфликта номера телефона. Обновите сервер до исправленной версии.';
+  }
+
+  return 'Не удалось связать аккаунты';
+}
+
 app.post('/api/auth/link-telegram-username', async (req, res) => {
   try {
     const telegramId = req.telegramId || req.body.telegram_id;
@@ -1233,8 +1251,12 @@ app.post('/api/auth/link-telegram-username', async (req, res) => {
       return res.status(400).json({ error: error.message });
     }
 
-    console.error('Ошибка /api/auth/link-telegram-username:', error);
-    return res.status(500).json({ error: 'Не удалось связать аккаунты' });
+    console.error('Ошибка /api/auth/link-telegram-username:', {
+      code: error?.code,
+      message: error?.message,
+      stack: error?.stack,
+    });
+    return res.status(500).json({ error: explainLinkTelegramUsernameError(error) });
   }
 });
 

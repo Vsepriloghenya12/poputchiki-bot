@@ -4,10 +4,15 @@ const path = require('path');
 const crypto = require('crypto');
 const sqlite3 = require('sqlite3').verbose();
 
-const DEFAULT_DB_PATH = path.join(__dirname, 'poputchiki.db');
+const defaultDbDir = process.env.SQLITE_DIR
+  || process.env.RAILWAY_VOLUME_MOUNT_PATH
+  || (fs.existsSync('/data') ? '/data' : path.join(__dirname, 'data'));
+const DEFAULT_DB_PATH = path.join(defaultDbDir, 'poputchiki.db');
 const DB_PATH = path.resolve(process.env.SQLITE_PATH || DEFAULT_DB_PATH);
 fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 const db = new sqlite3.Database(DB_PATH);
+db.configure('busyTimeout', 5000);
+console.log(`[db] SQLite path: ${DB_PATH}`);
 
 function softMigrate(sql) {
   db.run(sql, (err) => {
@@ -670,6 +675,12 @@ async function linkStandaloneUserToTelegramUsername({ telegramId, username }) {
     await runAsync(`UPDATE OR IGNORE reviews SET from_user_id = ? WHERE from_user_id = ?`, [target.id, source.id]);
     await runAsync(`DELETE FROM reviews WHERE from_user_id = ?`, [source.id]);
     await runAsync(`UPDATE reviews SET to_user_id = ? WHERE to_user_id = ?`, [target.id, source.id]);
+
+    const sourcePhone = String(source.contact_phone || '').trim() || null;
+    if (sourcePhone) {
+      await runAsync(`UPDATE users SET contact_phone = NULL WHERE id = ?`, [source.id]);
+    }
+
     await runAsync(
       `
         UPDATE standalone_accounts
