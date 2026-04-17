@@ -14,6 +14,11 @@ const refs = {
   metricsGrid: document.getElementById('metricsGrid'),
   recentTripsList: document.getElementById('recentTripsList'),
   recentPlansList: document.getElementById('recentPlansList'),
+  supportSettingsForm: document.getElementById('supportSettingsForm'),
+  supportLabelInput: document.getElementById('supportLabelInput'),
+  supportUrlInput: document.getElementById('supportUrlInput'),
+  supportTextInput: document.getElementById('supportTextInput'),
+  saveSupportBtn: document.getElementById('saveSupportBtn'),
   driversDate: document.getElementById('driversDate'),
   driversList: document.getElementById('driversList'),
   reloadDriversBtn: document.getElementById('reloadDriversBtn'),
@@ -142,11 +147,22 @@ function renderDrivers(drivers) {
     : '<div class="empty-state">За выбранную дату активности водителей нет.</div>';
 }
 
+function renderSupportSettings(support = {}) {
+  refs.supportLabelInput.value = support.label || 'Поддержка';
+  refs.supportUrlInput.value = support.url || '';
+  refs.supportTextInput.value = support.text || '';
+}
+
 async function loadOverview() {
   const data = await apiRequest('/api/owner/overview');
   renderOverview(data.stats || {});
   renderRecentTrips(data.recent_trips || []);
   renderRecentPlans(data.recent_plans || []);
+}
+
+async function loadSupportSettings() {
+  const data = await apiRequest('/api/owner/support');
+  renderSupportSettings(data.support || {});
 }
 
 async function loadDrivers() {
@@ -157,8 +173,32 @@ async function loadDrivers() {
 }
 
 async function loadOwnerDashboard() {
-  await Promise.all([loadOverview(), loadDrivers()]);
+  await Promise.all([loadOverview(), loadDrivers(), loadSupportSettings()]);
   setStatus('');
+}
+
+async function saveSupportSettings(event) {
+  event.preventDefault();
+  refs.saveSupportBtn.disabled = true;
+
+  try {
+    const data = await apiRequest('/api/owner/support', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        support_label: refs.supportLabelInput.value,
+        support_url: refs.supportUrlInput.value,
+        support_text: refs.supportTextInput.value,
+      }),
+    });
+
+    renderSupportSettings(data.support || {});
+    setStatus('Контакт поддержки сохранён.');
+  } catch (error) {
+    setStatus(error.message || 'Не удалось сохранить контакт поддержки.', 'error');
+  } finally {
+    refs.saveSupportBtn.disabled = false;
+  }
 }
 
 async function checkOwnerSession() {
@@ -243,6 +283,8 @@ refs.logoutOwnerBtn.addEventListener('click', () => {
 refs.reloadDriversBtn.addEventListener('click', () => {
   loadDrivers().catch((error) => setStatus(error.message || 'Не удалось загрузить список водителей.', 'error'));
 });
+
+refs.supportSettingsForm.addEventListener('submit', saveSupportSettings);
 
 document.addEventListener('click', (event) => {
   const button = event.target.closest('[data-action="toggle-driver-block"]');

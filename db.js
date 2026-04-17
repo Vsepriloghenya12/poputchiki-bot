@@ -53,6 +53,14 @@ db.serialize(() => {
   `);
 
   db.run(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      key TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at TEXT DEFAULT (datetime('now','localtime'))
+    )
+  `);
+
+  db.run(`
     CREATE TABLE IF NOT EXISTS trips (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       driver_id INTEGER NOT NULL,
@@ -1480,6 +1488,49 @@ function getActiveAutopostChats() {
   );
 }
 
+async function getAppSettings(keys = []) {
+  const normalizedKeys = Array.isArray(keys)
+    ? keys.map((key) => String(key || '').trim()).filter(Boolean)
+    : [];
+
+  const rows = normalizedKeys.length
+    ? await allAsync(
+        `
+          SELECT key, value
+          FROM app_settings
+          WHERE key IN (${normalizedKeys.map(() => '?').join(',')})
+        `,
+        normalizedKeys
+      )
+    : await allAsync(`SELECT key, value FROM app_settings`);
+
+  return rows.reduce((acc, row) => {
+    acc[row.key] = row.value || '';
+    return acc;
+  }, {});
+}
+
+async function setAppSettings(settings = {}) {
+  const entries = Object.entries(settings)
+    .map(([key, value]) => [String(key || '').trim(), String(value ?? '').trim()])
+    .filter(([key]) => key);
+
+  for (const [key, value] of entries) {
+    await runAsync(
+      `
+        INSERT INTO app_settings (key, value, updated_at)
+        VALUES (?, ?, datetime('now','localtime'))
+        ON CONFLICT(key) DO UPDATE SET
+          value = excluded.value,
+          updated_at = datetime('now','localtime')
+      `,
+      [key, value]
+    );
+  }
+
+  return getAppSettings(entries.map(([key]) => key));
+}
+
 module.exports = {
   db,
   dbRun: runAsync,
@@ -1521,4 +1572,6 @@ module.exports = {
   registerAutopostChat,
   deactivateAutopostChat,
   getActiveAutopostChats,
+  getAppSettings,
+  setAppSettings,
 };

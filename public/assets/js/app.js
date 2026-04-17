@@ -1107,6 +1107,7 @@ function handleActionClick(event) {
 async function bootstrap() {
   state.pendingHighlight = parseStartAction(getStartParam());
   const installState = getQueryParam('install');
+  const standaloneState = getQueryParam('standalone');
   const handoffState = getQueryParam('handoff');
   const launchState = getQueryParam('launch');
 
@@ -1145,9 +1146,15 @@ async function bootstrap() {
   const initialFeed = state.pendingHighlight?.feed || 'driver-trips';
   await setFeed(initialFeed, true);
 
-  if (launchState === 'ok' && state.user) {
+  if (standaloneState === '1' && state.user) {
     hideInstallGuide();
-    setStatus('Установленная версия готова. Теперь приложение будет открываться уже с выполненным входом.');
+    setStatus('');
+  } else if (standaloneState === '1' && !state.user) {
+    hideInstallGuide();
+    setStatus('Зарегистрируйтесь или войдите в приложение. Установленная версия работает без входа через Telegram.');
+  } else if (launchState === 'ok' && state.user) {
+    hideInstallGuide();
+    setStatus('');
   } else if (installState === 'guide' && state.user) {
     renderInstallGuide();
     setStatus('Вы уже в браузере. Ниже показано, как добавить приложение на главный экран вашего телефона.');
@@ -1155,7 +1162,7 @@ async function bootstrap() {
     renderInstallGuide();
     setStatus('Вы уже в браузере. Зарегистрируйтесь или войдите ниже, затем добавьте приложение на главный экран по инструкции.');
   } else if (handoffState === 'expired' || launchState === 'expired') {
-    setStatus('Ссылка устарела. Откройте приложение заново и повторите установку.', 'error');
+    setStatus('Старая ссылка входа больше не используется. Зарегистрируйтесь или войдите прямо в приложении.', 'error');
   } else if (!state.user && !tg) {
     setStatus('Зарегистрируйтесь или войдите в приложение. После этого установленная версия будет работать без Telegram.');
   } else if (!state.user) {

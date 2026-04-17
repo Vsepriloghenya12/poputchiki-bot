@@ -46,6 +46,8 @@ const {
   registerAutopostChat,
   deactivateAutopostChat,
   getActiveAutopostChats,
+  getAppSettings,
+  setAppSettings,
 } = require('./db');
 
 const BOT_TOKEN = process.env.BOT_TOKEN;
@@ -80,8 +82,6 @@ const AUTOPOST_TRIPS = process.env.AUTOPOST_TRIPS !== '0';
 const AUTOPOST_PLANS = process.env.AUTOPOST_PLANS !== '0';
 const CHANNEL_BRAND = (process.env.CHANNEL_BRAND || 'Попутчики').trim();
 const PUSH_ENABLED = !!(WEB_PUSH_PUBLIC_KEY && WEB_PUSH_PRIVATE_KEY);
-const HANDOFF_TTL_MS = Math.max(1, Number(process.env.SESSION_HANDOFF_TTL_MINUTES || 10)) * 60 * 1000;
-const sessionHandoffStore = new Map();
 const TELEGRAM_LOGIN_TTL_MS = Math.max(1, Number(process.env.TELEGRAM_LOGIN_TTL_MINUTES || 15)) * 60 * 1000;
 const telegramLoginStore = new Map();
 let lastKnownPublicOrigin = '';
@@ -115,6 +115,41 @@ function buildSupportUrl() {
   if (SUPPORT_URL) return SUPPORT_URL;
   if (BOT_USERNAME_RUNTIME) return `https://t.me/${BOT_USERNAME_RUNTIME}`;
   return '';
+}
+
+const SUPPORT_SETTING_KEYS = ['support_label', 'support_url', 'support_text'];
+
+function isSupportedContactUrl(value) {
+  const contact = String(value || '').trim();
+  if (!contact) return true;
+  return /^(https?:\/\/|tg:\/\/|mailto:|tel:)/i.test(contact);
+}
+
+function normalizeSupportContact(value) {
+  const contact = String(value || '').trim();
+  if (!contact) return '';
+  if (/^@\w[\w\d_]{3,}$/i.test(contact)) return `https://t.me/${contact.slice(1)}`;
+  if (/^t\.me\//i.test(contact)) return `https://${contact}`;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) return `mailto:${contact}`;
+  if (/^\+?\d[\d\s\-()]{6,}$/.test(contact)) return `tel:${contact.replace(/[^\d+]/g, '')}`;
+  return contact;
+}
+
+async function getSupportSettings() {
+  const storedSettings = await getAppSettings(SUPPORT_SETTING_KEYS).catch(() => ({}));
+  const hasStoredUrl = Object.prototype.hasOwnProperty.call(storedSettings, 'support_url');
+  const hasStoredText = Object.prototype.hasOwnProperty.call(storedSettings, 'support_text');
+  const label = String(storedSettings.support_label || SUPPORT_LABEL || 'Поддержка').trim() || 'Поддержка';
+  const text = String(hasStoredText ? storedSettings.support_text : SUPPORT_TEXT || '').trim();
+  const configuredUrl = String(hasStoredUrl ? storedSettings.support_url : SUPPORT_URL || '').trim();
+  const fallbackUrl = configuredUrl || (hasStoredUrl ? '' : buildSupportUrl());
+
+  return {
+    enabled: !!(fallbackUrl || text),
+    label,
+    text,
+    url: fallbackUrl || null,
+  };
 }
 
 function isLoopbackHostname(hostname) {
@@ -184,23 +219,6 @@ function buildWebAppUrl(startParam = '', req = null) {
 
 function buildResolvedWebAppUrl(req, startParam = '') {
   return withStartParamUrl(resolveWebAppBaseUrl(req), startParam);
-}
-
-function createSessionHandoffToken(telegramId) {
-  const token = crypto.randomBytes(24).toString('base64url');
-  sessionHandoffStore.set(token, {
-    telegram_id: String(telegramId || ''),
-    exp: Date.now() + HANDOFF_TTL_MS,
-  });
-  return token;
-}
-
-function consumeSessionHandoffToken(token) {
-  const value = sessionHandoffStore.get(String(token || ''));
-  if (!value) return null;
-  sessionHandoffStore.delete(String(token || ''));
-  if (!value.telegram_id || Number(value.exp) < Date.now()) return null;
-  return value;
 }
 
 function cleanupTelegramLoginStore() {
@@ -812,7 +830,7 @@ app.use('/api', (req, res, next) => {
 
   if (!initData) {
     if (!REQUIRE_INIT_DATA) return next();
-    return res.status(401).json({ error: 'Нет активной сессии. Откройте приложение через Telegram или войдите в standalone-версию.' });
+    return res.status(401).json({ error: 'Нет активной сессии. Войдите или зарегистрируйтесь в приложении.' });
   }
 
   const validation = validateTelegramInitData(String(initData), BOT_TOKEN, INIT_DATA_MAX_AGE_SEC);
@@ -836,36 +854,19 @@ app.use((req, res, next) => {
 });
 
 app.get('/handoff', (req, res) => {
-  const payload = consumeSessionHandoffToken(req.query.token);
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.setHeader('Pragma', 'no-cache');
-  if (!payload?.telegram_id) {
-    return res.redirect('/?handoff=expired');
-  }
-
-  setUserSessionCookie(req, res, payload.telegram_id);
-  return res.redirect('/?handoff=ok');
+  return res.redirect('/?install=guide');
 });
 
 app.get('/launch', (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.setHeader('Pragma', 'no-cache');
-
-  const payload = parseUserSessionToken(req.query.token);
-  if (!payload?.telegram_id) {
-    return res.redirect('/?launch=expired');
-  }
-
-  setUserSessionCookie(req, res, payload.telegram_id);
-  return res.redirect('/?launch=ok');
+  return res.redirect('/?standalone=1');
 });
 
 app.get('/manifest.webmanifest', (req, res) => {
-  const session = getUserSessionData(req);
-  const launchToken = session?.telegram_id ? createUserSessionToken(session.telegram_id) : '';
-  const startUrl = launchToken
-    ? `/launch?token=${encodeURIComponent(launchToken)}`
-    : '/';
+  const startUrl = '/?standalone=1';
 
   res.setHeader('Content-Type', 'application/manifest+json');
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
@@ -1190,26 +1191,7 @@ app.post('/api/auth/login', async (req, res) => {
 
 app.post('/api/session/handoff', async (req, res) => {
   try {
-    const telegramId = req.telegramId || req.body.telegram_id;
-    if (!telegramId) {
-      return res.status(401).json({ error: 'Сначала войдите в приложение' });
-    }
-
-    const user = await getUserByTelegramId(telegramId);
-    if (!user) {
-      return res.status(400).json({ error: 'Пользователь не найден. Войдите в приложение заново.' });
-    }
-
-    const token = createSessionHandoffToken(user.telegram_id);
-    let url;
-    try {
-      const baseUrl = new URL(buildResolvedWebAppUrl(req));
-      const handoffUrl = new URL('/handoff', baseUrl.origin);
-      handoffUrl.searchParams.set('token', token);
-      url = handoffUrl.toString();
-    } catch (_) {
-      url = `${getRequestOrigin(req)}/handoff?token=${encodeURIComponent(token)}`;
-    }
+    const url = `${resolveWebAppBaseUrl(req)}/?install=guide`;
 
     return res.json({ success: true, url });
   } catch (error) {
@@ -1310,6 +1292,7 @@ app.get('/api/app-config', async (req, res) => {
     }
 
     const autopostTargets = await getAutopostTargets();
+    const support = await getSupportSettings();
 
     return res.json({
       deeplink_prefix: buildDeeplinkPrefix(req),
@@ -1318,15 +1301,10 @@ app.get('/api/app-config', async (req, res) => {
       owner_telegram_id: OWNER_TELEGRAM_ID,
       pwa: {
         enabled: true,
-        start_url: buildResolvedWebAppUrl(req),
+        start_url: `${resolveWebAppBaseUrl(req)}/?standalone=1`,
         install_url: `${resolveWebAppBaseUrl(req)}/?install=guide`,
       },
-      support: {
-        enabled: !!(buildSupportUrl() || SUPPORT_TEXT),
-        label: SUPPORT_LABEL,
-        text: SUPPORT_TEXT,
-        url: buildSupportUrl() || null,
-      },
+      support,
       push: {
         enabled: PUSH_ENABLED,
       },
@@ -1417,7 +1395,7 @@ app.post('/api/trips', async (req, res) => {
 
     const driver = await getUserByTelegramId(telegram_id);
     if (!driver) {
-      return res.status(400).json({ error: 'Пользователь не найден. Сначала откройте приложение из Telegram.' });
+      return res.status(400).json({ error: 'Пользователь не найден. Войдите или зарегистрируйтесь в приложении.' });
     }
     if (driver.is_blocked) {
       return res.status(403).json({ error: 'Ваш аккаунт заблокирован владельцем сервиса.' });
@@ -1653,7 +1631,7 @@ app.post('/api/bookings', async (req, res) => {
 
     const passenger = await getUserByTelegramId(telegram_id);
     if (!passenger) {
-      return res.status(400).json({ error: 'Пассажир не найден. Откройте приложение из Telegram.' });
+      return res.status(400).json({ error: 'Пассажир не найден. Войдите или зарегистрируйтесь в приложении.' });
     }
 
     const { booking, trip } = await createBooking({
@@ -2226,6 +2204,44 @@ app.get('/api/owner/drivers', async (req, res) => {
     return res.json({ drivers });
   } catch (error) {
     console.error('Ошибка /api/owner/drivers:', error);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+app.get('/api/owner/support', async (req, res) => {
+  try {
+    if (!ensureOwnerAccess(req, res)) return;
+
+    const support = await getSupportSettings();
+    return res.json({ support });
+  } catch (error) {
+    console.error('Ошибка /api/owner/support:', error);
+    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+  }
+});
+
+app.post('/api/owner/support', async (req, res) => {
+  try {
+    if (!ensureOwnerAccess(req, res)) return;
+
+    const supportLabel = String(req.body.support_label || req.body.label || '').trim() || 'Поддержка';
+    const supportUrl = normalizeSupportContact(req.body.support_url || req.body.url || '');
+    const supportText = String(req.body.support_text || req.body.text || '').trim();
+
+    if (!isSupportedContactUrl(supportUrl)) {
+      return res.status(400).json({ error: 'Контакт поддержки должен быть ссылкой http(s), tg://, mailto: или tel:.' });
+    }
+
+    await setAppSettings({
+      support_label: supportLabel,
+      support_url: supportUrl,
+      support_text: supportText,
+    });
+
+    const support = await getSupportSettings();
+    return res.json({ success: true, support });
+  } catch (error) {
+    console.error('Ошибка /api/owner/support:', error);
     return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
   }
 });
