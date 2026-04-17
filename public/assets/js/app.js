@@ -329,36 +329,9 @@ function openExternalInstallUrl(url) {
 }
 
 function openSupportUrl(url) {
-  let targetUrl = String(url || '').trim();
+  const targetUrl = String(url || '').trim();
   if (!targetUrl) return;
-
-  try {
-    const parsed = new URL(targetUrl);
-    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
-    if (host === 'telegram.org' || (host === 't.me' && !parsed.pathname.replace(/\//g, '').trim())) {
-      showAlert(state.config?.support?.text || 'Контакт поддержки пока не настроен.');
-      return;
-    }
-  } catch (_) {}
-
-  const tgResolveMatch = targetUrl.match(/^tg:\/\/resolve\?domain=([^&]+)/i);
-  if (tgResolveMatch) {
-    targetUrl = `https://t.me/${encodeURIComponent(decodeURIComponent(tgResolveMatch[1]))}`;
-  }
-
-  if (tg?.openLink && /^https?:\/\//.test(targetUrl)) {
-    try {
-      tg.openLink(targetUrl);
-      return;
-    } catch (_) {}
-  }
-
-  if (/^(mailto:|tel:)/.test(targetUrl)) {
-    window.location.href = targetUrl;
-    return;
-  }
-
-  window.open(targetUrl, '_blank', 'noopener');
+  window.location.assign(targetUrl);
 }
 
 async function applyStandaloneAuth(user) {

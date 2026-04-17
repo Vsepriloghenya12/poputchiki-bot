@@ -111,11 +111,6 @@ async function sendMessageSafe(telegramId, text, extra = undefined) {
   }
 }
 
-function buildSupportUrl() {
-  if (SUPPORT_URL) return SUPPORT_URL;
-  return '';
-}
-
 const SUPPORT_SETTING_KEYS = ['support_label', 'support_url', 'support_text'];
 
 function isSupportedContactUrl(value) {
@@ -124,36 +119,13 @@ function isSupportedContactUrl(value) {
   return /^(https?:\/\/|tg:\/\/|mailto:|tel:)/i.test(contact);
 }
 
-function normalizeSupportContact(value) {
-  const contact = String(value || '').trim();
-  if (!contact) return '';
-  if (/^@\w[\w\d_]{3,}$/i.test(contact)) return `https://t.me/${contact.slice(1)}`;
-  if (/^https?:\/\/telegram\.me\//i.test(contact)) return contact.replace(/telegram\.me/i, 't.me');
-  if (/^t\.me\//i.test(contact)) return `https://${contact}`;
-  if (/^telegram\.me\//i.test(contact)) return `https://${contact.replace(/^telegram\.me/i, 't.me')}`;
-  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) return `mailto:${contact}`;
-  if (/^\+?\d[\d\s\-()]{6,}$/.test(contact)) return `tel:${contact.replace(/[^\d+]/g, '')}`;
-  return contact;
-}
-
-function isGenericTelegramUrl(value) {
-  try {
-    const parsed = new URL(String(value || '').trim());
-    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
-    return host === 'telegram.org' || (host === 't.me' && !parsed.pathname.replace(/\//g, '').trim());
-  } catch (_) {
-    return false;
-  }
-}
-
 async function getSupportSettings() {
   const storedSettings = await getAppSettings(SUPPORT_SETTING_KEYS).catch(() => ({}));
   const hasStoredUrl = Object.prototype.hasOwnProperty.call(storedSettings, 'support_url');
   const hasStoredText = Object.prototype.hasOwnProperty.call(storedSettings, 'support_text');
   const label = String(storedSettings.support_label || SUPPORT_LABEL || 'Поддержка').trim() || 'Поддержка';
   const text = String(hasStoredText ? storedSettings.support_text : SUPPORT_TEXT || '').trim();
-  const configuredUrl = normalizeSupportContact(hasStoredUrl ? storedSettings.support_url : buildSupportUrl());
-  const supportUrl = isGenericTelegramUrl(configuredUrl) ? '' : configuredUrl;
+  const supportUrl = String(hasStoredUrl ? (storedSettings.support_url || '') : SUPPORT_URL).trim();
 
   return {
     enabled: !!(supportUrl || text),
@@ -2479,11 +2451,11 @@ app.post('/api/owner/support', async (req, res) => {
     if (!ensureOwnerAccess(req, res)) return;
 
     const supportLabel = String(req.body.support_label || req.body.label || '').trim() || 'Поддержка';
-    const supportUrl = normalizeSupportContact(req.body.support_url || req.body.url || '');
+    const supportUrl = String(req.body.support_url || req.body.url || '').trim();
     const supportText = String(req.body.support_text || req.body.text || '').trim();
 
     if (!isSupportedContactUrl(supportUrl)) {
-      return res.status(400).json({ error: 'Контакт поддержки должен быть ссылкой http(s), tg://, mailto: или tel:.' });
+      return res.status(400).json({ error: 'Ссылка поддержки должна начинаться с http://, https://, tg://, mailto: или tel:.' });
     }
 
     await setAppSettings({
