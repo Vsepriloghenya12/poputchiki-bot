@@ -13,10 +13,10 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="manifest" href="/manifest.webmanifest?v=20260417g" />
+  <link rel="manifest" href="/manifest.webmanifest?v=20260417h" />
   <link rel="icon" type="image/png" sizes="192x192" href="/assets/icons/icon-192.png" />
   <link rel="apple-touch-icon" href="/assets/icons/apple-touch-icon.png" />
-  <link rel="stylesheet" href="/assets/css/app.css?v=20260417g" />
+  <link rel="stylesheet" href="/assets/css/app.css?v=20260417h" />
 </head>
 <body class="app-page">
   <div class="app-shell">
@@ -197,6 +197,14 @@
             <button class="button is-block" type="submit" id="loginSubmitBtn">Войти</button>
           </form>
         </section>
+        <section class="auth-panel hidden" id="accountSyncPanel">
+          <div class="auth-panel__title">Связать аккаунты</div>
+          <div class="auth-panel__text">Этот аккаунт был создан до синхронизации с Telegram. Введите ваш Telegram username, чтобы объединить установленную версию и Telegram-версию в один аккаунт.</div>
+          <form class="auth-form" id="accountSyncForm">
+            <input class="input" id="accountSyncUsername" type="text" autocomplete="username" placeholder="@telegram_username" required />
+            <button class="button is-block" type="submit" id="accountSyncSubmitBtn">Связать аккаунты</button>
+          </form>
+        </section>
         <section class="install-guide hidden" id="installGuide">
           <div class="install-guide__title" id="installGuideTitle">Как добавить приложение на главный экран</div>
           <div class="install-guide__text" id="installGuideText">Откройте меню браузера и добавьте приложение на главный экран.</div>
@@ -265,6 +273,6 @@
     </div>
   </div>
 
-  <script type="module" src="/assets/js/app.js?v=20260417g"></script>
+  <script type="module" src="/assets/js/app.js?v=20260417h"></script>
 </body>
 </html>

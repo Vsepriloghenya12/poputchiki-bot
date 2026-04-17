@@ -65,6 +65,10 @@ const refs = {
   statusBanner: document.getElementById('statusBanner'),
   authPanel: document.getElementById('authPanel'),
   authPanelText: document.getElementById('authPanelText'),
+  accountSyncPanel: document.getElementById('accountSyncPanel'),
+  accountSyncForm: document.getElementById('accountSyncForm'),
+  accountSyncUsername: document.getElementById('accountSyncUsername'),
+  accountSyncSubmitBtn: document.getElementById('accountSyncSubmitBtn'),
   registerModeBtn: document.getElementById('registerModeBtn'),
   loginModeBtn: document.getElementById('loginModeBtn'),
   registerForm: document.getElementById('registerForm'),
@@ -244,12 +248,25 @@ function setAuthMode(mode) {
 function updateAuthPanel() {
   const needsStandaloneAuth = !state.user && (state.auth.standaloneOnly || !getTelegramUser());
   refs.authPanel.classList.toggle('hidden', !needsStandaloneAuth);
+  updateAccountSyncPanel();
   if (!needsStandaloneAuth) return;
 
   refs.authPanelText.textContent = state.auth.mode === 'register'
     ? 'Создайте аккаунт в приложении. Telegram username связывает установленную версию с аккаунтом в Telegram.'
     : 'Войдите по номеру телефона и паролю, которые вы указали при регистрации.';
   setAuthMode(state.auth.mode);
+}
+
+function updateAccountSyncPanel() {
+  const needsAccountSync = Boolean(
+    state.user &&
+    state.user.auth_provider === 'standalone' &&
+    !String(state.user.username || '').trim()
+  );
+  refs.accountSyncPanel.classList.toggle('hidden', !needsAccountSync);
+  if (needsAccountSync && !refs.accountSyncUsername.value.trim()) {
+    refs.accountSyncUsername.value = '';
+  }
 }
 
 function updateUserCard() {
@@ -342,6 +359,7 @@ async function applyStandaloneAuth(user) {
   state.user = user || null;
   updateUserCard();
   updatePwaActions();
+  updateAccountSyncPanel();
   await refreshCurrentView();
 }
 
@@ -1002,6 +1020,32 @@ async function handleLogin(event) {
   }
 }
 
+async function handleAccountSync(event) {
+  event.preventDefault();
+
+  try {
+    refs.accountSyncSubmitBtn.disabled = true;
+    setStatus('Связываю аккаунты...');
+
+    const data = await apiRequest('/api/auth/link-telegram-username', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: refs.accountSyncUsername.value.trim(),
+      }),
+    });
+
+    refs.accountSyncForm.reset();
+    setStatus('Аккаунты связаны. Теперь Telegram и установленная версия используют один профиль.');
+    await applyStandaloneAuth(data.user);
+    updateAuthPanel();
+  } catch (error) {
+    setStatus(error.message || 'Не удалось связать аккаунты.', 'error');
+  } finally {
+    refs.accountSyncSubmitBtn.disabled = false;
+  }
+}
+
 function handleSupport() {
   closeDrawer();
   const support = state.config?.support || {};
@@ -1336,6 +1380,7 @@ refs.registerModeBtn.addEventListener('click', () => setAuthMode('register'));
 refs.loginModeBtn.addEventListener('click', () => setAuthMode('login'));
 refs.registerForm.addEventListener('submit', handleRegister);
 refs.loginForm.addEventListener('submit', handleLogin);
+refs.accountSyncForm.addEventListener('submit', handleAccountSync);
 refs.pushToggleBtn.addEventListener('click', handlePushToggle);
 refs.composerForm.addEventListener('submit', submitComposer);
 refs.filterForm.addEventListener('submit', applyFilters);

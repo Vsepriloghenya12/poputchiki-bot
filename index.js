@@ -14,6 +14,7 @@ const {
   upsertUserFromTelegram,
   createStandaloneUser,
   authenticateStandaloneUser,
+  linkStandaloneUserToTelegramUsername,
   getUserByTelegramId,
   getDriverProfileByTelegramId,
   updateDriverCarProfile,
@@ -1205,6 +1206,35 @@ app.post('/api/auth/login', async (req, res) => {
   } catch (error) {
     console.error('Ошибка /api/auth/login:', error);
     return res.status(500).json({ error: 'Не удалось выполнить вход' });
+  }
+});
+
+app.post('/api/auth/link-telegram-username', async (req, res) => {
+  try {
+    const telegramId = req.telegramId || req.body.telegram_id;
+    if (!telegramId) {
+      return res.status(401).json({ error: 'Сначала войдите в установленное приложение' });
+    }
+
+    const user = await linkStandaloneUserToTelegramUsername({
+      telegramId,
+      username: req.body.username,
+    });
+
+    setUserSessionCookie(req, res, user.telegram_id);
+    return res.json({
+      authenticated: true,
+      user: presentUser(user),
+      is_owner: isOwnerTelegramId(user.telegram_id),
+      push_enabled: PUSH_ENABLED,
+    });
+  } catch (error) {
+    if (error.code === 'BAD_INPUT' || error.code === 'USERNAME_EXISTS' || error.code === 'NOT_FOUND') {
+      return res.status(400).json({ error: error.message });
+    }
+
+    console.error('Ошибка /api/auth/link-telegram-username:', error);
+    return res.status(500).json({ error: 'Не удалось связать аккаунты' });
   }
 });
 

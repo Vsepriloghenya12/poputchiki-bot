@@ -315,6 +315,18 @@ function verifyPassword(password, storedHash) {
   return left.length === right.length && crypto.timingSafeEqual(left, right);
 }
 
+async function runInTransaction(callback) {
+  await runAsync('BEGIN IMMEDIATE TRANSACTION');
+  try {
+    const result = await callback();
+    await runAsync('COMMIT');
+    return result;
+  } catch (error) {
+    await runAsync('ROLLBACK').catch(() => {});
+    throw error;
+  }
+}
+
 async function upsertUserFromTelegram(tgUser) {
   if (!tgUser || !tgUser.id) {
     throw new Error('Некорректные данные пользователя Telegram');
@@ -587,6 +599,127 @@ async function authenticateStandaloneUser({ phone, password }) {
 
   delete row.password_hash;
   return row;
+}
+
+async function linkStandaloneUserToTelegramUsername({ telegramId, username }) {
+  const normalizedUsername = normalizeTelegramUsername(username);
+  if (!normalizedUsername) {
+    const error = new Error('Введите Telegram username в формате @username');
+    error.code = 'BAD_INPUT';
+    throw error;
+  }
+
+  const source = await getAsync(`SELECT * FROM users WHERE telegram_id = ?`, [String(telegramId || '')]);
+  if (!source?.id) {
+    const error = new Error('Пользователь не найден');
+    error.code = 'NOT_FOUND';
+    throw error;
+  }
+
+  const standaloneAccount = await getAsync(
+    `SELECT * FROM standalone_accounts WHERE user_id = ?`,
+    [source.id]
+  );
+  if (!standaloneAccount?.id) {
+    const error = new Error('Этот аккаунт уже связан с Telegram');
+    error.code = 'BAD_INPUT';
+    throw error;
+  }
+
+  const target = await getAsync(
+    `
+      SELECT
+        u.*,
+        s.id AS standalone_account_id
+      FROM users u
+      LEFT JOIN standalone_accounts s ON s.user_id = u.id
+      WHERE lower(u.username) = lower(?)
+        AND u.id <> ?
+      LIMIT 1
+    `,
+    [normalizedUsername, source.id]
+  );
+
+  if (!target?.id) {
+    await runAsync(
+      `
+        UPDATE users
+        SET username = ?
+        WHERE id = ?
+      `,
+      [normalizedUsername, source.id]
+    );
+
+    return getAsync(`SELECT * FROM users WHERE id = ?`, [source.id]);
+  }
+
+  if (target.standalone_account_id) {
+    const error = new Error('К этому Telegram username уже привязан вход по номеру телефона');
+    error.code = 'USERNAME_EXISTS';
+    throw error;
+  }
+
+  await runInTransaction(async () => {
+    await runAsync(`UPDATE trips SET driver_id = ? WHERE driver_id = ?`, [target.id, source.id]);
+    await runAsync(`UPDATE bookings SET passenger_id = ? WHERE passenger_id = ?`, [target.id, source.id]);
+    await runAsync(`UPDATE passenger_plans SET passenger_id = ? WHERE passenger_id = ?`, [target.id, source.id]);
+    await runAsync(`UPDATE passenger_plans SET driver_id = ? WHERE driver_id = ?`, [target.id, source.id]);
+    await runAsync(`UPDATE chat_messages SET sender_id = ? WHERE sender_id = ?`, [target.id, source.id]);
+    await runAsync(`UPDATE chat_messages SET recipient_id = ? WHERE recipient_id = ?`, [target.id, source.id]);
+    await runAsync(`UPDATE push_subscriptions SET user_id = ? WHERE user_id = ?`, [target.id, source.id]);
+    await runAsync(`UPDATE OR IGNORE reviews SET from_user_id = ? WHERE from_user_id = ?`, [target.id, source.id]);
+    await runAsync(`DELETE FROM reviews WHERE from_user_id = ?`, [source.id]);
+    await runAsync(`UPDATE reviews SET to_user_id = ? WHERE to_user_id = ?`, [target.id, source.id]);
+    await runAsync(
+      `
+        UPDATE standalone_accounts
+        SET user_id = ?,
+          updated_at = datetime('now','localtime')
+        WHERE user_id = ?
+      `,
+      [target.id, source.id]
+    );
+
+    const targetRatingSum = toNumber(target.rating_sum) + toNumber(source.rating_sum);
+    const targetRatingCount = toNumber(target.rating_count) + toNumber(source.rating_count);
+    const targetRatingAvg = targetRatingCount ? targetRatingSum / targetRatingCount : 0;
+
+    await runAsync(
+      `
+        UPDATE users
+        SET first_name = COALESCE(NULLIF(first_name, ''), ?),
+          last_name = COALESCE(NULLIF(last_name, ''), ?),
+          username = ?,
+          contact_phone = COALESCE(NULLIF(contact_phone, ''), ?),
+          car_make = COALESCE(NULLIF(car_make, ''), ?),
+          car_color = COALESCE(NULLIF(car_color, ''), ?),
+          car_plate = COALESCE(NULLIF(car_plate, ''), ?),
+          no_show_count = ?,
+          rating_sum = ?,
+          rating_count = ?,
+          rating_avg = ?
+        WHERE id = ?
+      `,
+      [
+        source.first_name || null,
+        source.last_name || null,
+        normalizedUsername,
+        source.contact_phone || null,
+        source.car_make || null,
+        source.car_color || null,
+        source.car_plate || null,
+        Math.max(toNumber(target.no_show_count), toNumber(source.no_show_count)),
+        targetRatingSum,
+        targetRatingCount,
+        targetRatingAvg,
+        target.id,
+      ]
+    );
+
+    await runAsync(`DELETE FROM users WHERE id = ?`, [source.id]);
+  });
+
+  return getAsync(`SELECT * FROM users WHERE id = ?`, [target.id]);
 }
 
 function getUserByTelegramId(telegramId) {
@@ -1726,6 +1859,7 @@ module.exports = {
   upsertUserFromTelegram,
   createStandaloneUser,
   authenticateStandaloneUser,
+  linkStandaloneUserToTelegramUsername,
   getUserById,
   getUserByTelegramId,
   getDriverProfileByTelegramId,
