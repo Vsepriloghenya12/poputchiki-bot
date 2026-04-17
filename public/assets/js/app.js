@@ -329,14 +329,21 @@ function openExternalInstallUrl(url) {
 }
 
 function openSupportUrl(url) {
-  const targetUrl = String(url || '').trim();
+  let targetUrl = String(url || '').trim();
   if (!targetUrl) return;
 
-  if ((targetUrl.startsWith('https://t.me/') || targetUrl.startsWith('tg://')) && tg?.openTelegramLink) {
-    try {
-      tg.openTelegramLink(targetUrl);
+  try {
+    const parsed = new URL(targetUrl);
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    if (host === 'telegram.org' || (host === 't.me' && !parsed.pathname.replace(/\//g, '').trim())) {
+      showAlert(state.config?.support?.text || 'Контакт поддержки пока не настроен.');
       return;
-    } catch (_) {}
+    }
+  } catch (_) {}
+
+  const tgResolveMatch = targetUrl.match(/^tg:\/\/resolve\?domain=([^&]+)/i);
+  if (tgResolveMatch) {
+    targetUrl = `https://t.me/${encodeURIComponent(decodeURIComponent(tgResolveMatch[1]))}`;
   }
 
   if (tg?.openLink && /^https?:\/\//.test(targetUrl)) {

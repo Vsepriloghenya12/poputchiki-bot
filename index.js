@@ -113,7 +113,6 @@ async function sendMessageSafe(telegramId, text, extra = undefined) {
 
 function buildSupportUrl() {
   if (SUPPORT_URL) return SUPPORT_URL;
-  if (BOT_USERNAME_RUNTIME) return `https://t.me/${BOT_USERNAME_RUNTIME}`;
   return '';
 }
 
@@ -129,10 +128,22 @@ function normalizeSupportContact(value) {
   const contact = String(value || '').trim();
   if (!contact) return '';
   if (/^@\w[\w\d_]{3,}$/i.test(contact)) return `https://t.me/${contact.slice(1)}`;
+  if (/^https?:\/\/telegram\.me\//i.test(contact)) return contact.replace(/telegram\.me/i, 't.me');
   if (/^t\.me\//i.test(contact)) return `https://${contact}`;
+  if (/^telegram\.me\//i.test(contact)) return `https://${contact.replace(/^telegram\.me/i, 't.me')}`;
   if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(contact)) return `mailto:${contact}`;
   if (/^\+?\d[\d\s\-()]{6,}$/.test(contact)) return `tel:${contact.replace(/[^\d+]/g, '')}`;
   return contact;
+}
+
+function isGenericTelegramUrl(value) {
+  try {
+    const parsed = new URL(String(value || '').trim());
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    return host === 'telegram.org' || (host === 't.me' && !parsed.pathname.replace(/\//g, '').trim());
+  } catch (_) {
+    return false;
+  }
 }
 
 async function getSupportSettings() {
@@ -141,14 +152,14 @@ async function getSupportSettings() {
   const hasStoredText = Object.prototype.hasOwnProperty.call(storedSettings, 'support_text');
   const label = String(storedSettings.support_label || SUPPORT_LABEL || 'Поддержка').trim() || 'Поддержка';
   const text = String(hasStoredText ? storedSettings.support_text : SUPPORT_TEXT || '').trim();
-  const configuredUrl = String(hasStoredUrl ? storedSettings.support_url : SUPPORT_URL || '').trim();
-  const fallbackUrl = configuredUrl || (hasStoredUrl ? '' : buildSupportUrl());
+  const configuredUrl = normalizeSupportContact(hasStoredUrl ? storedSettings.support_url : buildSupportUrl());
+  const supportUrl = isGenericTelegramUrl(configuredUrl) ? '' : configuredUrl;
 
   return {
-    enabled: !!(fallbackUrl || text),
+    enabled: !!(supportUrl || text),
     label,
     text,
-    url: fallbackUrl || null,
+    url: supportUrl || null,
   };
 }
 
