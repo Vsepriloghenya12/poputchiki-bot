@@ -2216,7 +2216,7 @@ app.get('/api/owner/support', async (req, res) => {
     return res.json({ support });
   } catch (error) {
     console.error('Ошибка /api/owner/support:', error);
-    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    return res.status(500).json({ error: `Не удалось загрузить контакт поддержки: ${error.message || 'ошибка сервера'}` });
   }
 });
 
@@ -2242,7 +2242,7 @@ app.post('/api/owner/support', async (req, res) => {
     return res.json({ success: true, support });
   } catch (error) {
     console.error('Ошибка /api/owner/support:', error);
-    return res.status(500).json({ error: 'Внутренняя ошибка сервера' });
+    return res.status(500).json({ error: `Не удалось сохранить контакт поддержки: ${error.message || 'ошибка сервера'}` });
   }
 });
 

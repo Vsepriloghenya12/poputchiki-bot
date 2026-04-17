@@ -54,7 +54,7 @@ db.serialize(() => {
 
   db.run(`
     CREATE TABLE IF NOT EXISTS app_settings (
-      key TEXT PRIMARY KEY,
+      "key" TEXT PRIMARY KEY,
       value TEXT,
       updated_at TEXT DEFAULT (datetime('now','localtime'))
     )
@@ -1488,7 +1488,19 @@ function getActiveAutopostChats() {
   );
 }
 
+function ensureAppSettingsTable() {
+  return runAsync(`
+    CREATE TABLE IF NOT EXISTS app_settings (
+      "key" TEXT PRIMARY KEY,
+      value TEXT,
+      updated_at TEXT DEFAULT (datetime('now','localtime'))
+    )
+  `);
+}
+
 async function getAppSettings(keys = []) {
+  await ensureAppSettingsTable();
+
   const normalizedKeys = Array.isArray(keys)
     ? keys.map((key) => String(key || '').trim()).filter(Boolean)
     : [];
@@ -1496,13 +1508,13 @@ async function getAppSettings(keys = []) {
   const rows = normalizedKeys.length
     ? await allAsync(
         `
-          SELECT key, value
+          SELECT "key" AS key, value
           FROM app_settings
-          WHERE key IN (${normalizedKeys.map(() => '?').join(',')})
+          WHERE "key" IN (${normalizedKeys.map(() => '?').join(',')})
         `,
         normalizedKeys
       )
-    : await allAsync(`SELECT key, value FROM app_settings`);
+    : await allAsync(`SELECT "key" AS key, value FROM app_settings`);
 
   return rows.reduce((acc, row) => {
     acc[row.key] = row.value || '';
@@ -1511,21 +1523,32 @@ async function getAppSettings(keys = []) {
 }
 
 async function setAppSettings(settings = {}) {
+  await ensureAppSettingsTable();
+
   const entries = Object.entries(settings)
     .map(([key, value]) => [String(key || '').trim(), String(value ?? '').trim()])
     .filter(([key]) => key);
 
   for (const [key, value] of entries) {
-    await runAsync(
+    const result = await runAsync(
       `
-        INSERT INTO app_settings (key, value, updated_at)
-        VALUES (?, ?, datetime('now','localtime'))
-        ON CONFLICT(key) DO UPDATE SET
-          value = excluded.value,
+        UPDATE app_settings
+        SET value = ?,
           updated_at = datetime('now','localtime')
+        WHERE "key" = ?
       `,
-      [key, value]
+      [value, key]
     );
+
+    if (!result.changes) {
+      await runAsync(
+        `
+          INSERT INTO app_settings ("key", value, updated_at)
+          VALUES (?, ?, datetime('now','localtime'))
+        `,
+        [key, value]
+      );
+    }
   }
 
   return getAppSettings(entries.map(([key]) => key));

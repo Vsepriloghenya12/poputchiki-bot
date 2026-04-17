@@ -11,6 +11,7 @@ const state = {
   pendingHighlight: null,
   auth: {
     mode: 'register',
+    standaloneOnly: false,
   },
   config: {
     support: {
@@ -224,7 +225,7 @@ function setAuthMode(mode) {
 }
 
 function updateAuthPanel() {
-  const needsStandaloneAuth = !state.user && !getTelegramUser();
+  const needsStandaloneAuth = !state.user && (state.auth.standaloneOnly || !getTelegramUser());
   refs.authPanel.classList.toggle('hidden', !needsStandaloneAuth);
   if (!needsStandaloneAuth) return;
 
@@ -235,7 +236,7 @@ function updateAuthPanel() {
 }
 
 function updateUserCard() {
-  const user = state.user || getTelegramUser();
+  const user = state.user || (state.auth.standaloneOnly ? null : getTelegramUser());
   refs.drawerUserName.textContent = user ? formatName(user.first_name, user.last_name, user.username) : 'Гость';
   if (user?.contact_phone) {
     refs.drawerUserTag.textContent = user.contact_phone;
@@ -246,6 +247,7 @@ function updateUserCard() {
 
 function updatePwaActions() {
   const pwaState = getPwaState();
+  const pushServerEnabled = state.config?.push?.enabled !== false;
   state.pwa = {
     installAvailable: Boolean(pwaState.installAvailable),
     pushSupported: Boolean(pwaState.pushSupported),
@@ -262,8 +264,10 @@ function updatePwaActions() {
     : 'Установить';
   refs.bottomInstallBtn.classList.toggle('is-complete', state.pwa.standalone);
 
-  refs.pushToggleLabel.textContent = state.pwa.pushEnabled ? 'Выключить уведомления' : 'Включить уведомления';
-  refs.pushToggleBtn.disabled = !state.user || !state.pwa.pushSupported;
+  refs.pushToggleLabel.textContent = !pushServerEnabled
+    ? 'Уведомления не настроены'
+    : (state.pwa.pushEnabled ? 'Выключить уведомления' : 'Включить уведомления');
+  refs.pushToggleBtn.disabled = !pushServerEnabled || !state.user || !state.pwa.pushSupported;
   refs.pushToggleBtn.classList.toggle('is-disabled', refs.pushToggleBtn.disabled);
   if (state.pwa.standalone) hideInstallGuide();
   updateAuthPanel();
@@ -276,7 +280,7 @@ function updateSupportAction() {
 }
 
 function getCurrentTelegramId() {
-  const telegramUser = getTelegramUser();
+  const telegramUser = state.auth.standaloneOnly ? null : getTelegramUser();
   if (telegramUser?.id) return String(telegramUser.id);
   if (state.user?.telegram_id) return String(state.user.telegram_id);
   if (state.user?.id) return String(state.user.id);
@@ -1110,23 +1114,37 @@ async function bootstrap() {
   const standaloneState = getQueryParam('standalone');
   const handoffState = getQueryParam('handoff');
   const launchState = getQueryParam('launch');
+  const standaloneDisplay = Boolean(window.matchMedia?.('(display-mode: standalone)').matches || window.navigator.standalone === true);
+  const standaloneAuthOnly = standaloneState === '1' || installState === 'guide' || standaloneDisplay;
+  state.auth.standaloneOnly = standaloneAuthOnly;
 
   try {
     state.config = await loadAppConfig();
   } catch (_) {}
 
-  try {
-    const initData = await initUser();
-    state.user = getTelegramUser() || initData.user || null;
-  } catch (error) {
-    state.user = getTelegramUser() || null;
-    setStatus(error.message || 'Не удалось определить пользователя.', 'error');
+  if (!standaloneAuthOnly) {
+    try {
+      const initData = await initUser();
+      state.user = getTelegramUser() || initData.user || null;
+    } catch (error) {
+      state.user = getTelegramUser() || null;
+      setStatus(error.message || 'Не удалось определить пользователя.', 'error');
+    }
   }
 
   try {
     const session = await loadUserSession();
     if (session?.user) {
-      state.user = session.user;
+      if (standaloneAuthOnly && session.user.auth_provider !== 'standalone') {
+        await apiRequest('/api/session/logout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        }).catch(() => {});
+        state.user = null;
+      } else {
+        state.user = session.user;
+      }
     }
   } catch (_) {}
 
