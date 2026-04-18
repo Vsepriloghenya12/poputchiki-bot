@@ -727,7 +727,18 @@ async function linkStandaloneUserToTelegramUsername({ telegramId, username }) {
       ]
     );
 
-    await runAsync(`DELETE FROM users WHERE id = ?`, [source.id]);
+    await runAsync(
+      `
+        UPDATE users
+        SET telegram_id = ?,
+          username = NULL,
+          contact_phone = NULL,
+          auth_provider = 'merged',
+          is_blocked = 1
+        WHERE id = ?
+      `,
+      [`merged_${source.id}_${Date.now()}`, source.id]
+    );
   });
 
   return getAsync(`SELECT * FROM users WHERE id = ?`, [target.id]);
@@ -1478,8 +1489,11 @@ async function getOwnerDashboardStats() {
       `
         SELECT
           COUNT(*) AS users_total,
-          SUM(CASE WHEN is_blocked = 1 THEN 1 ELSE 0 END) AS blocked_users_total
+          SUM(CASE WHEN is_blocked = 1 THEN 1 ELSE 0 END) AS blocked_users_total,
+          SUM(CASE WHEN auth_provider = 'telegram' THEN 1 ELSE 0 END) AS telegram_users_total,
+          SUM(CASE WHEN auth_provider = 'standalone' THEN 1 ELSE 0 END) AS standalone_users_total
         FROM users
+        WHERE COALESCE(auth_provider, '') <> 'merged'
       `
     ),
     getAsync(
@@ -1519,6 +1533,8 @@ async function getOwnerDashboardStats() {
   return {
     users_total: usersRow?.users_total || 0,
     blocked_users_total: usersRow?.blocked_users_total || 0,
+    telegram_users_total: usersRow?.telegram_users_total || 0,
+    standalone_users_total: usersRow?.standalone_users_total || 0,
     trips_total: tripsRow?.trips_total || 0,
     active_trips_total: tripsRow?.active_trips_total || 0,
     trips_today_total: tripsRow?.trips_today_total || 0,

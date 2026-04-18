@@ -103,6 +103,51 @@ body.owner-page {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.owner-user-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 24px 28px;
+  border-radius: 28px;
+  background:
+    radial-gradient(circle at 92% 0%, rgba(255, 255, 255, 0.36), transparent 34%),
+    linear-gradient(135deg, #172f62 0%, #1f69da 56%, #5ba9ff 100%);
+  color: #fff;
+  box-shadow: var(--color-shadow-soft);
+}
+
+.owner-user-summary__label {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.owner-user-summary__value {
+  margin-top: 8px;
+  font-size: 56px;
+  line-height: 0.95;
+  font-weight: 800;
+  letter-spacing: -0.07em;
+}
+
+.owner-user-summary__hint {
+  margin-top: 10px;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 15px;
+}
+
+.owner-user-summary__badge {
+  flex: 0 0 auto;
+  padding: 10px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.28);
+  font-weight: 800;
+}
+
 .metric-card {
   padding: 18px;
 }
@@ -290,5 +335,10 @@ body.owner-page {
   .owner-feed,
   .report-row__stats {
     grid-template-columns: 1fr;
+  }
+
+  .owner-user-summary {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }

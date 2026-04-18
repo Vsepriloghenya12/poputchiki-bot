@@ -11,6 +11,8 @@ const refs = {
   ownerContent: document.getElementById('ownerContent'),
   ownerAuthBadge: document.getElementById('ownerAuthBadge'),
   logoutOwnerBtn: document.getElementById('logoutOwnerBtn'),
+  registeredUsersTotal: document.getElementById('registeredUsersTotal'),
+  registeredUsersHint: document.getElementById('registeredUsersHint'),
   metricsGrid: document.getElementById('metricsGrid'),
   recentTripsList: document.getElementById('recentTripsList'),
   recentPlansList: document.getElementById('recentPlansList'),
@@ -64,8 +66,11 @@ function metricCard(label, value, hint) {
 }
 
 function renderOverview(stats) {
+  refs.registeredUsersTotal.textContent = String(stats.users_total || 0);
+  refs.registeredUsersHint.textContent = `Telegram: ${stats.telegram_users_total || 0} · В приложении: ${stats.standalone_users_total || 0} · Заблокировано: ${stats.blocked_users_total || 0}`;
+
   refs.metricsGrid.innerHTML = [
-    metricCard('Пользователи', stats.users_total || 0, `Заблокировано: ${stats.blocked_users_total || 0}`),
+    metricCard('Пользователи', stats.users_total || 0, `Telegram: ${stats.telegram_users_total || 0} · В приложении: ${stats.standalone_users_total || 0}`),
     metricCard('Всего поездок', stats.trips_total || 0, `Активных сейчас: ${stats.active_trips_total || 0}`),
     metricCard('Бронирования', stats.bookings_total || 0, `Активных сейчас: ${stats.active_bookings_total || 0}`),
     metricCard('Пассажирские заявки', stats.plans_total || 0, `Открытых: ${stats.active_plans_total || 0}`),
